@@ -47,9 +47,8 @@ class Product(models.Model):
         related_name='products'
     )
 
-
-def __str__(self):
-    return self.name
+    def __str__(self):
+        return self.name
 
 
 class Nutrition(models.Model):
