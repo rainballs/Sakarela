@@ -136,12 +136,14 @@ def order_info(request):
                     quantity=qty,
                     price=price
                 )
-                request.session['cart'] = {}
+
+            request.session['cart'] = {}
+            order.update_total()
 
             if order.payment_method == 'cash':
                 return redirect('store:order_summary', pk=order.pk)
             else:
-                return redirect('store:card_payment')  # TODO
+                return redirect('store:mypos_payment', order_id=order.pk)
     else:
         form = OrderForm()
 
@@ -180,9 +182,11 @@ def generate_signature(params, private_key_path):
 def mypos_payment(request, order_id):
     order = get_object_or_404(Order, id=order_id)
 
-    amount = "{:.2f}".format(order.get_total())  # implement get_total()
+    amount = "{:.2f}".format(order.get_total())
     currency = "BGN"  # or "EUR"
-    order_id = str(uuid.uuid4())
+    transaction_id = str(uuid.uuid4())
+    order.transaction_id = transaction_id
+    order.save(update_fields=["transaction_id"])
 
     callback_url = request.build_absolute_uri('/payment/callback/')
     result_url = request.build_absolute_uri('/payment/result/')
@@ -190,7 +194,7 @@ def mypos_payment(request, order_id):
     params = {
         "clientNumber": settings.MYPOS_CLIENT_NUMBER,
         "terminalId": settings.MYPOS_TERMINAL_ID,
-        "orderId": order_id,
+        "orderId": transaction_id,
         "amount": amount,
         "currency": currency,
         "urlNotify": callback_url,
@@ -210,11 +214,11 @@ def mypos_payment(request, order_id):
 def payment_callback(request):
     # myPOS will send POST here with transaction result
     data = request.POST
-    order_id = data.get('orderId')
+    transaction_id = data.get('orderId')
     status = data.get('status')  # "OK", "FAILED", etc.
 
     try:
-        order = Order.objects.get(mypos_transaction_id=order_id)
+        order = Order.objects.get(transaction_id=transaction_id)
         if status == "OK":
             order.is_paid = True
             order.payment_status = "Success"
@@ -225,3 +229,9 @@ def payment_callback(request):
         pass
 
     return HttpResponse("OK")
+
+
+def payment_result(request):
+    """Display the result page after returning from myPOS."""
+    status = request.GET.get("status", "")
+    return render(request, "store/payment_result.html", {"status": status})

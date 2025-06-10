@@ -117,6 +117,11 @@ class Order(models.Model):
         # only update the total column
         super().save(update_fields=['total'])
 
+    def get_total(self):
+        """Return the current total ensuring it's up to date."""
+        self.update_total()
+        return self.total
+
     def __str__(self):
         return f"{self.full_name} {self.last_name} - {self.created_at.strftime('%Y-%m-%d')}"
 

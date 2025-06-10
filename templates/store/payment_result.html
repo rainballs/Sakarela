@@ -1,0 +1,14 @@
+{% extends 'store/base_store.html' %}
+{% block title %}Резултат от плащане{% endblock %}
+
+{% block content %}
+<div class="container cart-container">
+    <h1>Резултат от плащането</h1>
+    {% if status == 'OK' %}
+        <p>Вашето плащане беше успешно обработено.</p>
+    {% else %}
+        <p>Възникна проблем при обработката на плащането.</p>
+    {% endif %}
+    <a href="{% url 'store:store_home' %}">Към магазина</a>
+</div>
+{% endblock %}
