@@ -2,7 +2,9 @@
 import base64
 import uuid
 
-from OpenSSL import crypto
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import serialization
 from django.conf import settings
 from django.db.models import Max, Case, When, F, FloatField
 from django.http import HttpResponse
@@ -172,10 +174,20 @@ def order_summary(request, pk):
 
 
 def generate_signature(params, private_key_path):
+    """Generate RSA SHA-256 signature for myPOS parameters."""
     sorted_params = sorted((k, v) for k, v in params.items())
     message = '&'.join(f"{k}={v}" for k, v in sorted_params)
-    key = crypto.load_privatekey(crypto.FILETYPE_PEM, open(private_key_path).read())
-    signature = crypto.sign(key, message.encode('utf-8'), 'sha256')
+
+    with open(private_key_path, "rb") as key_file:
+        private_key = serialization.load_pem_private_key(
+            key_file.read(), password=None
+        )
+
+    signature = private_key.sign(
+        message.encode("utf-8"),
+        padding.PKCS1v15(),
+        hashes.SHA256(),
+    )
     return base64.b64encode(signature).decode()
 
 
