@@ -1,0 +1,28 @@
+from django.urls import path
+from django.views.generic import TemplateView
+
+from . import views
+
+app_name = 'store'
+
+urlpatterns = [
+    path('', views.store_home, name='store_home'),
+    path('product/<int:pk>/', views.product_detail, name='product_detail'),
+
+    path('where-to-buy/', TemplateView.as_view(template_name="store/where_to_buy.html"), name='where_to_buy'),
+
+    path('cart/', views.view_cart, name='cart'),
+    path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),
+    path('cart/remove/<int:product_id>/', views.remove_from_cart, name='remove_from_cart'),
+    path('cart/update/<int:product_id>/<str:action>/', views.update_cart_quantity, name='update_cart_quantity'),
+
+    path('payment/initiate/<int:order_id>/', views.mypos_payment, name='mypos_payment'),
+    path('payment/callback/', views.payment_callback, name='payment_callback'),
+    path('payment/result/', views.payment_result, name='payment_result'),
+
+    path('order/', views.order_info, name='order_info'),
+    path('order-summary/<int:pk>/', views.order_summary, name='order_summary'),
+    path('card-payment/', TemplateView.as_view(template_name="store/card_payment.html"), name='card_payment'),
+    # placeholder
+
+]

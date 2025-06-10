@@ -1,0 +1,69 @@
+{% extends 'store/base_store.html' %}
+{% load static %}
+{% block title %}Количка{% endblock %}
+
+{% block content %}
+    <div class="container cart-container">
+        <h1 class="cart-title">Количка</h1>
+
+        {% if cart_items %}
+            <table class="cart-table">
+                <thead>
+                <tr>
+                    <th>Продукт</th>
+                    <th>Количество</th>
+                    <th>Цена</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for item in cart_items %}
+                    <tr>
+                        <td>{{ item.product.name }}</td>
+                        <td class="cart-qty">
+                            <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}"
+                               class="qty-btn">-</a>
+                            <span class="qty-count">{{ item.qty }}</span>
+                            <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}"
+                               class="qty-btn">+</a>
+                        </td>
+                        <td>
+                            {% if item.product.is_on_sale %}
+                                <span class="old-price">{{ item.product.price }} лв.</span>
+                                <strong class="sale-price">{{ item.product.sale_price|floatformat:2 }} лв.</strong>
+                            {% else %}
+                                <strong>{{ item.product.price|floatformat:2 }} лв.</strong>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'store:remove_from_cart' item.product.id %}" class="delete-btn">🗑</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+                <tfoot>
+                <tr class="total-row">
+                    <td colspan="2"></td>
+                    <td colspan="2" class="cart-total">Общо: <strong>{{ cart_total|floatformat:2 }} лв.</strong></td>
+                </tr>
+                </tfoot>
+            </table>
+            <div class="cart-actions">
+                <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
+                <a href="{% url 'store:order_info' %}" class="btn btn-primary">Продължи към поръчка</a>
+            </div>
+        {% else %}
+            <div class="empty-cart">
+                <p class="cart-empty">Количката е празна</p>
+                <img
+                        src="{% static 'uploads/empty_cart.png' %}"
+                        alt="Empty cart"
+                        class="empty-cart-image"
+                >
+            </div>
+            <div class="summary-actions">
+                <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

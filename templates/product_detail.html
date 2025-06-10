@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+    <section class="product-detail-page">
+        <div class="section-container">
+
+            <!-- IMAGE + MAIN INFO -->
+            <div class="image-text split-layout">
+                <div class="image-column">
+                    <img src="{{ product.image.url }}" alt="{{ product.title }}">
+                </div>
+                <div class="info-column">
+                    <h2>{{ product.title }}</h2>
+                    <p>{{ product.description }}</p>
+
+                    <div class="accordion">
+                        <div class="accordion-item">
+                            <h3 class="accordion-header">🧀 Състав</h3>
+                            <p class="accordion-content">{{ product.ingredients }}</p>
+                        </div>
+                        <div class="accordion-item">
+                            <h3 class="accordion-header">📦 Съхранение</h3>
+                            <p class="accordion-content">{{ product.storage }}</p>
+                        </div>
+                        <div class="accordion-item">
+                            <h3 class="accordion-header">❓ Хранителна таблица</h3>
+                            {% if product.nutrition %}
+                                <div class="accordion-content">
+                                    <div class="nutrition-list">
+                                        <ul style="list-style-type: none; padding-left: 0; margin: 0;">
+                                            <li>Хранителна стойност за 100g:</li>
+                                            <li>Енергийна стойност: {{ product.nutrition.energy }}</li>
+                                            <li>Мазнини: {{ product.nutrition.fat }}g</li>
+                                            <li>От които наситени мастни киселини: {{ product.nutrition.saturated_fat }}g</li>
+                                            <li>Въглехидрати: {{ product.nutrition.carbohydrates }}g</li>
+                                            <li>От които захари: {{ product.nutrition.sugars }}g</li>
+                                            <li>Белтъци: {{ product.nutrition.protein }}g</li>
+                                            <li>Сол: {{ product.nutrition.salt }}g</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                            {% else %}
+                                <p class="accordion-content">Няма налична информация.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <div class="quality-top-bg">
+        <div class="quality-overlay">
+            <div class="quality-content">
+                <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">
+                <div class="quality-text">
+                    <h2>Първокачествени суровини,<br>добивани в първокласни ферми</h2>
+                    <p>Гарантирано 100% натурални продукти.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <section class="product-detail-page">
+        <div class="section-container">
+
+            <!-- “Други продукти” PREVIEW -->
+            <section class="other-products">
+                <h2>Други продукти</h2>
+                <div class="product-grid">
+                    {% for other in other_products %}
+                        <a href="{% url 'product_detail' other.pk %}">
+                            <div class="product-card">
+                                <img src="{{ other.image.url }}" alt="{{ other.title }}">
+                                {% if other.badge %}
+                                    <img src="{{ other.badge.url }}" alt="badge" class="badge-img">
+                                {% endif %}
+                                <div class="card-body">
+                                    <h3 class="card-title">{{ other.title }}</h3>
+                                    <p class="card-subtitle">{{ other.badge_text }}</p>
+                                </div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+
+        </div>
+    </section>
+    <section class="team-banner">
+        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">
+    </section>
+    <section class="yellow-bar">
+        <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
+
+    <script>
+        // BASIC ACCORDION TOGGLE
+        document.querySelectorAll('.accordion-item').forEach(item => {
+            const header = item.querySelector('.accordion-header');
+            header.addEventListener('click', () => {
+                item.classList.toggle('open');
+            });
+        });
+    </script>
+
+{% endblock %}

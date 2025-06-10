@@ -1,0 +1,44 @@
+<nav class="store-navbar">
+    <!-- Logo -->
+    <div class="navbar-logo">
+        <a href="{% url 'store:store_home' %}">
+            <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
+        </a>
+    </div>
+
+    <!-- Navigation links -->
+    <div class="navbar-links">
+        <a href="{% url 'store:where_to_buy' %}">Къде да купите</a>
+
+        <div class="cart-wrapper">
+            <!-- Just display, not a link -->
+            <div class="cart-icon">
+                🛒 Количка (<span id="cart-count">{{ request.session.cart|length|default:0 }}</span>)
+            </div>
+
+            <div class="cart-dropdown">
+                {% if cart_items %}
+                    {% for item in cart_items %}
+                        <div class="cart-item">
+                            <span>{{ item.product.name }}</span>
+                            <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}">-</a>
+                            <span>x{{ item.qty }}</span>
+                            <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}">+</a>
+                            <a href="{% url 'store:remove_from_cart' item.product.id %}">🗑</a>
+                        </div>
+                    {% endfor %}
+                    <tr>
+                        <td colspan="2" style="text-align: right;"><strong>Общо:</strong></td>
+                        <td><strong>{{ cart_total|floatformat:2 }} лв.</strong></td>
+                        <td></td>
+                    </tr>
+
+                {% else %}
+                    <p>Количката е празна</p>
+                {% endif %}
+
+                <a href="{% url 'store:cart' %}" class="btn-cart-view">Прегледай количката</a>
+            </div>
+        </div>
+    </div>
+</nav>

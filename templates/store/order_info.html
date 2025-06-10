@@ -1,0 +1,30 @@
+{% extends 'store/base_store.html' %}
+{% block title %}Поръчка{% endblock %}
+
+{% block content %}
+    <div class="container cart-container">
+        <h1>Информация за поръчка</h1>
+
+        <form method="post" class="order-form">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+
+            <div class="form-row">{{ form.full_name.label_tag }} {{ form.full_name }}</div>
+            <div class="form-row">{{ form.last_name.label_tag }} {{ form.last_name }}</div>
+            <div class="form-row">{{ form.email.label_tag }} {{ form.email }}</div>
+            <div class="form-row">{{ form.country.label_tag }} {{ form.country }}</div>
+            <div class="form-row">{{ form.state.label_tag }} {{ form.state }}</div>
+            <div class="form-row">{{ form.city.label_tag }} {{ form.city }}</div>
+            <div class="form-row">{{ form.address1.label_tag }} {{ form.address1 }}</div>
+            <div class="form-row">{{ form.address2.label_tag }} {{ form.address2 }}</div>
+            <div class="form-row">{{ form.post_code.label_tag }} {{ form.post_code }}</div>
+            <div class="form-row">
+                {{ form.payment_method.label_tag }}
+                {{ form.payment_method }}
+                {{ form.payment_method.errors }}
+            </div>
+
+            <button type="submit" class="btn-submit">Продължи</button>
+        </form>
+    </div>
+{% endblock %}

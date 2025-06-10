@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ recipe.title }}{% endblock %}
+{% block content %}
+<article class="recipe-detail-article">
+    <h1>{{ recipe.title }}</h1>
+    <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}">
+    <p><strong>⏱️ Време за приготвяне:</strong> {{ recipe.cook_time }} минути</p>
+
+    <h3>Необходими продукти:</h3>
+    <ul>
+        {% for line in recipe.ingredients.splitlines %}
+            <li>{{ line }}</li>
+        {% endfor %}
+    </ul>
+
+    <h3>Начин на приготвяне:</h3>
+    <p>{{ recipe.steps|linebreaks }}</p>
+</article>
+{% endblock %}

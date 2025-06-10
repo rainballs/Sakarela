@@ -1,0 +1,49 @@
+{% extends 'store/base_store.html' %}
+
+{% block title %}Начало на магазина{% endblock %}
+
+{% block content %}
+    <div class="store-main-content">
+        {% include 'store/partials/sidebar.html' %}
+
+        <div class="store-right">
+            <section class="store-search">
+                <form method="get">
+                    <input type="text" name="q" placeholder="Търси продукт..." value="{{ query }}">
+                    <button type="submit">🔍</button>
+                </form>
+            </section>
+
+            <section class="store-products">
+                {% if products %}
+                    <div class="product-grid">
+                        {% for product in products %}
+                            <div class="product-card">
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                                <h3>{{ product.name }}</h3>
+                                {% if product.is_on_sale %}
+                                    <p class="price">
+                                        <span class="old-price">{{ product.price }} лв.</span>
+                                        <span class="sale-price">{{ product.sale_price }} лв.</span>
+                                    </p>
+                                {% else %}
+                                    <p class="price"><strong>{{ product.price }} лв.</strong></p>
+                                {% endif %}
+                                <div class="product-actions">
+                                    <a href="{% url 'store:product_detail' product.pk %}" class="btn-view">Виж
+                                        продукта</a>
+                                    <form action="{% url 'store:add_to_cart' product.id %}" method="post">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-cart">Добави в количката</button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>Няма намерени продукти.</p>
+                {% endif %}
+            </section>
+        </div>
+    </div>
+{% endblock %}

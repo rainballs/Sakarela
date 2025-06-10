@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+    <section class="contact-page">
+        <div class="section-container">
+            <h2>Контакти</h2>
+
+            <form method="post" class="contact-form">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+
+                <div class="contact-form-grid">
+                    <div class="form-field">
+                        {{ form.name.label_tag }}
+                        {{ form.name }}
+                        {{ form.name.errors }}
+                    </div>
+                    <div class="form-field">
+                        {{ form.email.label_tag }}
+                        {{ form.email }}
+                        {{ form.email.errors }}
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    {{ form.message.label_tag }}
+                    {{ form.message }}
+                    {{ form.message.errors }}
+                </div>
+
+                <div class="form-field">
+                    <button type="submit" class="contact-submit">Изпрати</button>
+                </div>
+            </form>
+
+
+
+            {% if success %}
+                <p style="color: green; margin-top: 1rem;">Съобщението е изпратено успешно!</p>
+            {% endif %}
+
+
+            <div class="contact-info">
+                <p>гр. Ямбол, ул. Преслав 333</p>
+                <p>Администрация и снабдяване: <a href="mailto:sakarela@sakarela.com">sakarela@sakarela.com</a></p>
+                <p>Отдел продажби: <a href="mailto:sales@sakarela.com">sales@sakarela.com</a></p>
+                <p>Изп. Директор: <a href="mailto:revanski@sakarela.com">revanski@sakarela.com</a></p>
+                <p>Телефон за връзка: 046663803</p>
+            </div>
+        </div>
+    </section>
+    <section class="team-banner">
+        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">
+    </section>
+    <section class="yellow-bar">
+        <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
+
+{% endblock %}

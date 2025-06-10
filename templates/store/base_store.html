@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Магазин | Сакарела{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="store-wrapper">
+
+    {% include 'store/partials/navbar.html' %}
+
+    {% block content %}{% endblock %}
+
+</div>
+
+<footer class="site-footer">
+    <div class="footer-container">
+        <div class="footer-links">
+            <ul>
+                <li><a href="/">Начало</a></li>
+                <li><a href="/about/">За Нас</a></li>
+                <li><a href="/products/">Продукти</a></li>
+                <li><a href="/contact/">Контакти</a></li>
+            </ul>
+        </div>
+        <div class="footer-logos">
+            <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
+            <img src="/media/uploads/logos/eu-logo.jpg" alt="EU">
+            <img src="/media/uploads/logos/program-logo.jpg" alt="Program">
+        </div>
+        <div class="footer-copy">
+            © Всички права запазени САКАРЕЛА | Designed by Modify
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>

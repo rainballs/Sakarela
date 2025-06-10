@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <video autoplay muted loop playsinline preload="auto" class="hero-video">
+            <source src="{% static 'videos/hero-bg.mp4' %}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div class="hero-content">
+            <h1>Млечни продукти с доказано качество и произход</h1>
+            <a href="#about" class="btn-hero">Научи повече</a>
+        </div>
+    </section>
+
+
+    <!-- FEATURE ROW -->
+    <section class="feature-row">
+        <div class="feature-list">
+            <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
+            <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
+            <div class="info-logo">
+                <img src="{% static 'uploads/traditional_tech_logo.png' %}" alt="100% Българско мляко">
+            </div>
+            <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
+            <div class="feature-item">Модерна и съвременна база за производство</div>
+        </div>
+    </section>
+
+    <!-- HOME PRODUCTS PREVIEW -->
+    <section class="products-page">  {# ✅ Use same class as products.html for consistent styles #}
+        <div class="section-container">
+            <h2>100% Натурални Млечни Продукти, които си заслужават</h2>
+            <div class="product-grid">
+                {% for product in products|slice:":3" %}
+                    <a href="{% url 'product_detail' product.pk %}">
+                        <div class="product-card">
+                            <img src="{{ product.image.url }}" alt="{{ product.title }}">
+                            {% if product.badge %}
+                                <img src="{{ product.badge.url }}" alt="badge" class="badge-img">
+                            {% endif %}
+                            <div class="card-body">
+                                <h3 class="card-title">{{ product.title }}</h3>
+                                <p class="card-subtitle">{{ product.badge_text }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+
+            <div style="text-align:center;">
+                <a href="{% url 'products' %}" class="btn-view-all">Виж всички продукти</a>
+            </div>
+        </div>
+    </section>
+    <section class="quality-section">
+        <div class="quality-top-bg">
+            <div class="quality-overlay">
+                <div class="quality-content">
+                    <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">
+                    <div class="quality-text">
+                        <h2>Първокачествени суровини,<br>добивани в първокласни ферми</h2>
+                        <p>Гарантирано 100% натурални продукти.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section class="yellow-bar">
+            <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+        </section>
+
+        <div class="quality-bottom-bg"></div>
+    </section>
+
+
+    <!-- ABOUT PREVIEW -->
+    <section id="about" class="about-section">
+        <div class="section-container">
+            <h2>Повече за Сакарела</h2>
+            <p>Млекопреработвателното предприятие “Сакарела” ООД е създадено през 1998г. Още в началото продуктите на
+                предприятието стават предпочитани заради вкуса и качеството си, обусловени от първокачествени суровини,
+                добивани в първокласни ферми. Същевременно “Сакарела” ООД е една от малкото мандри одобрени за експортна
+                дейност през 2003 г. с решение 97/252/СЕ на ЕК. В настоящия момент “Сакарела” ООД е най-голямото
+                млекопреработвателно предприятие в Ямболски регион .</p>
+            <h2>Производство</h2>
+            <p>В предприятието работят 45 души, в това число висококвалифицирани специалисти – микробиолози, ветеринарни
+                лекари и технолози. Въведена е HAССP система, която идентифицира и дава възможност да бъде контролирано
+                проявлението на основните и специфични опасности – биологични, химични и физични, т.е. тези опасности,
+                който могат да повлияят отрицателно върху безопасността на отделния хранителен продукт. Предлагаме
+                млечни продукти от краве мляко, които ще Ви припомнят уникалния вкус на истинския кашкавал и сирене.</p>
+            <div class="about-image signature">
+                <img src="{% static 'uploads/Signature.png' %}" alt="Подпис">
+            </div>
+            <h2>29-11-2024</h2>
+            <p>Информация за сключен Административен договор за предоставяне на безвъзмездна финансова помощ №
+                BG05SFPR002-1.004-0971-C01 за изпълнение на проект с наименование „Адаптирана работна среда в „САКАРЕЛА
+                ООД"", финансиран по Програма „Развитие на човешките ресурси" 2021 – 2027, съфинансирана от Европейския
+                съюз чрез Европейския социален фонд.</p>
+            <div class="about-image eu-logo">
+                <a href="/media/documents/Saobshtenie_WEB_SAKARELA.pdf" target="_blank">
+                    <img src="{% static 'uploads/EU.jpg' %}" alt="Лого на ЕС">
+                </a>
+            </div>
+        </div>
+    </section>
+    <!-- TEAM PHOTO SECTION -->
+    <section class="team-banner">
+        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">
+    </section>
+
+
+{% endblock %}

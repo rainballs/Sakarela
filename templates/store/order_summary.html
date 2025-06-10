@@ -1,0 +1,52 @@
+{% extends 'store/base_store.html' %}
+{% block title %}Обобщение на поръчката{% endblock %}
+
+{% block content %}
+    <div class="order-summary">
+        <div class="container summary-container order-summary">
+            <h2>Обобщение на поръчката</h2>
+
+            <section class="order-details">
+                <h4>Данни за клиента</h4>
+                <ul>
+                    <li><strong>Име:</strong> {{ order.full_name }} {{ order.last_name }}</li>
+                    <li><strong>Адрес:</strong> {{ order.country }}, {{ order.state }}, {{ order.city }}</li>
+                    <li>{{ order.address1 }}{% if order.address2 %}, {{ order.address2 }}{% endif %}</li>
+                    <li><strong>Пощенски код:</strong> {{ order.post_code }}</li>
+                    <li><strong>Имейл:</strong> {{ order.email }}</li>
+                    <li><strong>Метод на плащане:</strong> {{ order.get_payment_method_display }}</li>
+                </ul>
+            </section>
+
+            <section class="order-products">
+                <h4>Продукти</h4>
+                <table class="cart-table">
+                    <thead>
+                    <tr>
+                        <th>Продукт</th>
+                        <th>Количество</th>
+                        <th>Цена</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in cart_items %}
+                        <tr>
+                            <td>{{ item.product.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.price|floatformat:2 }} лв.</td>
+                        </tr>
+                    {% endfor %}
+                    <tr>
+                        <td colspan="2" style="text-align:right;"><strong>Общо:</strong></td>
+                        <td><strong>{{ order.total|floatformat:2 }} лв.</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+            <div class="summary-actions">
+                <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
+            </div>
+
+        </div>
+    </div>
+{% endblock %}
