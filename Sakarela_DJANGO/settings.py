@@ -13,6 +13,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from decouple import config
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,12 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-zblwc+0^@5%-s47b8gdwiua_bk!bc%ivvivvt3__q(!4ry8l+1'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=lambda v: [h.strip() for h in v.split(',')])
 
 # Application definition
 
@@ -74,14 +76,15 @@ WSGI_APPLICATION = 'Sakarela_DJANGO.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "sakarela",
-        "USER": "postgres-user",
-        "PASSWORD": "password",
-        "HOST": "127.0.0.1",
-        "PORT": "5432",
+    'default': {
+        'ENGINE': config('DB_ENGINE'),
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT'),
     }
 }
 
@@ -125,44 +128,39 @@ STATIC_VERSION = datetime.now().strftime("%Y%m%d%H%M%S")
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'rainballs.niki@gmail.com'  # Replace with your email / Change for production in .env
-EMAIL_HOST_PASSWORD = 'uotg ifmj qscl najo'  # Use Gmail App Password / Change for production in .env
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_BACKEND = config('EMAIL_BACKEND')
+EMAIL_HOST = config('EMAIL_HOST')
+EMAIL_PORT = config('EMAIL_PORT', cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-MYPOS_CLIENT_NUMBER = 'XXXX'
-MYPOS_TERMINAL_ID = 'YYYY'
-MYPOS_PRIVATE_KEY_PATH = BASE_DIR / 'mypos/private_key.pem'
+MYPOS_CLIENT_NUMBER = config('MYPOS_CLIENT_NUMBER')
+MYPOS_TERMINAL_ID = config('MYPOS_TERMINAL_ID')
+MYPOS_PRIVATE_KEY_PATH = config('MYPOS_PRIVATE_KEY_PATH')
 
 # -----------------------------------------------------------------------------
 # myPOS PSD2 sandbox (global TPP) settings
 # -----------------------------------------------------------------------------
 
 # “API Key” / clientNumber
-MYPOS_SANDBOX_CLIENT_NUMBER = "TPP_MYPOS_SANDBOX"
-# no client secret for this global TPP
-MYPOS_SANDBOX_CLIENT_SECRET = ""
+MYPOS_SANDBOX_CLIENT_NUMBER = config('MYPOS_SANDBOX_CLIENT_NUMBER')
+MYPOS_SANDBOX_CLIENT_SECRET = config('MYPOS_SANDBOX_CLIENT_SECRET')
+MYPOS_SANDBOX_OAUTH_TOKEN_URL = config('MYPOS_SANDBOX_OAUTH_TOKEN_URL')
+MYPOS_SANDBOX_API_BASE_URL = config('MYPOS_SANDBOX_API_BASE_URL')
 
-# OAuth token endpoint (sandbox)
-MYPOS_SANDBOX_OAUTH_TOKEN_URL = "https://sandbox-auth-api.mypos.com/oauth/token"
-
-# Base URL for all PSD2 calls
-MYPOS_SANDBOX_API_BASE_URL = "https://sandbox-mp-psd2-api.mypos.com"
-
-MYPOS_SID = "000000000000010"
-MYPOS_WALLET = "61938166610"
-MYPOS_KEYINDEX = "1"
-MYPOS_METHOD = "pos.create"
-MYPOS_VERSION = "1"
+MYPOS_SID = config('MYPOS_SID')
+MYPOS_WALLET = config('MYPOS_WALLET')
+MYPOS_KEYINDEX = config('MYPOS_KEYINDEX')
+MYPOS_METHOD = config('MYPOS_METHOD')
+MYPOS_VERSION = config('MYPOS_VERSION')
 # change these to your actual domain or localhost in dev:
-MYPOS_RESPONSE_URL = "http://localhost:8000/store/payment/result/"
-MYPOS_CALLBACK_URL = "http://localhost:8000/store/payment/callback/"
-MYPOS_BASE_URL = "https://www.mypos.com/vmp/checkout-test"
+MYPOS_RESPONSE_URL = config('MYPOS_RESPONSE_URL')
+MYPOS_CALLBACK_URL = config('MYPOS_CALLBACK_URL')
+MYPOS_BASE_URL = config('MYPOS_BASE_URL')
