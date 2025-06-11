@@ -21,3 +21,14 @@ The payment view automatically signs the redirect parameters using the RSA key a
 
 When you are ready to switch to production simply set `MYPOS_BASE_URL` to `https://www.mypos.com/vmp/checkout` and provide your live credentials.
 
+
+## Docker usage
+
+1. Copy `.env.example` to `.env` and adjust the variables.
+2. Build and start the stack:
+
+```bash
+docker-compose up --build
+```
+
+This starts a Postgres database and the Django application served via Gunicorn on port 8000.
