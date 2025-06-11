@@ -14,8 +14,8 @@ This project includes a simple integration with [myPOS](https://www.mypos.com/) 
    MYPOS_TERMINAL_ID = '<your terminal id>'
    ```
 
-5. **Use the test checkout URL** – the template `templates/store/payment_redirect.html` posts to `https://www.mypos.com/vmp/checkout-test`, which is the myPOS sandbox. Payments performed here will not charge real cards.
+5. **Use the test checkout URL** – the payment form now reads the URL from `settings.MYPOS_BASE_URL`. By default it posts to `https://www.mypos.com/vmp/checkout-test`, which is the myPOS sandbox.
 6. **Run the application** – start the Django development server with `python manage.py runserver` and place an order choosing "card" as the payment method. You will be redirected to the myPOS test gateway.
 
-When you are ready to switch to production simply use your live credentials and change the form action URL to `https://www.mypos.com/vmp/checkout`.
+When you are ready to switch to production simply set `MYPOS_BASE_URL` to `https://www.mypos.com/vmp/checkout` and provide your live credentials.
 
