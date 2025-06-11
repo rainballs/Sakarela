@@ -27,7 +27,11 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=lambda v: [h.strip() for h in v.split(',')])
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='',
+    cast=lambda v: [h.strip() for h in v.split(',') if h.strip()]
+)
 
 # Application definition
 
@@ -143,7 +147,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MYPOS_CLIENT_NUMBER = config('MYPOS_CLIENT_NUMBER')
 MYPOS_TERMINAL_ID = config('MYPOS_TERMINAL_ID')
-MYPOS_PRIVATE_KEY_PATH = config('MYPOS_PRIVATE_KEY_PATH')
+MYPOS_PRIVATE_KEY_PATH = Path(config('MYPOS_PRIVATE_KEY_PATH'))
 
 # -----------------------------------------------------------------------------
 # myPOS PSD2 sandbox (global TPP) settings
