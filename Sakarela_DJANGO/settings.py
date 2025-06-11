@@ -141,3 +141,28 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MYPOS_CLIENT_NUMBER = 'XXXX'
 MYPOS_TERMINAL_ID = 'YYYY'
 MYPOS_PRIVATE_KEY_PATH = BASE_DIR / 'mypos/private_key.pem'
+
+# -----------------------------------------------------------------------------
+# myPOS PSD2 sandbox (global TPP) settings
+# -----------------------------------------------------------------------------
+
+# “API Key” / clientNumber
+MYPOS_SANDBOX_CLIENT_NUMBER = "TPP_MYPOS_SANDBOX"
+# no client secret for this global TPP
+MYPOS_SANDBOX_CLIENT_SECRET = ""
+
+# OAuth token endpoint (sandbox)
+MYPOS_SANDBOX_OAUTH_TOKEN_URL = "https://sandbox-auth-api.mypos.com/oauth/token"
+
+# Base URL for all PSD2 calls
+MYPOS_SANDBOX_API_BASE_URL = "https://sandbox-mp-psd2-api.mypos.com"
+
+MYPOS_SID = "000000000000010"
+MYPOS_WALLET = "61938166610"
+MYPOS_KEYINDEX = "1"
+MYPOS_METHOD = "pos.create"
+MYPOS_VERSION = "1"
+# change these to your actual domain or localhost in dev:
+MYPOS_RESPONSE_URL = "http://localhost:8000/store/payment/result/"
+MYPOS_CALLBACK_URL = "http://localhost:8000/store/payment/callback/"
+MYPOS_BASE_URL = "https://www.mypos.com/vmp/checkout-test"

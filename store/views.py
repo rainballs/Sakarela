@@ -3,8 +3,8 @@ import base64
 import uuid
 
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
 from django.db.models import Max, Case, When, F, FloatField
 from django.http import HttpResponse
@@ -173,77 +173,102 @@ def order_summary(request, pk):
     })
 
 
-def generate_signature(params, private_key_path):
-    """Generate RSA SHA-256 signature for myPOS parameters."""
-    sorted_params = sorted((k, v) for k, v in params.items())
-    message = '&'.join(f"{k}={v}" for k, v in sorted_params)
+# The exact order of parameters (no more, no less) per the v1_4 IPCPurchase spec
+SIGN_ORDER = [
+    "method", "version", "SID", "WalletNumber", "KeyIndex",
+    "ClientNumber", "TerminalId", "OrderId", "Amount", "Currency",
+    "URLNotify", "URLOk", "URLCancel",
+]
 
-    with open(private_key_path, "rb") as key_file:
-        private_key = serialization.load_pem_private_key(
-            key_file.read(), password=None
-        )
 
-    signature = private_key.sign(
-        message.encode("utf-8"),
-        padding.PKCS1v15(),
-        hashes.SHA256(),
-    )
-    return base64.b64encode(signature).decode()
+def _generate_signature(params):
+    # 1) build the exact joined string
+    joined = "-".join(str(params[k]) for k in SIGN_ORDER).encode("utf-8")
+    print("=== MYPOS JOINED RAW STRING ===")
+    print(joined)  # <--- you’ll copy this
+
+    # 2) Base64 that
+    payload = base64.b64encode(joined)
+    print("=== MYPOS B64 PAYLOAD ===")
+    print(payload.decode())  # <--- and this
+
+    # 3) load your PEM and sign
+    with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as f:
+        priv = serialization.load_pem_private_key(f.read(), password=None)
+
+    sig_raw = priv.sign(payload, padding.PKCS1v15(), hashes.SHA256())
+    signature = base64.b64encode(sig_raw).decode()
+
+    print("=== MYPOS FINAL SIGNATURE ===")
+    print(signature)  # <--- and this
+
+    return signature
 
 
 def mypos_payment(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-
-    amount = "{:.2f}".format(order.get_total())
-    currency = "BGN"  # or "EUR"
-    transaction_id = str(uuid.uuid4())
-    order.transaction_id = transaction_id
+    order.transaction_id = str(uuid.uuid4())
     order.save(update_fields=["transaction_id"])
 
-    callback_url = request.build_absolute_uri('/payment/callback/')
-    result_url = request.build_absolute_uri('/payment/result/')
+    amt = f"{order.get_total():.2f}"
+    cur = "BGN"
+
+    # **directly** point at your store/ URLs
+    notify = request.build_absolute_uri("/store/payment/callback/")
+    ok = request.build_absolute_uri("/store/payment/result/")
+    cancel = ok
 
     params = {
-        "clientNumber": settings.MYPOS_CLIENT_NUMBER,
-        "terminalId": settings.MYPOS_TERMINAL_ID,
-        "orderId": transaction_id,
-        "amount": amount,
-        "currency": currency,
-        "urlNotify": callback_url,
-        "urlOk": result_url,
-        "urlCancel": result_url,
-        "description": "Сакарела Поръчка",
-        "language": "bg",
+        "method": "IPCPurchase",
+        "version": "1.3",
+        "SID": settings.MYPOS_SID,
+        "WalletNumber": settings.MYPOS_WALLET,
+        "KeyIndex": settings.MYPOS_KEYINDEX,
+        "ClientNumber": settings.MYPOS_WALLET,
+        "TerminalId": settings.MYPOS_SID,
+        "OrderId": order.transaction_id,
+        "Amount": amt,
+        "Currency": cur,
+        "URLNotify": notify,
+        "URLOk": ok,
+        "URLCancel": cancel,
     }
 
-    signature = generate_signature(params, settings.MYPOS_PRIVATE_KEY_PATH)
-    params["signature"] = signature
+    params["Signature"] = _generate_signature(params)
 
-    return render(request, "payment_redirect.html", {"params": params})
+    return render(request, "store/payment_redirect.html", {
+        "action_url": settings.MYPOS_BASE_URL,
+        "params": params,
+    })
 
 
 @csrf_exempt
 def payment_callback(request):
-    # myPOS will send POST here with transaction result
+    """
+    myPOS will POST here when the payment completes (server→server).
+    We look up the Order by transaction_id and mark it paid.
+    """
     data = request.POST
-    transaction_id = data.get('orderId')
-    status = data.get('status')  # "OK", "FAILED", etc.
+    tx = data.get("OrderId")
+    status = data.get("Status")  # check exact field name in your callback docs
 
     try:
-        order = Order.objects.get(transaction_id=transaction_id)
+        order = Order.objects.get(transaction_id=tx)
+        order.payment_status = "Success" if status == "OK" else "Failed"
         if status == "OK":
             order.is_paid = True
-            order.payment_status = "Success"
-        else:
-            order.payment_status = "Failed"
         order.save()
     except Order.DoesNotExist:
+        # ignore unknown callbacks
         pass
 
     return HttpResponse("OK")
 
 
 def payment_result(request):
-    """Display the result page after returning from myPOS."""
-    status = request.GET.get("status", "")
+    """
+    The customer’s browser lands here (URL has ?Status=OK or FAILED).
+    We simply show them a success/fail page.
+    """
+    status = request.GET.get("Status", "")
     return render(request, "store/payment_result.html", {"status": status})

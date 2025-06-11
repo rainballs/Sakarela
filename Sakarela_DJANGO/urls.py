@@ -6,7 +6,7 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('sakarela.urls')),         # Handles home, about, products, contact, etc.
-    path('store/', include('store.urls', namespace='store')),      # Store homepage and future shop pages
+    path("store/", include(("store.urls", "store"), namespace="store")),      # Store homepage and future shop pages
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:

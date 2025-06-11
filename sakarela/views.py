@@ -1,5 +1,6 @@
 # Create your views here.
-from django.core.mail import send_mail
+from django.conf import settings
+from django.core.mail import send_mail, EmailMessage
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 
@@ -33,9 +34,18 @@ def contact_view(request):
             from_email = form.cleaned_data['email']
             recipient_list = ['rainballs.niki@gmail.com']  # Your receiving email / Change for production in .env
 
-            send_mail(subject, message, from_email, recipient_list)
+            email = EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=settings.EMAIL_HOST_USER,
+                to=recipient_list,
+                reply_to=[form.cleaned_data['email']],
+            )
+            email.send(fail_silently=False)
+
             success = True
-            form = ContactForm()  # Reset form
+            form = ContactForm()
+            # Reset form
 
     return render(request, 'contact.html', {'form': form, 'success': success})
 
