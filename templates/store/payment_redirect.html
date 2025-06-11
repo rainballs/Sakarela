@@ -1,4 +1,4 @@
-<form id="payment-form" action="https://www.mypos.com/vmp/checkout-test" method="post">
+<form id="payment-form" action="{{ action_url }}" method="post">
     {% for key, value in params.items %}
         <input type="hidden" name="{{ key }}" value="{{ value }}">
     {% endfor %}

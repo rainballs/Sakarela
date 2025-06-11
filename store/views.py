@@ -184,13 +184,9 @@ SIGN_ORDER = [
 def _generate_signature(params):
     # 1) build the exact joined string
     joined = "-".join(str(params[k]) for k in SIGN_ORDER).encode("utf-8")
-    print("=== MYPOS JOINED RAW STRING ===")
-    print(joined)  # <--- you’ll copy this
 
     # 2) Base64 that
     payload = base64.b64encode(joined)
-    print("=== MYPOS B64 PAYLOAD ===")
-    print(payload.decode())  # <--- and this
 
     # 3) load your PEM and sign
     with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as f:
@@ -198,9 +194,6 @@ def _generate_signature(params):
 
     sig_raw = priv.sign(payload, padding.PKCS1v15(), hashes.SHA256())
     signature = base64.b64encode(sig_raw).decode()
-
-    print("=== MYPOS FINAL SIGNATURE ===")
-    print(signature)  # <--- and this
 
     return signature
 
