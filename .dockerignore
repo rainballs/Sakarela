@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.git
+mypos/private_key.pem
+.env
+.env.*
+.env.local
+README.md
+
