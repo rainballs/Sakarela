@@ -180,8 +180,10 @@ SIGN_ORDER = [
     "method",  # e.g. IPCPurchase
     "version",  # "1.4"
     "IPCLanguage",  # e.g. "EN"  <— this field is required by the spec!
-    "WalletNumber",
+    # According to the official myPOS specification the signature string
+    # must include the SID before the WalletNumber
     "SID",
+    "WalletNumber",
     "KeyIndex",
     "ClientNumber",
     "TerminalId",
