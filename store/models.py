@@ -1,4 +1,6 @@
 from decimal import Decimal
+import json
+import base64
 
 from django.db import models
 from django.db.models import F, Sum, ExpressionWrapper, DecimalField
@@ -120,6 +122,22 @@ class Order(models.Model):
         """Return the current total ensuring it's up to date."""
         self.update_total()
         return self.total
+
+    def cart_items_json(self):
+        """Return order items serialized as compact JSON."""
+        items = [
+            {
+                "Name": oi.product.name,
+                "Quantity": oi.quantity,
+                "UnitPrice": f"{oi.price:.2f}",
+            }
+            for oi in self.order_items.select_related("product")
+        ]
+        return json.dumps(items, separators=(",", ":"))
+
+    def cart_items_base64(self):
+        """Return base64-encoded JSON of cart items for myPOS."""
+        return base64.b64encode(self.cart_items_json().encode("utf-8")).decode()
 
     def __str__(self):
         return f"{self.full_name} {self.last_name} - {self.created_at.strftime('%Y-%m-%d')}"
