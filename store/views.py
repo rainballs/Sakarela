@@ -1,6 +1,8 @@
 # Create your views here.
 import base64
+import json
 import uuid
+from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
@@ -175,27 +177,46 @@ def order_summary(request, pk):
 
 # The exact order of parameters (no more, no less) per the v1_4 IPCPurchase spec
 SIGN_ORDER = [
-    "method", "version", "SID", "WalletNumber", "KeyIndex",
-    "ClientNumber", "TerminalId", "OrderId", "Amount", "Currency",
-    "URLNotify", "URLOk", "URLCancel",
+    "method",  # e.g. IPCPurchase
+    "version",  # "1.4"
+    "IPCLanguage",  # e.g. "EN"  <— this field is required by the spec!
+    "WalletNumber",
+    "SID",
+    "KeyIndex",
+    "ClientNumber",
+    "TerminalId",
+    "OrderId",
+    "Amount",
+    "Currency",
+    "CartItems",
+    "URLNotify",
+    "URLOk",
+    "URLCancel",
 ]
 
 
 def _generate_signature(params):
-    # 1) build the exact joined string
+    # 1) dash-join
     joined = "-".join(str(params[k]) for k in SIGN_ORDER).encode("utf-8")
-
-    # 2) Base64 that
+    print("DASHED:", joined)
+    # 2) Base64 that string
     payload = base64.b64encode(joined)
+    print("PAYLOAD:", payload)
+    # 3) load your private key
+    pem = Path(settings.MYPOS_PRIVATE_KEY_PATH).read_bytes()
+    priv = serialization.load_pem_private_key(pem, password=None)
 
-    # 3) load your PEM and sign
-    with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as f:
-        priv = serialization.load_pem_private_key(f.read(), password=None)
+    # 4) sign with SHA-256
+    raw_sig = priv.sign(
+        payload,
+        padding.PKCS1v15(),
+        hashes.SHA256()
+    )
+    sig = base64.b64encode(raw_sig).decode().strip()
+    print("SIG:", sig)
 
-    sig_raw = priv.sign(payload, padding.PKCS1v15(), hashes.SHA256())
-    signature = base64.b64encode(sig_raw).decode()
-
-    return signature
+    # 5) Base-64 the signature itself
+    return sig
 
 
 def mypos_payment(request, order_id):
@@ -213,19 +234,31 @@ def mypos_payment(request, order_id):
 
     params = {
         "method": "IPCPurchase",
-        "version": "1.3",
-        "SID": settings.MYPOS_SID,
+        "version": "1.4",
+        "IPCLanguage": "EN",  # <— new
         "WalletNumber": settings.MYPOS_WALLET,
+        "SID": settings.MYPOS_SID,
         "KeyIndex": settings.MYPOS_KEYINDEX,
-        "ClientNumber": settings.MYPOS_WALLET,
-        "TerminalId": settings.MYPOS_SID,
+        "ClientNumber": settings.MYPOS_CLIENT_NUMBER,
+        "TerminalId": settings.MYPOS_TERMINAL_ID,
         "OrderId": order.transaction_id,
-        "Amount": amt,
-        "Currency": cur,
-        "URLNotify": notify,
-        "URLOk": ok,
-        "URLCancel": cancel,
+        "Amount": f"{order.get_total():.2f}",
+        "Currency": "BGN",
+        "URLNotify": request.build_absolute_uri("/store/payment/callback/"),
+        "URLOk": request.build_absolute_uri("/store/payment/result/"),
+        "URLCancel": request.build_absolute_uri("/store/payment/result/"),
     }
+
+    cart_items = [
+        {
+            "Name": item.product.name,
+            "Quantity": item.quantity,
+            "UnitPrice": f"{item.price:.2f}",  # use the 'price' field on OrderItem
+        }
+        for item in order.order_items.all()  # related_name='order_items'
+    ]
+
+    params["CartItems"] = json.dumps(cart_items, separators=(",", ":"))
 
     params["Signature"] = _generate_signature(params)
 
