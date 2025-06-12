@@ -260,7 +260,11 @@ def mypos_payment(request, order_id):
         for item in order.order_items.all()  # related_name='order_items'
     ]
 
-    params["CartItems"] = json.dumps(cart_items, separators=(",", ":"))
+    # The IPCPurchase documentation specifies that CartItems must be
+    # base64-encoded JSON and that same encoded value is used when
+    # generating the request signature.  Encode once and reuse.
+    cart_json = json.dumps(cart_items, separators=(",", ":")).encode("utf-8")
+    params["CartItems"] = base64.b64encode(cart_json).decode()
 
     params["Signature"] = _generate_signature(params)
 
