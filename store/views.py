@@ -1,6 +1,5 @@
 # Create your views here.
 import base64
-import json
 import uuid
 from pathlib import Path
 
@@ -251,16 +250,9 @@ def mypos_payment(request, order_id):
         "URLCancel": request.build_absolute_uri("/store/payment/result/"),
     }
 
-    cart_items = [
-        {
-            "Name": item.product.name,
-            "Quantity": item.quantity,
-            "UnitPrice": f"{item.price:.2f}",  # use the 'price' field on OrderItem
-        }
-        for item in order.order_items.all()  # related_name='order_items'
-    ]
-
-    params["CartItems"] = json.dumps(cart_items, separators=(",", ":"))
+    # Generate CartItems using the same approach as the cart view but
+    # provided by the model to guarantee consistency.
+    params["CartItems"] = order.cart_items_base64()
 
     params["Signature"] = _generate_signature(params)
 
