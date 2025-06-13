@@ -1,6 +1,6 @@
-from decimal import Decimal
-import json
 import base64
+import json
+from decimal import Decimal
 
 from django.db import models
 from django.db.models import F, Sum, ExpressionWrapper, DecimalField
@@ -73,6 +73,12 @@ class Order(models.Model):
         ('card', 'Карта (онлайн)'),
     ]
 
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('failed', 'Failed'),
+    ]
+
     full_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField()
@@ -83,6 +89,11 @@ class Order(models.Model):
     address2 = models.CharField(max_length=255, blank=True)
     post_code = models.CharField(max_length=10)
     payment_method = models.CharField(max_length=10, choices=PAYMENT_CHOICES)
+    payment_status = models.CharField(
+        max_length=10,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='pending'
+    )
     total = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -96,9 +107,6 @@ class Order(models.Model):
         ('paid', 'Paid'),
         ('failed', 'Failed'),
     ]
-    payment_status = models.CharField(
-        max_length=10, choices=PAYMENT_STATUS_CHOICES, default='pending'
-    )
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     delivery_status = models.CharField(max_length=50, blank=True, null=True)
@@ -138,6 +146,11 @@ class Order(models.Model):
     def cart_items_base64(self):
         """Return base64-encoded JSON of cart items for myPOS."""
         return base64.b64encode(self.cart_items_json().encode("utf-8")).decode()
+
+    @property
+    def is_paid(self):
+        """Helper property to check if order is paid"""
+        return self.payment_status == 'paid'
 
     def __str__(self):
         return f"{self.full_name} {self.last_name} - {self.created_at.strftime('%Y-%m-%d')}"

@@ -29,7 +29,11 @@
             <ul class="nav-right">
                 <li><a href="{% url 'products' %}">Продукти</a></li>
                 <li><a href="{% url 'contact' %}">Контакти</a></li>
-                <li><a href="{% url 'store:store_home' %}">Магазин</a></li>
+                <li>
+                    <a href="{% url 'store:store_home' %}" class="buy-online">
+                        Купи Онлайн
+                    </a>
+                </li>
             </ul>
         </div>
     </nav>

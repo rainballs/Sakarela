@@ -1,9 +1,116 @@
-<form id="payment-form" action="{{ action_url }}" method="post">
-    {% for key, value in params.items %}
-        <input type="hidden" name="{{ key }}" value="{{ value }}">
-    {% endfor %}
-    <noscript><input type="submit" value="Продължи към плащане"></noscript>
-</form>
-<script>
-    document.getElementById("payment-form").submit();
-</script>
+<!-- store/templates/store/payment_redirect.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Payment...</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .redirect-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .redirect-text {
+            color: #495057;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .redirect-subtext {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .payment-form {
+            display: none;
+        }
+
+        .secure-badge {
+            background: #e8f5e8;
+            color: #155724;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            margin-top: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="redirect-card">
+        <div class="spinner"></div>
+        <h3 class="redirect-text">Redirecting to Payment Gateway...</h3>
+        <p class="redirect-subtext">
+            Please wait while we securely redirect you to complete your payment.
+            <br>This should only take a few seconds.
+        </p>
+
+        <div class="secure-badge">
+            <i class="fas fa-shield-alt me-2"></i>
+            Secure Payment Processing
+        </div>
+
+        <!-- Hidden form that auto-submits to myPOS -->
+        <form id="payment-form" class="payment-form" method="POST" action="{{ action_url }}">
+            {% for key, value in params.items %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endfor %}
+        </form>
+
+        <div class="mt-4">
+            <small class="text-muted">
+                If you are not redirected automatically,
+                <a href="#" onclick="document.getElementById('payment-form').submit();">click here</a>.
+            </small>
+        </div>
+    </div>
+
+    <script>
+        // Auto-submit the form after a brief delay to show the loading screen
+        setTimeout(function() {
+            document.getElementById('payment-form').submit();
+        }, 2000);
+
+        // Fallback: if form doesn't submit after 10 seconds, show manual button
+        setTimeout(function() {
+            if (document.getElementById('payment-form')) {
+                document.querySelector('.redirect-text').textContent = 'Click below to proceed to payment';
+                document.querySelector('.redirect-subtext').innerHTML =
+                    '<button onclick="document.getElementById(\'payment-form\').submit();" class="btn btn-primary mt-3">Proceed to Payment</button>';
+                document.querySelector('.spinner').style.display = 'none';
+            }
+        }, 10000);
+    </script>
+</body>
+</html>

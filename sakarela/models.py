@@ -32,12 +32,18 @@ class Nutrition(models.Model):
 
 
 class Recipe(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='recipes',
+        help_text="The product this recipe is for",
+        default=1,
+    )
     title = models.CharField(max_length=200)
     image = models.ImageField(upload_to='recipes/')
     ingredients = models.TextField(help_text="List of ingredients, one per line")
     cook_time = models.PositiveIntegerField(help_text="Time in minutes")
     steps = models.TextField(help_text="Step-by-step instructions")
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

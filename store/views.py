@@ -1,7 +1,7 @@
 # Create your views here.
 import base64
+import json
 import uuid
-from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
@@ -81,12 +81,27 @@ def store_home(request):
 
 
 def product_detail(request, pk):
+    # Fetch the requested product
     product = get_object_or_404(Product, pk=pk)
-    return render(request, 'store/product_detail.html', {'product': product})
+
+    # Determine related products (same category, excluding the current one)
+    related_products = Product.objects.filter(
+        category=product.category
+    ).exclude(
+        pk=product.pk
+    )
+
+    # Pass both product and related items into the template context
+    context = {
+        'product': product,
+        'related_products': related_products,
+    }
+
+    return render(request, 'store/product_detail.html', context)
 
 
 def add_to_cart(request, product_id):
-    product_id = str(product_id)  # 🔧 Ensure key matches the rest
+    product_id = str(product_id)
     cart = request.session.get('cart', {})
     cart[product_id] = cart.get(product_id, 0) + 1
     request.session['cart'] = cart
@@ -154,124 +169,118 @@ def order_info(request):
 
 
 def order_summary(request, pk):
-    cart = request.session.get('cart', {})
-    # cart_items = []
-    # total = 0
-
-    # for product_id, qty in cart.items():
-    #     product = get_object_or_404(Product, id=product_id)
-    #     price = float(product.sale_price if product.is_on_sale else product.price)
-    #     total += price * qty
-    #     cart_items.append({'product': product, 'qty': qty, 'price': price})
-
     order = get_object_or_404(Order, pk=pk)
     items = order.order_items.select_related('product').all()
 
     return render(request, 'store/order_summary.html', {
         'order': order,
         'cart_items': items,
-        # 'cart_total': total,
     })
 
 
 # The exact order of parameters (no more, no less) per the v1_4 IPCPurchase spec
 SIGN_ORDER = [
-    "method",  # e.g. IPCPurchase
-    "version",  # "1.4"
-    "IPCLanguage",  # e.g. "EN"  <— this field is required by the spec!
-    # According to the official myPOS specification the signature string
-    # must include the SID before the WalletNumber
+    "IPCmethod",  # Changed from "method" to "IPCmethod"
+    "IPCVersion",  # Changed from "version" to "IPCVersion"
+    "IPCLanguage",
     "SID",
     "WalletNumber",
     "KeyIndex",
-    "ClientNumber",
-    "TerminalId",
-    "OrderId",
+    "Source",  # Add Source parameter
+    "OrderID",  # Changed from "OrderId" to "OrderID"
     "Amount",
     "Currency",
     "CartItems",
-    "URLNotify",
-    "URLOk",
-    "URLCancel",
+    "URL_Notify",  # Changed from "URLNotify" to "URL_Notify"
+    "URL_OK",  # Changed from "URLOk" to "URL_OK"
+    "URL_Cancel",  # Changed from "URLCancel" to "URL_Cancel"
 ]
 
 
 def _generate_signature(params):
-    # 1) dash-join
-    joined = "-".join(str(params[k]) for k in SIGN_ORDER).encode("utf-8")
-    print("DASHED:", joined)
-    # 2) Base64 that string
-    payload = base64.b64encode(joined)
-    print("PAYLOAD:", payload)
-    # 3) load your private key
-    pem = Path(settings.MYPOS_PRIVATE_KEY_PATH).read_bytes()
-    priv = serialization.load_pem_private_key(pem, password=None)
+    """Generate signature for myPOS API request"""
+    # Create concatenated string from parameters in specific order
+    concat_string = ""
+    for key in SIGN_ORDER:
+        if key in params:
+            concat_string += str(params[key])
 
-    # 4) sign with SHA-256
-    raw_sig = priv.sign(
-        payload,
+    print("CONCATENATED STRING:", concat_string)
+
+    # Base64 encode the concatenated string
+    encoded_data = base64.b64encode(concat_string.encode('utf-8'))
+    print("BASE64 ENCODED:", encoded_data)
+
+    # Load private key
+    try:
+        with open(settings.MYPOS_PRIVATE_KEY_PATH, 'rb') as key_file:
+            private_key = serialization.load_pem_private_key(
+                key_file.read(),
+                password=None
+            )
+    except Exception as e:
+        print(f"Error loading private key: {e}")
+        raise
+
+    # Sign the encoded data
+    signature = private_key.sign(
+        encoded_data,
         padding.PKCS1v15(),
         hashes.SHA256()
     )
-    sig = base64.b64encode(raw_sig).decode().strip()
-    print("SIG:", sig)
 
-    # 5) Base-64 the signature itself
-    return sig
+    # Base64 encode the signature
+    signature_b64 = base64.b64encode(signature).decode('utf-8')
+    print("SIGNATURE:", signature_b64)
+
+    return signature_b64
 
 
 def mypos_payment(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    order.transaction_id = str(uuid.uuid4())
-    order.save(update_fields=["transaction_id"])
 
-    amt = f"{order.get_total():.2f}"
-    cur = "BGN"
+    # Generate unique transaction ID if not exists
+    if not order.transaction_id:
+        order.transaction_id = str(uuid.uuid4())
+        order.save(update_fields=["transaction_id"])
 
-    # **directly** point at your store/ URLs
-    notify = request.build_absolute_uri("/store/payment/callback/")
-    ok = request.build_absolute_uri("/store/payment/result/")
-    cancel = ok
-
-    params = {
-        "method": "IPCPurchase",
-        "version": "1.4",
-        "IPCLanguage": "EN",  # <— new
-        "WalletNumber": settings.MYPOS_WALLET,
-        "SID": settings.MYPOS_SID,
-        "KeyIndex": settings.MYPOS_KEYINDEX,
-        "ClientNumber": settings.MYPOS_CLIENT_NUMBER,
-        "TerminalId": settings.MYPOS_TERMINAL_ID,
-        "OrderId": order.transaction_id,
-        "Amount": f"{order.get_total():.2f}",
-        "Currency": "BGN",
-        "URLNotify": request.build_absolute_uri("/store/payment/callback/"),
-        "URLOk": request.build_absolute_uri("/store/payment/result/"),
-        "URLCancel": request.build_absolute_uri("/store/payment/result/"),
-    }
-
-
-    # Generate CartItems using the same approach as the cart view but
-    # provided by the model to guarantee consistency.
-    params["CartItems"] = order.cart_items_base64()
-=======
-    cart_items = [
-        {
+    # Prepare cart items
+    cart_items = []
+    for item in order.order_items.select_related('product').all():
+        cart_items.append({
             "Name": item.product.name,
             "Quantity": item.quantity,
-            "UnitPrice": f"{item.price:.2f}",  # use the 'price' field on OrderItem
-        }
-        for item in order.order_items.all()  # related_name='order_items'
-    ]
+            "UnitPrice": f"{item.price:.2f}",
+        })
 
-    # The IPCPurchase documentation specifies that CartItems must be
-    # base64-encoded JSON and that same encoded value is used when
-    # generating the request signature.  Encode once and reuse.
-    cart_json = json.dumps(cart_items, separators=(",", ":")).encode("utf-8")
-    params["CartItems"] = base64.b64encode(cart_json).decode()
+    # Convert cart items to base64 encoded JSON
+    cart_json = json.dumps(cart_items, separators=(",", ":"))
+    cart_items_b64 = base64.b64encode(cart_json.encode('utf-8')).decode('utf-8')
 
+    # Prepare parameters for myPOS API
+    params = {
+        "IPCmethod": "IPCPurchase",  # Changed from "method"
+        "IPCVersion": "1.4",  # Changed from "version"
+        "IPCLanguage": "EN",
+        "SID": settings.MYPOS_SID,
+        "WalletNumber": settings.MYPOS_WALLET,
+        "KeyIndex": settings.MYPOS_KEYINDEX,
+        "Source": "sdk_python",  # Add Source parameter
+        "OrderID": order.transaction_id,  # Changed from "OrderId"
+        "Amount": f"{order.get_total():.2f}",
+        "Currency": "BGN",
+        "CartItems": cart_items_b64,
+        "URL_Notify": request.build_absolute_uri("/store/payment/callback/"),
+        "URL_OK": request.build_absolute_uri("/store/payment/result/"),
+        "URL_Cancel": request.build_absolute_uri("/store/payment/result/"),
+    }
 
-    params["Signature"] = _generate_signature(params)
+    # Generate signature
+    try:
+        params["Signature"] = _generate_signature(params)
+    except Exception as e:
+        print(f"Error generating signature: {e}")
+        return render(request, "store/payment_error.html", {"error": str(e)})
 
     return render(request, "store/payment_redirect.html", {
         "action_url": settings.MYPOS_BASE_URL,
@@ -285,27 +294,42 @@ def payment_callback(request):
     myPOS will POST here when the payment completes (server→server).
     We look up the Order by transaction_id and mark it paid.
     """
-    data = request.POST
-    tx = data.get("OrderId")
-    status = data.get("Status")  # check exact field name in your callback docs
+    if request.method == 'POST':
+        data = request.POST
+        order_id = data.get("OrderID")  # Changed from "OrderId"
+        status = data.get("Status")
 
-    try:
-        order = Order.objects.get(transaction_id=tx)
-        order.payment_status = "Success" if status == "OK" else "Failed"
-        if status == "OK":
-            order.is_paid = True
-        order.save()
-    except Order.DoesNotExist:
-        # ignore unknown callbacks
-        pass
+        print(f"Payment callback received: OrderID={order_id}, Status={status}")
+
+        try:
+            order = Order.objects.get(transaction_id=order_id)
+
+            if status == "Success":
+                order.payment_status = "paid"
+            else:
+                order.payment_status = "failed"
+
+            order.save(update_fields=['payment_status'])
+            print(f"Order {order_id} payment status updated to {order.payment_status}")
+
+        except Order.DoesNotExist:
+            print(f"Order with transaction_id {order_id} not found")
 
     return HttpResponse("OK")
 
 
 def payment_result(request):
     """
-    The customer’s browser lands here (URL has ?Status=OK or FAILED).
-    We simply show them a success/fail page.
+    The customer's browser lands here after payment.
+    Display success or failure message based on status.
     """
     status = request.GET.get("Status", "")
-    return render(request, "store/payment_result.html", {"status": status})
+    order_id = request.GET.get("OrderID", "")
+
+    context = {
+        "status": status,
+        "order_id": order_id,
+        "success": status == "Success"
+    }
+
+    return render(request, "store/payment_result.html", context)

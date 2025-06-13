@@ -1,6 +1,6 @@
 # Create your views here.
 from django.conf import settings
-from django.core.mail import send_mail, EmailMessage
+from django.core.mail import EmailMessage
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 
@@ -52,10 +52,13 @@ def contact_view(request):
 
 def product_detail(request, pk):
     product = get_object_or_404(Product, pk=pk)
-    other_products = Product.objects.exclude(pk=pk)[:4]  # Adjust limit as needed
+    other_products = Product.objects.exclude(pk=pk)[:4]
+    # Grab only recipes for this product
+    recipes = product.recipes.all()
     return render(request, 'product_detail.html', {
         'product': product,
         'other_products': other_products,
+        'recipes': recipes,
     })
 
 

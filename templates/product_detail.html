@@ -13,42 +13,59 @@
                 <div class="info-column">
                     <h2>{{ product.title }}</h2>
                     <p>{{ product.description }}</p>
-
-                    <div class="accordion">
-                        <div class="accordion-item">
-                            <h3 class="accordion-header">🧀 Състав</h3>
-                            <p class="accordion-content">{{ product.ingredients }}</p>
-                        </div>
-                        <div class="accordion-item">
-                            <h3 class="accordion-header">📦 Съхранение</h3>
-                            <p class="accordion-content">{{ product.storage }}</p>
-                        </div>
-                        <div class="accordion-item">
-                            <h3 class="accordion-header">❓ Хранителна таблица</h3>
-                            {% if product.nutrition %}
-                                <div class="accordion-content">
-                                    <div class="nutrition-list">
-                                        <ul style="list-style-type: none; padding-left: 0; margin: 0;">
-                                            <li>Хранителна стойност за 100g:</li>
-                                            <li>Енергийна стойност: {{ product.nutrition.energy }}</li>
-                                            <li>Мазнини: {{ product.nutrition.fat }}g</li>
-                                            <li>От които наситени мастни киселини: {{ product.nutrition.saturated_fat }}g</li>
-                                            <li>Въглехидрати: {{ product.nutrition.carbohydrates }}g</li>
-                                            <li>От които захари: {{ product.nutrition.sugars }}g</li>
-                                            <li>Белтъци: {{ product.nutrition.protein }}g</li>
-                                            <li>Сол: {{ product.nutrition.salt }}g</li>
-                                        </ul>
-                                    </div>
+                    {#                {%  %}#}
+                    {#                    <div class="accordion">#}
+                    {#                        <div class="accordion-item">#}
+                    {#                            <h3 class="accordion-header">🧀 Състав</h3>#}
+                    {#                            <p class="accordion-content">{{ product.ingredients }}</p>#}
+                    {#                        </div>#}
+                    {#                        <div class="accordion-item">#}
+                    {#                            <h3 class="accordion-header">📦 Съхранение</h3>#}
+                    {#                            <p class="accordion-content">{{ product.storage }}</p>#}
+                    {#                        </div>#}
+                    {#                        <div class="accordion-item">#}
+                    {#                            <h3 class="accordion-header">❓ Хранителна таблица</h3>#}
+                    {#                            {% if product.nutrition %}#}
+                    {#                                <div class="accordion-content">#}
+                    {#                                    <div class="nutrition-list">#}
+                    {#                                        <ul style="list-style-type: none; padding-left: 0; margin: 0;">#}
+                    {#                                            <li>Хранителна стойност за 100g:</li>#}
+                    {#                                            <li>Енергийна стойност: {{ product.nutrition.energy }}</li>#}
+                    {#                                            <li>Мазнини: {{ product.nutrition.fat }}g</li>#}
+                    {#                                            <li>От които наситени мастни киселини: {{ product.nutrition.saturated_fat }}g</li>#}
+                    {#                                            <li>Въглехидрати: {{ product.nutrition.carbohydrates }}g</li>#}
+                    {#                                            <li>От които захари: {{ product.nutrition.sugars }}g</li>#}
+                    {#                                            <li>Белтъци: {{ product.nutrition.protein }}g</li>#}
+                    {#                                            <li>Сол: {{ product.nutrition.salt }}g</li>#}
+                    {#                                        </ul>#}
+                    {#                                    </div>#}
+                    {#                                </div>#}
+                    {##}
+                    {#                            {% else %}#}
+                    {#                                <p class="accordion-content">Няма налична информация.</p>#}
+                    {#                            {% endif %}#}
+                    {#                        </div>#}
+                    {#                    </div>#}
+                </div>
+                <div class="info-column">
+                    <h2 style="text-align: center; font-size: 2rem; margin-top: 2rem;">Вкусотии с {{ product.title }}</h2>
+                    {% if recipes %}
+                        <div class="recipe-list">
+                        {% for recipe in recipes %}
+                            <a href="{% url 'recipe_detail' recipe.pk %}" class="recipe-card">
+                                <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}">
+                                <div class="info">
+                                    <h3>{{ recipe.title }}</h3>
+                                    <p>⏱️ {{ recipe.cook_time }} мин</p>
                                 </div>
-
-                            {% else %}
-                                <p class="accordion-content">Няма налична информация.</p>
-                            {% endif %}
-                        </div>
+                            </a>
+                        {% endfor %}
+                    {% else %}
+                        <p>Все още няма налични рецепти с този продукт</p>
+                    {% endif %}
                     </div>
                 </div>
             </div>
-        </div>
     </section>
     <div class="quality-top-bg">
         <div class="quality-overlay">
