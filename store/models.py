@@ -53,6 +53,30 @@ class Product(models.Model):
         return self.name
 
 
+# store/models.py
+
+class PackagingOption(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='packaging_options'
+    )
+    weight = models.FloatField(help_text="грамове")
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    sale_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        blank=True, null=True,
+        help_text="оставете празно, ако няма промо"
+    )
+
+    class Meta:
+        unique_together = ('product', 'weight')
+        ordering = ('weight',)
+
+    def __str__(self):
+        return f"{self.weight} g – {self.price} лв"
+
+
 class Nutrition(models.Model):
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='nutrition')
     energy = models.CharField(max_length=50, help_text="Пример: 352kcal / 1462kJ")

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Product, Nutrition, Order, OrderItem, Category, Brand
+from .models import Product, Nutrition, Order, OrderItem, Category, Brand, PackagingOption
 
 
 @admin.register(Category)
@@ -20,13 +20,18 @@ class NutritionInline(admin.StackedInline):
     extra = 0
 
 
+class PackagingInline(admin.TabularInline):
+    model = PackagingOption
+    extra = 1
+
+
 # Register your models here.
 class ProductAdmin(admin.ModelAdmin):
     list_display = ['name', 'price', 'sale_price', 'is_on_sale', 'is_in_stock']
     search_fields = ['name']
     list_filter = ['is_on_sale', 'is_in_stock']
     list_filter += ['category', 'brand']
-    inlines = [NutritionInline]
+    inlines = [NutritionInline, PackagingInline]
 
 
 class OrderItemInline(admin.TabularInline):

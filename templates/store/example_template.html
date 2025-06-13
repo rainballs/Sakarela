@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Магазин | Сакарела</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+    <style>
+        /* ========== GLOBAL RESET & BASE STYLES ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #64748b;
+            --accent-color: #f59e0b;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --background-color: #f8fafc;
+            --surface-color: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --border-radius: 8px;
+            --border-radius-lg: 12px;
+            --transition: all 0.2s ease-in-out;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* ========== LAYOUT CONTAINERS ========== */
+        .sakarela-store-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sakarela-main-wrapper {
+            flex: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            width: 100%;
+        }
+
+        /* ========== NAVIGATION ========== */
+        .sakarela-navbar {
+            background: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .sakarela-navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sakarela-logo {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .sakarela-logo:hover {
+            color: var(--primary-dark);
+        }
+
+        .sakarela-nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .sakarela-nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .sakarela-nav-link:hover {
+            color: var(--primary-color);
+        }
+
+        .sakarela-nav-link.active {
+            color: var(--primary-color);
+        }
+
+        .sakarela-nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.5rem;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-color);
+            border-radius: 1px;
+        }
+
+        /* ========== MAIN CONTENT LAYOUT ========== */
+        .sakarela-store-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 2rem;
+            padding: 2rem 0;
+            min-height: calc(100vh - 200px);
+        }
+
+        /* ========== SIDEBAR ========== */
+        .sakarela-sidebar {
+            background: var(--surface-color);
+            border-radius: var(--border-radius-lg);
+            padding: 1.5rem;
+            height: fit-content;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            position: sticky;
+            top: 6rem;
+        }
+
+        .sakarela-sidebar-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sakarela-category-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sakarela-category-item {
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+        }
+
+        .sakarela-category-link {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .sakarela-category-link:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateX(4px);
+        }
+
+        .sakarela-category-link.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* ========== MAIN CONTENT AREA ========== */
+        .sakarela-content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* ========== SEARCH SECTION ========== */
+        .sakarela-search-section {
+            background: var(--surface-color);
+            border-radius: var(--border-radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .sakarela-search-form {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 500px;
+        }
+
+        .sakarela-search-input {
+            flex: 1;
+            padding: 0.875rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+            background: var(--background-color);
+        }
+
+        .sakarela-search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+        }
+
+        .sakarela-search-button {
+            padding: 0.875rem 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sakarela-search-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ========== PRODUCTS SECTION ========== */
+        .sakarela-products-section {
+            background: var(--surface-color);
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .sakarela-products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .sakarela-product-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+            position: relative;
+            group: hover;
+        }
+
+        .sakarela-product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-color);
+        }
+
+        .sakarela-product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            transition: var(--transition);
+        }
+
+        .sakarela-product-card:hover .sakarela-product-image {
+            transform: scale(1.05);
+        }
+
+        .sakarela-product-info {
+            padding: 1.5rem;
+        }
+
+        .sakarela-product-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .sakarela-product-weight {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .sakarela-price-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .sakarela-price-regular {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .sakarela-price-sale {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .sakarela-price-old {
+            font-size: 1rem;
+            color: var(--text-muted);
+            text-decoration: line-through;
+        }
+
+        .sakarela-price-current {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--danger-color);
+        }
+
+        .sakarela-sale-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--danger-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sakarela-product-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .sakarela-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            text-decoration: none;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+            border: none;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .sakarela-btn-primary {
+            background: var(--primary-color);
+            color: white;
+            flex: 1;
+        }
+
+        .sakarela-btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .sakarela-btn-secondary {
+            background: var(--background-color);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            flex: 1;
+        }
+
+        .sakarela-btn-secondary:hover {
+            background: var(--surface-color);
+            color: var(--text-primary);
+        }
+
+        .sakarela-no-products {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .sakarela-no-products-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .sakarela-no-products-text {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .sakarela-no-products-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* ========== FOOTER ========== */
+        .sakarela-footer {
+            background: var(--text-primary);
+            color: white;
+            margin-top: auto;
+            padding: 3rem 0 2rem;
+        }
+
+        .sakarela-footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 3rem;
+            align-items: start;
+        }
+
+        .sakarela-footer-links {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .sakarela-footer-link {
+            color: #cbd5e1;
+            text-decoration: none;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .sakarela-footer-link:hover {
+            color: white;
+        }
+
+        .sakarela-footer-logos {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .sakarela-footer-logo {
+            height: 40px;
+            width: auto;
+            opacity: 0.8;
+            transition: var(--transition);
+        }
+
+        .sakarela-footer-logo:hover {
+            opacity: 1;
+        }
+
+        .sakarela-footer-copyright {
+            text-align: right;
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+
+        /* ========== RESPONSIVE DESIGN ========== */
+        @media (max-width: 1024px) {
+            .sakarela-store-layout {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .sakarela-sidebar {
+                position: static;
+                order: 2;
+            }
+
+            .sakarela-content-area {
+                order: 1;
+            }
+
+            .sakarela-products-grid {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1.25rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sakarela-navbar-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .sakarela-nav-links {
+                gap: 1rem;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .sakarela-search-form {
+                flex-direction: column;
+                max-width: none;
+            }
+
+            .sakarela-products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sakarela-footer-content {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                text-align: center;
+            }
+
+            .sakarela-footer-copyright {
+                text-align: center;
+            }
+
+            .sakarela-footer-links {
+                justify-content: center;
+            }
+
+            .sakarela-product-actions {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sakarela-main-wrapper {
+                padding: 0 0.5rem;
+            }
+
+            .sakarela-store-layout {
+                padding: 1rem 0;
+            }
+
+            .sakarela-sidebar,
+            .sakarela-search-section,
+            .sakarela-products-section {
+                padding: 1rem;
+            }
+
+            .sakarela-product-info {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="sakarela-store-container">
+    <!-- Navigation -->
+    <nav class="sakarela-navbar">
+        <div class="sakarela-navbar-content">
+            <a href="/" class="sakarela-logo">САКАРЕЛА</a>
+            <ul class="sakarela-nav-links">
+                <li><a href="/" class="sakarela-nav-link">Начало</a></li>
+                <li><a href="/about/" class="sakarela-nav-link">За Нас</a></li>
+                <li><a href="/products/" class="sakarela-nav-link">Продукти</a></li>
+                <li><a href="/contact/" class="sakarela-nav-link">Контакти</a></li>
+                <li><a href="/store/" class="sakarela-nav-link active">Магазин</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="sakarela-main-wrapper">
+        <div class="sakarela-store-layout">
+            <!-- Sidebar -->
+            <aside class="sakarela-sidebar">
+                <h3 class="sakarela-sidebar-title">Категории</h3>
+                <ul class="sakarela-category-list">
+                    <li class="sakarela-category-item">
+                        <a href="#" class="sakarela-category-link active">Всички продукти</a>
+                    </li>
+                    <li class="sakarela-category-item">
+                        <a href="#" class="sakarela-category-link">Пчелен мед</a>
+                    </li>
+                    <li class="sakarela-category-item">
+                        <a href="#" class="sakarela-category-link">Здравословни продукти</a>
+                    </li>
+                    <li class="sakarela-category-item">
+                        <a href="#" class="sakarela-category-link">Био продукти</a>
+                    </li>
+                    <li class="sakarela-category-item">
+                        <a href="#" class="sakarela-category-link">Местни специалитети</a>
+                    </li>
+                </ul>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="sakarela-content-area">
+                <!-- Search Section -->
+                <section class="sakarela-search-section">
+                    <form class="sakarela-search-form" method="get">
+                        <input type="text" name="q" class="sakarela-search-input" placeholder="Търси продукт..."
+                               value="">
+                        <button type="submit" class="sakarela-search-button">
+                            <span>🔍</span>
+                            <span>Търси</span>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Products Section -->
+                <section class="sakarela-products-section">
+                    <div class="sakarela-products-grid">
+                        <!-- Sample Product Card -->
+                        <div class="sakarela-product-card">
+                            <div class="sakarela-sale-badge">Намаление</div>
+                            <img src="https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=300&h=200&fit=crop"
+                                 alt="Пчелен мед" class="sakarela-product-image">
+                            <div class="sakarela-product-info">
+                                <h3 class="sakarela-product-name">Натурален пчелен мед</h3>
+                                <p class="sakarela-product-weight">(0.50 кг)</p>
+                                <div class="sakarela-price-container">
+                                    <div class="sakarela-price-sale">
+                                        <span class="sakarela-price-old">25.00 лв.</span>
+                                        <span class="sakarela-price-current">20.00 лв.</span>
+                                    </div>
+                                </div>
+                                <div class="sakarela-product-actions">
+                                    <a href="#" class="sakarela-btn sakarela-btn-secondary">Виж продукта</a>
+                                    <button type="button" class="sakarela-btn sakarela-btn-primary">Добави в количката
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sample Product Card 2 -->
+                        <div class="sakarela-product-card">
+                            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=200&fit=crop"
+                                 alt="Био продукт" class="sakarela-product-image">
+                            <div class="sakarela-product-info">
+                                <h3 class="sakarela-product-name">Био сладко от боровинки</h3>
+                                <p class="sakarela-product-weight">(0.25 кг)</p>
+                                <div class="sakarela-price-container">
+                                    <div class="sakarela-price-regular">18.50 лв.</div>
+                                </div>
+                                <div class="sakarela-product-actions">
+                                    <a href="#" class="sakarela-btn sakarela-btn-secondary">Виж продукта</a>
+                                    <button type="button" class="sakarela-btn sakarela-btn-primary">Добави в количката
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sample Product Card 3 -->
+                        <div class="sakarela-product-card">
+                            <img src="https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=300&h=200&fit=crop"
+                                 alt="Местен специалитет" class="sakarela-product-image">
+                            <div class="sakarela-product-info">
+                                <h3 class="sakarela-product-name">Традиционна лютеница</h3>
+                                <p class="sakarela-product-weight">(0.30 кг)</p>
+                                <div class="sakarela-price-container">
+                                    <div class="sakarela-price-regular">12.00 лв.</div>
+                                </div>
+                                <div class="sakarela-product-actions">
+                                    <a href="#" class="sakarela-btn sakarela-btn-secondary">Виж продукта</a>
+                                    <button type="button" class="sakarela-btn sakarela-btn-primary">Добави в количката
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No Products State (hidden by default) -->
+                    <div class="sakarela-no-products" style="display: none;">
+                        <div class="sakarela-no-products-icon">📦</div>
+                        <div class="sakarela-no-products-text">Няма намерени продукти</div>
+                        <div class="sakarela-no-products-subtitle">Опитайте с различни критерии за търсене</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="sakarela-footer">
+        <div class="sakarela-footer-content">
+            <ul class="sakarela-footer-links">
+                <li><a href="/" class="sakarela-footer-link">Начало</a></li>
+                <li><a href="/about/" class="sakarela-footer-link">За Нас</a></li>
+                <li><a href="/products/" class="sakarela-footer-link">Продукти</a></li>
+                <li><a href="/contact/" class="sakarela-footer-link">Контакти</a></li>
+                <li><a href="/store/" class="sakarela-footer-link">Магазин</a></li>
+            </ul>
+            <div class="sakarela-footer-logos">
+                <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела" class="sakarela-footer-logo">
+                <img src="/media/uploads/logos/eu-logo.jpg" alt="EU" class="sakarela-footer-logo">
+                <img src="/media/uploads/logos/program-logo.jpg" alt="Program" class="sakarela-footer-logo">
+            </div>
+            <div class="sakarela-footer-copyright">
+                © Всички права запазени САКАРЕЛА | Designed by Modify
+            </div>
+        </div>
+    </footer>
+</div>
+</body>
+</html>

@@ -20,11 +20,11 @@
                 {% if cart_items %}
                     {% for item in cart_items %}
                         <div class="cart-item">
-                            <span>{{ item.product.name }}</span>
-                            <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}">-</a>
-                            <span>x{{ item.qty }}</span>
-                            <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}">+</a>
-                            <a href="{% url 'store:remove_from_cart' item.product.id %}">🗑</a>
+                            <span>{{ item.product.name }} ({{ item.packaging.weight|floatformat:2 }} кг)</span>
+                            <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}">-</a>
+                            <span>x{{ item.quantity }}</span>
+                            <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}">+</a>
+                            <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}">🗑</a>
                         </div>
                     {% endfor %}
                     <tr>
