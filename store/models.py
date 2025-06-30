@@ -135,6 +135,8 @@ class Order(models.Model):
     shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     delivery_status = models.CharField(max_length=50, blank=True, null=True)
     delivery_tracking_number = models.CharField(max_length=100, blank=True, null=True)
+    econt_shipment_num = models.CharField(max_length=100, blank=True, null=True)
+    label_url = models.URLField(blank=True, null=True)
 
     def update_total(self):
         agg = self.order_items.aggregate(

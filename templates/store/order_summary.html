@@ -3,7 +3,7 @@
 
 {% block content %}
     <div class="order-summary">
-        <div class="container summary-container order-summary">
+        <div class="order-summary-box" style="max-width: 800px; margin: 2rem auto; background: var(--surface-color); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); padding: 2.5rem 2.5rem 2rem 2.5rem;">
             <h2>Обобщение на поръчката</h2>
 
             <section class="order-details">
@@ -46,7 +46,6 @@
             <div class="summary-actions">
                 <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
             </div>
-
         </div>
     </div>
 {% endblock %}

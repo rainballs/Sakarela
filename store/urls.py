@@ -23,6 +23,13 @@ urlpatterns = [
     path('order/', views.order_info, name='order_info'),
     path('order-summary/<int:pk>/', views.order_summary, name='order_summary'),
     path('card-payment/', TemplateView.as_view(template_name="store/card_payment.html"), name='card_payment'),
-    # placeholder
+    path('order/<int:order_id>/confirm/', views.confirm_order, name='confirm_order'),
+
+
+    # Test
+    path("test-econt/", views.test_econt_label, name="test_econt"),    
+
+    # Use order_summary as the detail view for order confirmation
+    # path('order/<int:order_id>/', views.order_summary, name='order_detail'),
 
 ]

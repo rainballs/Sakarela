@@ -153,7 +153,7 @@ MYPOS_PRIVATE_KEY_PATH = Path(config('MYPOS_PRIVATE_KEY_PATH'))
 # myPOS PSD2 sandbox (global TPP) settings
 # -----------------------------------------------------------------------------
 
-# “API Key” / clientNumber
+# "API Key" / clientNumber
 MYPOS_SANDBOX_CLIENT_NUMBER = config('MYPOS_SANDBOX_CLIENT_NUMBER')
 MYPOS_SANDBOX_CLIENT_SECRET = config('MYPOS_SANDBOX_CLIENT_SECRET')
 MYPOS_SANDBOX_OAUTH_TOKEN_URL = config('MYPOS_SANDBOX_OAUTH_TOKEN_URL')
@@ -168,3 +168,8 @@ MYPOS_VERSION = config('MYPOS_VERSION')
 MYPOS_RESPONSE_URL = config('MYPOS_RESPONSE_URL')
 MYPOS_CALLBACK_URL = config('MYPOS_CALLBACK_URL')
 MYPOS_BASE_URL = config('MYPOS_BASE_URL')
+
+# Econt API settings
+ECONT_LABEL_URL = "https://demo.econt.com/ee/services/LabelService"
+ECONT_USERNAME = "iasp-dev"
+ECONT_PASSWORD = "1Asp-dev"

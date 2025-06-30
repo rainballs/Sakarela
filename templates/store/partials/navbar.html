@@ -1,44 +1,96 @@
 <nav class="store-navbar">
-    <!-- Logo -->
-    <div class="navbar-logo">
-        <a href="{% url 'store:store_home' %}">
-            <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
-        </a>
-    </div>
-
-    <!-- Navigation links -->
-    <div class="navbar-links">
-        <a href="{% url 'store:where_to_buy' %}">Къде да купите</a>
-
-        <div class="cart-wrapper">
-            <!-- Just display, not a link -->
-            <div class="cart-icon">
-                🛒 Количка (<span id="cart-count">{{ request.session.cart|length|default:0 }}</span>)
-            </div>
-
-            <div class="cart-dropdown">
-                {% if cart_items %}
-                    {% for item in cart_items %}
-                        <div class="cart-item">
-                            <span>{{ item.product.name }} ({{ item.packaging.weight|floatformat:2 }} кг)</span>
-                            <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}">-</a>
-                            <span>x{{ item.quantity }}</span>
-                            <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}">+</a>
-                            <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}">🗑</a>
-                        </div>
-                    {% endfor %}
-                    <tr>
-                        <td colspan="2" style="text-align: right;"><strong>Общо:</strong></td>
-                        <td><strong>{{ cart_total|floatformat:2 }} лв.</strong></td>
-                        <td></td>
-                    </tr>
-
-                {% else %}
-                    <p>Количката е празна</p>
-                {% endif %}
-
-                <a href="{% url 'store:cart' %}" class="btn-cart-view">Прегледай количката</a>
+    <!-- Desktop Navbar (hidden on mobile/tablet) -->
+    <div class="store-desktop-navbar">
+        <div class="desktop-logo-wrapper desktop-only">
+            <a href="/store/" class="navbar-logo desktop-logo">
+                <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
+            </a>
+        </div>
+        <div class="store-desktop-right desktop-only">
+            <a href="{% url 'store:where_to_buy' %}" class="store-nav-link">Къде да купим</a>
+            <div class="store-cart-icon-wrapper desktop-cart">
+                <a href="{% url 'store:cart' %}" class="store-cart-btn store-cart-btn-desktop">
+                    Количка (<span id="cart-count-desktop">{{ request.session.cart|length|default:0 }}</span>)
+                </a>
+                <div class="cart-dropdown" id="store-cart-dropdown">
+                    {% if cart_items %}
+                        {% for item in cart_items %}
+                            <div class="cart-item">
+                                <span>{{ item.product.name }} ({{ item.packaging.weight|floatformat:2 }} кг)</span>
+                                <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}">-</a>
+                                <span>x{{ item.quantity }}</span>
+                                <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}">+</a>
+                                <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}">🗑</a>
+                            </div>
+                        {% endfor %}
+                        <tr>
+                            <td colspan="2" style="text-align: right;"><strong>Общо:</strong></td>
+                            <td><strong>{{ cart_total|floatformat:2 }} лв.</strong></td>
+                            <td></td>
+                        </tr>
+                    {% else %}
+                        <p>Количката е празна</p>
+                    {% endif %}
+                    <a href="{% url 'store:cart' %}" class="btn-cart-dropdown-white">Прегледай количката</a>
+                </div>
             </div>
         </div>
     </div>
+    <!-- Mobile/Tablet Navbar (hidden on desktop) -->
+    <div class="store-mobile-navbar">
+        <div class="store-hamburger-wrapper mobile-navbar-item">
+            <button class="store-hamburger" id="store-hamburger-toggle" aria-label="Меню" aria-controls="store-mobile-menu" aria-expanded="false">
+                <span class="store-hamburger-bar"></span>
+                <span class="store-hamburger-bar"></span>
+                <span class="store-hamburger-bar"></span>
+            </button>
+        </div>
+        <div class="navbar-logo mobile-only-logo mobile-navbar-item">
+            <a href="/store/">
+                <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
+            </a>
+        </div>
+        <div class="store-cart-icon-wrapper mobile-cart mobile-navbar-item" id="mobile-cart-wrapper">
+            <a href="{% url 'store:cart' %}" class="store-cart-btn store-cart-btn-mobile" id="store-cart-btn-mobile" aria-label="Количка">
+                <span class="store-cart-icon">🛒</span>
+                <span class="store-cart-count" id="cart-count-mobile">{{ request.session.cart|length|default:0 }}</span>
+            </a>
+        </div>
+        <div id="store-mobile-menu" class="store-mobile-slide-menu" aria-hidden="true">
+            <button class="close-store-mobile-menu" id="close-store-mobile-menu" aria-label="Затвори меню">&times;</button>
+            <ul class="store-mobile-nav-links">
+                <li><a href="{% url 'store:store_home' %}">Начало</a></li>
+                <li><a href="{% url 'store:where_to_buy' %}">Къде да купите</a></li>
+            </ul>
+        </div>
+        <div id="store-mobile-menu-backdrop" class="store-mobile-menu-backdrop"></div>
+    </div>
 </nav>
+<script>
+    // Hamburger menu toggle (mobile/tablet)
+    const storeHamburger = document.getElementById('store-hamburger-toggle');
+    const storeMobileMenu = document.getElementById('store-mobile-menu');
+    const closeStoreMobileMenu = document.getElementById('close-store-mobile-menu');
+    const storeMobileMenuBackdrop = document.getElementById('store-mobile-menu-backdrop');
+    const mobileCartWrapper = document.getElementById('mobile-cart-wrapper');
+    function openStoreMenu() {
+        storeMobileMenu.classList.add('open');
+        storeMobileMenuBackdrop.classList.add('show');
+        storeHamburger.setAttribute('aria-expanded', 'true');
+        storeMobileMenu.setAttribute('aria-hidden', 'false');
+        if (mobileCartWrapper) mobileCartWrapper.style.display = 'none';
+    }
+    function closeStoreMenu() {
+        storeMobileMenu.classList.remove('open');
+        storeMobileMenuBackdrop.classList.remove('show');
+        storeHamburger.setAttribute('aria-expanded', 'false');
+        storeMobileMenu.setAttribute('aria-hidden', 'true');
+        if (mobileCartWrapper) mobileCartWrapper.style.display = '';
+    }
+    if (storeHamburger) storeHamburger.addEventListener('click', openStoreMenu);
+    if (closeStoreMobileMenu) closeStoreMobileMenu.addEventListener('click', closeStoreMenu);
+    if (storeMobileMenuBackdrop) storeMobileMenuBackdrop.addEventListener('click', closeStoreMenu);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeStoreMenu();
+    });
+</script>

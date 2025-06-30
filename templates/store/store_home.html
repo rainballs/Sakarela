@@ -3,46 +3,92 @@
 {% block title %}Начало на магазина{% endblock %}
 
 {% block content %}
+
+    {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
     <div class="store-main-content">
         {% include 'store/partials/sidebar.html' %}
 
         <div class="store-right">
             <section class="store-search">
-                <form method="get">
-                    <input type="text" name="q" placeholder="Търси продукт..." value="{{ query }}">
-                    <button type="submit">🔍</button>
+                <form id="search-form" hx-get="{% url 'store:store_home' %}" hx-target="#product-grid"
+                      hx-push-url="true" hx-trigger="keyup changed delay:150ms from:input">
+                    <input type="text" name="q" placeholder="Търси продукт..." value="{{ query }}" autocomplete="off">
                 </form>
+                <!-- Mobile/Tablet Filter Dropdown -->
+                <div class="mobile-filter-dropdown-wrapper">
+                    <button type="button" class="mobile-filter-toggle" id="mobile-filter-toggle"
+                            aria-label="Филтрирай продукти">
+                        <span class="mobile-filter-arrow" id="mobile-filter-arrow">▼</span> Филтри
+                    </button>
+                    <div class="mobile-filter-dropdown" id="mobile-filter-dropdown">
+                        <form id="mobile-filter-form" method="get" action="{% url 'store:store_home' %}">
+                            <div class="mobile-filter-row">
+                                <label for="min_price_mobile">Мин. цена:</label>
+                                <input type="number" step="0.01" name="min_price" id="min_price_mobile"
+                                       value="{{ request.GET.min_price|default_if_none:'' }}">
+                            </div>
+                            <div class="mobile-filter-row">
+                                <label for="max_price_mobile">Макс. цена:</label>
+                                <input type="number" step="0.01" name="max_price" id="max_price_mobile"
+                                       value="{{ request.GET.max_price|default_if_none:'' }}">
+                            </div>
+                            <div class="mobile-filter-row">
+                                <label>Категории:</label>
+                                <div class="mobile-filter-checkboxes">
+                                    {% for cat in all_categories %}
+                                        <label><input type="checkbox" name="category" value="{{ cat.id }}"
+                                                      {% if cat.id|stringformat:'s' in selected_cats %}checked{% endif %}> {{ cat.name }}
+                                        </label>
+                                        {% empty %}
+                                        <span>Няма категории.</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mobile-filter-row">
+                                <label>Брандове:</label>
+                                <div class="mobile-filter-checkboxes">
+                                    {% for brand in all_brands %}
+                                        <label><input type="checkbox" name="brand" value="{{ brand.id }}"
+                                                      {% if brand.id|stringformat:'s' in selected_brands %}checked{% endif %}> {{ brand.name }}
+                                        </label>
+                                        {% empty %}
+                                        <span>Няма брандове.</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <button type="submit" class="mobile-filter-apply">Приложи</button>
+                        </form>
+                    </div>
+                </div>
+                <script>
+                    // Mobile filter dropdown toggle
+                    const filterToggle = document.getElementById('mobile-filter-toggle');
+                    const filterDropdown = document.getElementById('mobile-filter-dropdown');
+                    const filterArrow = document.getElementById('mobile-filter-arrow');
+                    if (filterToggle && filterDropdown && filterArrow) {
+                        filterToggle.addEventListener('click', function () {
+                            filterDropdown.classList.toggle('open');
+                            filterArrow.textContent = filterDropdown.classList.contains('open') ? '▲' : '▼';
+                        });
+                    }
+                </script>
             </section>
 
             <section class="store-products">
-                {% if products %}
-                    <div class="product-grid">
-                        {% for product in products %}
-                            <div class="product-card">
-                                <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                                <h3>{{ product.name }} ({{ product.selected_packaging.weight|floatformat:2 }} кг)</h3>
-                                {% if product.is_on_sale and product.selected_packaging.sale_price %}
-                                    <p class="price">
-                                        <span class="old-price">{{ product.selected_packaging.price }} лв.</span>
-                                        <span class="sale-price">{{ product.selected_packaging.sale_price }} лв.</span>
-                                    </p>
-                                {% else %}
-                                    <p class="price"><strong>{{ product.selected_packaging.price }} лв.</strong></p>
-                                {% endif %}
-                                <div class="product-actions">
-                                    <a href="{% url 'store:product_detail' product.pk %}" class="btn-view">Виж продукта</a>
-                                    <form action="{% url 'store:add_to_cart' product.id %}" method="post">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="packaging_option" value="{{ product.selected_packaging.id }}">
-                                        <button type="submit" class="btn-cart">Добави в количката</button>
-                                    </form>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p>Няма намерени продукти.</p>
-                {% endif %}
+                <div id="product-grid">
+                    {% include 'store/partials/product_grid.html' %}
+                </div>
             </section>
         </div>
     </div>

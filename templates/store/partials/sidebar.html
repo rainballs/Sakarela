@@ -1,3 +1,4 @@
+<div id="sidebar-container">
 <!-- noUiSlider CSS -->
 <link href="https://cdn.jsdelivr.net/npm/nouislider@15.6.1/dist/nouislider.min.css" rel="stylesheet">
 <!-- noUiSlider JS -->
@@ -8,15 +9,18 @@
     <div id="price-slider"></div>
     <form method="get" id="filter-form">
         <label for="min_price">Мин. цена:</label>
-        <input type="text" id="min_price" name="min_price" value="{{ request.GET.min_price|default_if_none:'' }}" step="0.01">
+        <input type="text" id="min_price" name="min_price" value="{{ request.GET.min_price|default_if_none:'' }}"
+               step="0.01"></br>
         <label for="max_price">Макс. цена:</label>
-        <input type="text" id="max_price" name="max_price" value="{{ request.GET.max_price|default_if_none:'' }}" step="0.01">
+        <input type="text" id="max_price" name="max_price" value="{{ request.GET.max_price|default_if_none:'' }}"
+               step="0.01">
         <input type="hidden" name="q" value="{{ query }}">
         <h3>Категории</h3>
         {% for cat in all_categories %}
             <div class="filter-checkbox">
                 <label>
-                    <input type="checkbox" name="category" value="{{ cat.id }}" {% if cat.id|stringformat:"s" in selected_cats %}checked{% endif %}>
+                    <input type="checkbox" name="category" value="{{ cat.id }}"
+                           {% if cat.id|stringformat:"s" in selected_cats %}checked{% endif %}>
                     {{ cat.name }}
                 </label>
             </div>
@@ -27,17 +31,14 @@
         {% for brand in all_brands %}
             <div class="filter-checkbox">
                 <label>
-                    <input type="checkbox" name="brand" value="{{ brand.id }}" {% if brand.id|stringformat:"s" in selected_brands %}checked{% endif %}>
+                    <input type="checkbox" name="brand" value="{{ brand.id }}"
+                           {% if brand.id|stringformat:"s" in selected_brands %}checked{% endif %}>
                     {{ brand.name }}
                 </label>
             </div>
             {% empty %}
             <p>Няма брандове.</p>
         {% endfor %}
-        <div class="filter-buttons">
-            <button type="submit" class="btn-filter">Приложи всички филтри</button>
-            <button type="button" id="clear-filters" class="btn-clear">Изчисти филтрите</button>
-        </div>
     </form>
 </div>
 <script>
@@ -45,7 +46,7 @@
         const slider = document.getElementById('price-slider');
         const inputMin = document.getElementById('min_price');
         const inputMax = document.getElementById('max_price');
-        const clearBtn = document.getElementById('clear-filters');
+        const filterForm = document.getElementById('filter-form');
         const sliderMin = 0;
         const sliderMax = parseFloat("{{ max_price|floatformat:'2' }}");
         const startMin = parseFloat(inputMin.value) || sliderMin;
@@ -63,19 +64,26 @@
                 from: value => parseFloat(value)
             }
         });
-        slider.noUiSlider.on('update', function (values) {
+        slider.noUiSlider.on('slide', function (values) {
             inputMin.value = values[0];
             inputMax.value = values[1];
+            filterForm.requestSubmit();
         });
         inputMin.addEventListener('change', function () {
             slider.noUiSlider.set([this.value, null]);
+            filterForm.requestSubmit();
         });
         inputMax.addEventListener('change', function () {
             slider.noUiSlider.set([null, this.value]);
+            filterForm.requestSubmit();
         });
-        clearBtn.addEventListener('click', function () {
-            window.location = window.location.pathname;
+        // Checkbox change triggers submit
+        filterForm.querySelectorAll('input[type=checkbox]').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                filterForm.requestSubmit();
+            });
         });
     });
 </script>
+</div>
 

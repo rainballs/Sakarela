@@ -14,136 +14,111 @@
                 <div class="info-column">
                     <h2>{{ product.name }}</h2>
                     <p>{{ product.description }}</p>
-
-                    <div class="product-detail-flex">
-                        <div class="accordion">
-                            <div class="accordion-item">
-                                <h3 class="accordion-header">🧀 Състав</h3>
-                                <p class="accordion-content">{{ product.ingredients }}</p>
-                            </div>
-                            <div class="accordion-item">
-                                <h3 class="accordion-header">📦 Съхранение</h3>
-                                <p class="accordion-content">{{ product.storage }}</p>
-                            </div>
-                            <div class="accordion-item">
-                                <h3 class="accordion-header">❓ Хранителна таблица</h3>
-                                {% if product.nutrition %}
-                                    <div class="accordion-content">
-                                        <ul class="nutrition-list" style="list-style: none; padding: 0; margin: 0;">
-                                            <li><strong>Хранителна стойност за 100g:</strong></li>
-                                            <li>Енергийна стойност: {{ product.nutrition.energy }}</li>
-                                            <li>Мазнини: {{ product.nutrition.fat }}g</li>
-                                            <li>От които наситени мастни киселини: {{ product.nutrition.saturated_fat }}g</li>
-                                            <li>Въглехидрати: {{ product.nutrition.carbohydrates }}g</li>
-                                            <li>От които захари: {{ product.nutrition.sugars }}g</li>
-                                            <li>Белтъци: {{ product.nutrition.protein }}g</li>
-                                            <li>Сол: {{ product.nutrition.salt }}g</li>
-                                        </ul>
-                                    </div>
-                                {% else %}
-                                    <p class="accordion-content">Няма налична информация.</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="product-actions">
-                            <form action="{% url 'store:add_to_cart' product.pk %}" method="post" class="add-to-cart-form">
-                                {% csrf_token %}
-                                <div class="packaging-options">
-                                    <label for="packaging_option">Разфасовка:</label>
-                                    <select name="packaging_option" id="packaging_option" required>
-                                        {% for option in packaging_options %}
-                                            <option value="{{ option.id }}" {% if option == default_option %}selected{% endif %}>
-                                                {{ option.weight|floatformat:2 }} кг -
-                                                {% if product.is_on_sale and option.sale_price %}
-                                                    {{ option.sale_price }} лв.
-                                                {% else %}
-                                                    {{ option.price }} лв.
-                                                {% endif %}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="quantity-selector">
-                                    <label for="quantity">Количество:</label>
-                                    <div class="quantity-controls">
-                                        <button type="button" class="qty-btn" onclick="updateQuantity(-1)">-</button>
-                                        <input type="number" name="quantity" id="quantity" value="1" min="1" required>
-                                        <button type="button" class="qty-btn" onclick="updateQuantity(1)">+</button>
-                                    </div>
-                                </div>
-                                <button type="submit" class="btn-cart">
-                                    Добави в количката
-                                </button>
-                            </form>
+                </div>
+            </div>
+            <!-- Add-to-cart form moved here, centered -->
+            <div class="add-to-cart-form-container" style="display: flex; justify-content: center; margin-top: 2.5rem;">
+                <form action="{% url 'store:add_to_cart' product.pk %}" method="post" class="add-to-cart-form">
+                    {% csrf_token %}
+                    <div class="packaging-options">
+                        <label for="packaging_option">Разфасовка:</label>
+                        <select name="packaging_option" id="packaging_option" required>
+                            {% for option in packaging_options %}
+                                <option value="{{ option.id }}" {% if option == default_option %}selected{% endif %}>
+                                    {{ option.weight|floatformat:2 }} кг -
+                                    {% if product.is_on_sale and option.sale_price %}
+                                        {{ option.sale_price }} лв.
+                                    {% else %}
+                                        {{ option.price }} лв.
+                                    {% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="quantity-selector">
+                        <label for="quantity">Количество:</label>
+                        <div class="quantity-controls">
+                            <button type="button" class="qty-btn" onclick="updateQuantity(-1)">-</button>
+                            <input type="number" name="quantity" id="quantity" value="1" min="1" required>
+                            <button type="button" class="qty-btn" onclick="updateQuantity(1)">+</button>
                         </div>
                     </div>
-                </div>
+                    <button type="submit" class="btn-cart">
+                        Добави в количката
+                    </button>
+                </form>
             </div>
         </div>
     </section>
-    {##}
-    {#        <div class="quality-top-bg">#}
-    {#            <div class="quality-overlay">#}
-    {#                <div class="quality-content">#}
-    {#                    <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">#}
-    {#                    <div class="quality-text">#}
-    {#                        <h2>Първокачествени суровини,<br>добивани в първокласни ферми</h2>#}
-    {#                        <p>Гарантирано 100% натурални продукти.</p>#}
-    {#                    </div>#}
-    {#                </div>#}
-    {#            </div>#}
-    {#        </div>#}
-
-    <section class="product-detail-page">
-        <div class="section-container">
-            <section class="other-products">
-                <h2>Други продукти</h2>
-                <div class="product-grid">
-                    {% for other in related_products %}
-                        {% if other.id != product.id %}
-                            <a href="{% url 'store:product_detail' other.pk %}">
-                                <div class="product-card">
-                                    <img src="{{ other.image.url }}" alt="{{ other.name }}">
-                                    {% if other.badge %}
-                                        <img src="{{ other.badge.url }}" alt="badge" class="badge-img">
-                                    {% endif %}
-                                    <div class="card-body">
-                                        <h3 class="card-title">{{ other.name }}</h3>
-                                        <p class="card-subtitle">{{ other.badge_text }}</p>
-                                    </div>
-                                </div>
-                            </a>
-                        {% endif %}
-                        {% empty %}
-                        <p>Няма други продукти.</p>
-                    {% endfor %}
+    <section class="product-detail-extra section-container">
+        <div class="product-detail-flex">
+            <div class="accordion">
+                <div class="accordion-item">
+                    <h3 class="accordion-header">🧀 Състав</h3>
+                    <p class="accordion-content">{{ product.ingredients }}</p>
                 </div>
-            </section>
+                <div class="accordion-item">
+                    <h3 class="accordion-header">📦 Съхранение</h3>
+                    <p class="accordion-content">{{ product.storage }}</p>
+                </div>
+                <div class="accordion-item">
+                    <h3 class="accordion-header">❓ Хранителна таблица</h3>
+                    {% if product.nutrition %}
+                        <div class="accordion-content">
+                            <ul class="nutrition-list" style="list-style: none; padding: 0; margin: 0;">
+                                <li><strong>Хранителна стойност за 100g:</strong></li>
+                                <li>Енергийна стойност: {{ product.nutrition.energy }}</li>
+                                <li>Мазнини: {{ product.nutrition.fat }}g</li>
+                                <li>От които наситени мастни киселини: {{ product.nutrition.saturated_fat }}g</li>
+                                <li>Въглехидрати: {{ product.nutrition.carbohydrates }}g</li>
+                                <li>От които захари: {{ product.nutrition.sugars }}g</li>
+                                <li>Белтъци: {{ product.nutrition.protein }}g</li>
+                                <li>Сол: {{ product.nutrition.salt }}g</li>
+                            </ul>
+                        </div>
+                    {% else %}
+                        <p class="accordion-content">Няма налична информация.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="product-actions">
+                <!-- Remove product-inquiry-form-section -->
+            </div>
         </div>
     </section>
-    <div class="section-container">
-        <section class="team-banner">
-            <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">
-        </section>
-        <section class="yellow-bar">
-            <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
-        </section>
-    </div>
-
-
+    <section class="other-products section-container">
+        <h2>Други продукти</h2>
+        <div class="product-grid">
+            {% for other in related_products %}
+                {% if other.id != product.id %}
+                    <a href="{% url 'store:product_detail' other.pk %}">
+                        <div class="product-card">
+                            <img src="{{ other.image.url }}" alt="{{ other.name }}">
+                            {% if other.badge %}
+                                <img src="{{ other.badge.url }}" alt="badge" class="badge-img">
+                            {% endif %}
+                            <div class="card-body">
+                                <h3 class="card-title">{{ other.name }}</h3>
+                                <p class="card-subtitle">{{ other.badge_text }}</p>
+                            </div>
+                        </div>
+                    </a>
+                {% endif %}
+                {% empty %}
+                <p>Няма други продукти.</p>
+            {% endfor %}
+        </div>
+    </section>
     <script>
         document.querySelectorAll('.accordion-item').forEach(item => {
             const header = item.querySelector('.accordion-header');
             header.addEventListener('click', () => item.classList.toggle('open'));
         });
-
         function updateQuantity(change) {
             const input = document.getElementById('quantity');
             const newValue = Math.max(1, parseInt(input.value) + change);
             input.value = newValue;
         }
-
-        // Update price display when packaging option changes
         document.getElementById('packaging_option').addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const priceDisplay = document.querySelector('.price-display');

@@ -8,24 +8,29 @@
 
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={{ STATIC_VERSION }}">
 
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
 </head>
 <body>
 <header>
     <nav class="site-nav">
         <div class="nav-container">
+            <!-- Hamburger for mobile -->
+            <button class="hamburger" id="mobile-menu-toggle" aria-label="Отвори меню" aria-controls="mobile-menu" aria-expanded="false">
+                <span class="hamburger-bar"></span>
+                <span class="hamburger-bar"></span>
+                <span class="hamburger-bar"></span>
+            </button>
             <ul class="nav-left">
                 <li><a href="{% url 'home' %}">Начало</a></li>
                 <li><a href="{% url 'about' %}">За Нас</a></li>
                 <li><a href="{% url 'recipe_list' %}">Рецепти</a></li>
             </ul>
-
             <div class="nav-logo">
                 <a href="{% url 'home' %}">
                     <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
                 </a>
             </div>
-
-
             <ul class="nav-right">
                 <li><a href="{% url 'products' %}">Продукти</a></li>
                 <li><a href="{% url 'contact' %}">Контакти</a></li>
@@ -37,6 +42,19 @@
             </ul>
         </div>
     </nav>
+    <!-- Slide-in mobile menu -->
+    <div id="mobile-menu" class="mobile-slide-menu" aria-hidden="true">
+        <button class="close-mobile-menu" id="close-mobile-menu" aria-label="Затвори меню">&times;</button>
+        <ul>
+            <li><a href="{% url 'home' %}">Начало</a></li>
+            <li><a href="{% url 'about' %}">За Нас</a></li>
+            <li><a href="{% url 'recipe_list' %}">Рецепти</a></li>
+            <li><a href="{% url 'products' %}">Продукти</a></li>
+            <li><a href="{% url 'contact' %}">Контакти</a></li>
+            <li><a href="{% url 'store:store_home' %}">Купи Онлайн</a></li>
+        </ul>
+    </div>
+    <div id="mobile-menu-backdrop" class="mobile-menu-backdrop"></div>
 </header>
 
 
@@ -61,5 +79,30 @@
         <p class="footer-copy">© Всички права запазени САКАРЕЛА | Designed by Modify</p>
     </div>
 </footer>
+<!-- Add JS for mobile menu toggle -->
+<script>
+    const menuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const closeMenu = document.getElementById('close-mobile-menu');
+    const backdrop = document.getElementById('mobile-menu-backdrop');
+    function openMenu() {
+        mobileMenu.classList.add('open');
+        backdrop.classList.add('show');
+        menuToggle.setAttribute('aria-expanded', 'true');
+        mobileMenu.setAttribute('aria-hidden', 'false');
+    }
+    function closeMenuFn() {
+        mobileMenu.classList.remove('open');
+        backdrop.classList.remove('show');
+        menuToggle.setAttribute('aria-expanded', 'false');
+        mobileMenu.setAttribute('aria-hidden', 'true');
+    }
+    menuToggle.addEventListener('click', openMenu);
+    closeMenu.addEventListener('click', closeMenuFn);
+    backdrop.addEventListener('click', closeMenuFn);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeMenuFn();
+    });
+</script>
 </body>
 </html>

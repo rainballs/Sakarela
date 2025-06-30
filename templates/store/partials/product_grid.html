@@ -1,0 +1,28 @@
+{% if products %}
+    <div class="product-grid">
+        {% for product in products %}
+            <div class="product-card">
+                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                <h3>{{ product.name }} ({{ product.selected_packaging.weight|floatformat:2 }} кг)</h3>
+                {% if product.is_on_sale and product.selected_packaging.sale_price %}
+                    <p class="price">
+                        <span class="old-price">{{ product.selected_packaging.price }} лв.</span>
+                        <span class="sale-price">{{ product.selected_packaging.sale_price }} лв.</span>
+                    </p>
+                {% else %}
+                    <p class="price"><strong>{{ product.selected_packaging.price }} лв.</strong></p>
+                {% endif %}
+                <div class="product-actions">
+                    <a href="{% url 'store:product_detail' product.pk %}" class="btn-view">Виж продукта</a>
+                    <form action="{% url 'store:add_to_cart' product.id %}" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="packaging_option" value="{{ product.selected_packaging.id }}">
+                        <button type="submit" class="btn-cart">Добави в количката</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>Няма намерени продукти.</p>
+{% endif %} 

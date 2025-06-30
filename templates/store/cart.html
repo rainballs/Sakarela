@@ -4,65 +4,72 @@
 
 {% block content %}
     <div class="container cart-container">
-        <h1 class="cart-title">Количка</h1>
+        <div class="cart-title-container">
+            <h1 class="cart-title">Количка</h1>
+        </div>
 
         {% if cart_items %}
-            <table class="cart-table">
-                <thead>
-                <tr>
-                    <th>Продукт</th>
-                    <th>Разфасовка</th>
-                    <th>Количество</th>
-                    <th>Цена</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for item in cart_items %}
+            <div class="cart-items-box">
+                <table class="cart-table">
+                    <thead>
                     <tr>
-                        <td>{{ item.product.name }} ({{ item.packaging.weight|floatformat:2 }} кг)</td>
-                        <td class="cart-qty">
-                            <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}" class="qty-btn">-</a>
-                            <span class="qty-count">{{ item.quantity }}</span>
-                            <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}" class="qty-btn">+</a>
-                        </td>
-                        <td>
-                            {% if item.packaging.sale_price %}
-                                <span class="old-price">{{ item.packaging.price }} лв.</span>
-                                <strong class="sale-price">{{ item.packaging.sale_price|floatformat:2 }} лв.</strong>
-                            {% else %}
-                                <strong>{{ item.packaging.price|floatformat:2 }} лв.</strong>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}" class="delete-btn">🗑</a>
-                        </td>
+                        <th>Продукт</th>
+                        <th>Разфасовка</th>
+                        <th>Количество</th>
+                        <th>Цена</th>
+                        <th></th>
                     </tr>
-                {% endfor %}
-                </tbody>
-                <tfoot>
-                <tr class="total-row">
-                    <td colspan="2"></td>
-                    <td colspan="2" class="cart-total">Общо: <strong>{{ cart_total|floatformat:2 }} лв.</strong></td>
-                </tr>
-                </tfoot>
-            </table>
-            <div class="cart-actions">
-                <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
-                <a href="{% url 'store:order_info' %}" class="btn btn-primary">Продължи към поръчка</a>
+                    </thead>
+                    <tbody>
+                    {% for item in cart_items %}
+                        <tr>
+                            <td>{{ item.product.name }} ({{ item.packaging.weight|floatformat:2 }} кг)</td>
+                            <td class="cart-qty">
+                                <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}" class="qty-btn">-</a>
+                                <span class="qty-count">{{ item.quantity }}</span>
+                                <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}" class="qty-btn">+</a>
+                            </td>
+                            <td>
+                                {% if item.product.is_on_sale and item.packaging.sale_price %}
+                                    <span class="old-price">{{ item.packaging.price }} лв.</span>
+                                    <strong class="sale-price">{{ item.packaging.sale_price|floatformat:2 }} лв.</strong>
+                                {% else %}
+                                    <strong>{{ item.packaging.price|floatformat:2 }} лв.</strong>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}" class="delete-btn">🗑</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                    <tfoot>
+                    <tr class="total-row">
+                        <td colspan="2"></td>
+                        <td colspan="2" class="cart-total">Общо: <strong>{{ cart_total|floatformat:2 }} лв.</strong></td>
+                    </tr>
+                    </tfoot>
+                </table>
+                <div class="cart-actions">
+                    <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
+                    <a href="{% url 'store:order_info' %}" class="btn btn-primary">Продължи към поръчка</a>
+                </div>
             </div>
         {% else %}
-            <div class="empty-cart">
-                <p class="cart-empty">Количката е празна</p>
-                <img
+            <section class="empty-cart-section" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420px;">
+                <div class="empty-cart" style="text-align: center;">
+                    <p class="cart-empty">Количката е празна</p>
+                    <img
                         src="{% static 'uploads/empty_cart.png' %}"
                         alt="Empty cart"
                         class="empty-cart-image"
-                >
-            </div>
-            <div class="summary-actions">
-                <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
-            </div>
+                        style="display: block; margin: 0 auto;"
+                    >
+                </div>
+                <div class="summary-actions" style="margin-top: 1.2rem;">
+                    <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
+                </div>
+            </section>
         {% endif %}
     </div>
 {% endblock %}

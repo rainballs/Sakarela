@@ -3,8 +3,53 @@
 {% block content %}
     <div class="store-wrapper">
         <section class="where-to-buy">
-            <h1>Къде да купите</h1>
-            <p>Очаквайте информация скоро...</p>
+            <h1 style="text-align: center;">Къде да купите</h1>
+            <!-- Partners Carousel -->
+            <div class="partners-carousel-section">
+                <h2>Нашите партньори</h2>
+                <div class="carousel-wrapper">
+                    <div class="carousel-track">
+                        <a href="https://www.kaufland.bg" target="_blank"><img src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
+                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png" alt="Partner 2"></a>
+                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png" alt="Partner 3"></a>
+                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png" alt="Partner 4"></a>
+                        <!-- Copy of the first 4 logos -->
+                        <a href="https://www.kaufland.bg" target="_blank"><img src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
+                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png" alt="Partner 2"></a>
+                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png" alt="Partner 3"></a>
+                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png" alt="Partner 4"></a>
+                        <!-- Copy of the first 4 logos -->
+                        <a href="https://www.kaufland.bg" target="_blank"><img src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
+                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png" alt="Partner 2"></a>
+                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png" alt="Partner 3"></a>
+                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png" alt="Partner 4"></a>
+                    </div>
+                    
+                </div>
+            </div>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              const track = document.querySelector('.carousel-track');
+              const wrapper = document.querySelector('.carousel-wrapper');
+              const logos = Array.from(track.children);
+              let trackWidth = track.scrollWidth;
+              const wrapperWidth = wrapper.offsetWidth;
+              // Duplicate until track is at least 2x wrapper width
+              while (trackWidth < wrapperWidth * 2) {
+                logos.forEach(logo => {
+                  track.appendChild(logo.cloneNode(true));
+                });
+                trackWidth = track.scrollWidth;
+              }
+            });
+            </script>
+            <!-- Store Locations Map -->
+            <div class="store-locations-section">
+                <h2>Магазини и локации</h2>
+                <div class="store-map-embed">
+                    <iframe src="https://www.google.com/maps/d/u/0/embed?mid=1WPuboeAvjcfWVfDR2r7QsePYHr1dYuo&ehbc=2E312F" width="100%" height="400" style="border:0; border-radius: 12px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                </div>
+            </div>
         </section>
     </div>
 {% endblock %}

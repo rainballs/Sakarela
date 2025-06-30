@@ -3,28 +3,31 @@
 
 {% block content %}
     <div class="container cart-container">
-        <h1>Информация за поръчка</h1>
+        <h1 class="order-title-center">Информация за поръчка</h1>
+        <div class="order-form-box" style="max-width: 500px; margin: 0 auto; background: var(--surface-color); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); padding: 2rem 2.5rem;">
+            <form method="post" class="order-form">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
 
-        <form method="post" class="order-form">
-            {% csrf_token %}
-            {{ form.non_field_errors }}
+                <div class="form-row">{{ form.full_name.label_tag }} {{ form.full_name }}</div>
+                <div class="form-row">{{ form.last_name.label_tag }} {{ form.last_name }}</div>
+                <div class="form-row">{{ form.email.label_tag }} {{ form.email }}</div>
+                <div class="form-row">{{ form.country.label_tag }} {{ form.country }}</div>
+                <div class="form-row">{{ form.state.label_tag }} {{ form.state }}</div>
+                <div class="form-row">{{ form.city.label_tag }} {{ form.city }}</div>
+                <div class="form-row">{{ form.address1.label_tag }} {{ form.address1 }}</div>
+                <div class="form-row">{{ form.address2.label_tag }} {{ form.address2 }}</div>
+                <div class="form-row">{{ form.post_code.label_tag }} {{ form.post_code }}</div>
+                <div class="form-row">
+                    {{ form.payment_method.label_tag }}
+                    <div class="payment-methods-row">
+                        {{ form.payment_method }}
+                    </div>
+                    {{ form.payment_method.errors }}
+                </div>
 
-            <div class="form-row">{{ form.full_name.label_tag }} {{ form.full_name }}</div>
-            <div class="form-row">{{ form.last_name.label_tag }} {{ form.last_name }}</div>
-            <div class="form-row">{{ form.email.label_tag }} {{ form.email }}</div>
-            <div class="form-row">{{ form.country.label_tag }} {{ form.country }}</div>
-            <div class="form-row">{{ form.state.label_tag }} {{ form.state }}</div>
-            <div class="form-row">{{ form.city.label_tag }} {{ form.city }}</div>
-            <div class="form-row">{{ form.address1.label_tag }} {{ form.address1 }}</div>
-            <div class="form-row">{{ form.address2.label_tag }} {{ form.address2 }}</div>
-            <div class="form-row">{{ form.post_code.label_tag }} {{ form.post_code }}</div>
-            <div class="form-row">
-                {{ form.payment_method.label_tag }}
-                {{ form.payment_method }}
-                {{ form.payment_method.errors }}
-            </div>
-
-            <button type="submit" class="btn-submit">Продължи</button>
-        </form>
+                <button type="submit" class="btn-submit btn-primary" style="width: 100%; margin-top: 1.5rem;">Продължи</button>
+            </form>
+        </div>
     </div>
 {% endblock %}

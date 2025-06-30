@@ -12,7 +12,11 @@ def cart_items_context(request):
             product_id, packaging_id = cart_key.split('_')
             product = get_object_or_404(Product, id=product_id)
             packaging = get_object_or_404(PackagingOption, id=packaging_id)
-            price = packaging.sale_price if packaging.sale_price else packaging.price
+            # Use sale_price only if product is on sale and sale_price exists
+            if product.is_on_sale and packaging.sale_price:
+                price = packaging.sale_price
+            else:
+                price = packaging.price
             line_total = price * qty
             total += line_total
             cart_items.append({

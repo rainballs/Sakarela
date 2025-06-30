@@ -1,21 +1,28 @@
 # Create your views here.
 import base64
-import json
 import uuid
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
-from django.db.models import Max, Case, When, F, FloatField, Prefetch
+from django.contrib import messages
+from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.shortcuts import redirect, get_object_or_404
 from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import render_to_string
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+
+from zeep import Client
+from zeep.transports import Transport
+from requests.auth import HTTPBasicAuth
+import requests
 
 from store.models import Product, Order, OrderItem, Category, Brand, PackagingOption
 from .forms import OrderForm
+from .utils import send_econt_label_request, handle_econt_response, generate_econt_label_xml
 
 
 def store_home(request):
@@ -60,7 +67,11 @@ def store_home(request):
         packaging = product.selected_packaging_option[0] if product.selected_packaging_option else None
         if not packaging:
             continue
-        price = packaging.sale_price if packaging.sale_price else packaging.price
+        # Use sale_price only if product is on sale and sale_price exists
+        if product.is_on_sale and packaging.sale_price:
+            price = packaging.sale_price
+        else:
+            price = packaging.price
         if min_price and float(price) < float(min_price):
             continue
         if max_price and float(price) > float(max_price):
@@ -68,11 +79,20 @@ def store_home(request):
         product.selected_packaging = packaging
         filtered_products.append(product)
 
-    # Calculate max price for slider
-    max_effective_price = max([
-        float(p.selected_packaging.sale_price if p.selected_packaging.sale_price else p.selected_packaging.price)
-        for p in filtered_products
-    ] or [100])
+    # Calculate max price for slider (for 1.00kg packaging only)
+    max_effective_price = 100
+    if base_qs.exists():
+        prices = []
+        for product in base_qs:
+            packaging = product.selected_packaging_option[0] if product.selected_packaging_option else None
+            if not packaging:
+                continue
+            if product.is_on_sale and packaging.sale_price:
+                prices.append(float(packaging.sale_price))
+            else:
+                prices.append(float(packaging.price))
+        if prices:
+            max_effective_price = max(prices)
 
     # Cart logic
     cart = request.session.get('cart', {})
@@ -90,7 +110,7 @@ def store_home(request):
         except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
             continue
 
-    return render(request, 'store/store_home.html', {
+    context = {
         'products': filtered_products,
         'query': query,
         'max_price': max_effective_price,
@@ -101,26 +121,38 @@ def store_home(request):
         'cart_items': cart_items,
         'all_weights': all_weights,
         'selected_weight': selected_weight,
-    })
+    }
+    if request.headers.get('HX-Request'):
+        # If the search bar is used (q param present), update only the product grid
+        if 'q' in request.GET:
+            return render(request, 'store/partials/product_grid.html', context)
+        # If a filter is changed, update both sidebar and product grid (OOB swap)
+        if any(param in request.GET for param in ['min_price', 'max_price', 'category', 'brand']):
+            sidebar_html = render_to_string('store/partials/sidebar.html', context, request=request)
+            product_grid_html = render_to_string('store/partials/product_grid.html', context, request=request)
+            return HttpResponse(sidebar_html + product_grid_html)
+        # Default: update product grid
+        return render(request, 'store/partials/product_grid.html', context)
+    return render(request, 'store/store_home.html', context)
 
 
 def product_detail(request, pk):
     # Fetch the requested product
     product = get_object_or_404(Product, pk=pk)
-    
+
     # Get packaging options ordered by weight
     packaging_options = product.packaging_options.all().order_by('weight')
-    
+
     # Get default packaging option (smallest weight)
     default_option = packaging_options.first() if packaging_options.exists() else None
-    
+
     # Determine related products (same category, excluding the current one)
     related_products = Product.objects.filter(
         category=product.category
     ).exclude(
         pk=product.pk
     )
-    
+
     # Pass both product and related items into the template context
     context = {
         'product': product,
@@ -128,7 +160,7 @@ def product_detail(request, pk):
         'packaging_options': packaging_options,
         'default_option': default_option,
     }
-    
+
     return render(request, 'store/product_detail.html', context)
 
 
@@ -144,6 +176,9 @@ def add_to_cart(request, product_id):
         else:
             cart[cart_key] = quantity
         request.session['cart'] = cart
+
+        messages.success(request, "Продуктът беше добавен в количката!")
+
     return redirect(request.META.get('HTTP_REFERER', 'store:store_home'))
 
 
@@ -263,7 +298,7 @@ SIGN_ORDER = [
 
 # Default values for myPOS integration
 DEFAULT_PHONE = "0889402222"  # Placeholder phone number
-DEFAULT_CURRENCY = "BGN"  # Changed back to BGN
+DEFAULT_CURRENCY = "EUR"  # Changed back to BGN
 DEFAULT_LANGUAGE = "EN"
 DEFAULT_CARD_TOKEN_REQUEST = "0"
 DEFAULT_PAYMENT_PARAMS_REQUIRED = "1"
@@ -273,18 +308,18 @@ def _generate_signature(params):
     """Generate signature for myPOS API request following their v1.4 specification"""
     # Create concatenated string from parameters in specific order
     values_to_sign = []
-    
+
     print("\nDebug - Parameters before signature generation:")
     for param_name in SIGN_ORDER:
         value = str(params.get(param_name, '')).strip()
         print(f"{param_name}: {value}")
         values_to_sign.append(value)
-    
+
     # Join all values with '-'
     concat_string = '-'.join(values_to_sign)
-    
+
     print("\nDebug - Concatenated string before base64:", concat_string)
-    
+
     try:
         # Base64 encode the concatenated string
         encoded_data = base64.b64encode(concat_string.encode('utf-8'))
@@ -295,7 +330,7 @@ def _generate_signature(params):
             key_data = key_file.read()
             print(f"\nDebug - Private key loaded from {settings.MYPOS_PRIVATE_KEY_PATH}")
             print("First few bytes of key:", key_data[:50])
-            
+
             private_key = serialization.load_pem_private_key(
                 key_data,
                 password=None
@@ -333,12 +368,12 @@ def mypos_payment(request, order_id):
 
     # Get order items
     order_items = order.order_items.select_related('product').all()
-    
+
     # Clean up URLs - remove trailing slashes for consistency
     base_url = request.build_absolute_uri('/').rstrip('/')
     result_url = f"{base_url}{reverse('store:payment_result')}".rstrip('/')
     callback_url = f"{base_url}{reverse('store:payment_callback')}".rstrip('/')
-    
+
     # Base parameters required for signature
     params = {
         "IPCmethod": "IPCPurchase",
@@ -359,7 +394,8 @@ def mypos_payment(request, order_id):
         "customerfirstnames": order.full_name,
         "customerfamilyname": order.last_name,
         "customerphone": DEFAULT_PHONE,
-        "customercountry": order.country,
+        "customercountry": "BGR",
+        # "customercountry": order.country,
         "customercity": order.city,
         "customerzipcode": order.post_code,
         "customeraddress": order.address1,  # Only use primary address
@@ -451,3 +487,82 @@ def payment_result(request):
     }
 
     return render(request, "store/payment_result.html", context)
+
+
+def confirm_order(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    try:
+        response = send_econt_label_request(order)
+        shipment_num, label_url = handle_econt_response(response)
+        order.econt_shipment_num = shipment_num
+        order.label_url = label_url
+        order.save()
+        return redirect("order_detail", order_id=order.id)
+    except Exception as e:
+        messages.error(request, f"Econt error: {e}")
+        return redirect("store:order_summary", pk=order.id)
+
+
+def test_econt_label(request):
+    xml_data = generate_econt_label_xml(order=None)  # or pass an actual order
+
+    url = "https://demo.econt.com/ee/services/createLabel"
+    headers = {"Content-Type": "application/xml"}
+    auth = HTTPBasicAuth("iasp-dev", "1Asp-dev")
+
+    response = requests.post(url, data=xml_data, headers=headers, auth=auth)
+
+    print("=== Outgoing XML ===")
+    print(xml_data.decode("utf-8"))
+    print("=== Response Status ===")
+    print(response.status_code)
+    print("=== Response Content (text) ===")
+    print(response.text)
+    print("=== Response Content (raw) ===")
+    print(response.content)
+
+    if not response.content.strip():
+        return HttpResponse("Econt API returned an empty response. Please check your XML and credentials, or try again later.", content_type="text/plain")
+
+    return HttpResponse(response.text, content_type="text/xml")
+
+
+def generate_econt_label_xml(order=None):
+    import xml.etree.ElementTree as ET
+
+    root = ET.Element("parcels")
+
+    client = ET.SubElement(root, "client")
+    ET.SubElement(client, "username").text = "iasp-dev"
+    ET.SubElement(client, "password").text = "1Asp-dev"
+
+    loadings = ET.SubElement(root, "loadings")
+    row = ET.SubElement(loadings, "row")
+
+    sender = ET.SubElement(row, "sender")
+    ET.SubElement(sender, "name").text = "Тест клиент"
+    ET.SubElement(sender, "phone_num").text = "+359888888888"
+    ET.SubElement(sender, "city").text = "София"
+    ET.SubElement(sender, "post_code").text = "1000"
+    ET.SubElement(sender, "street").text = "бул. България 1"
+    ET.SubElement(sender, "country").text = "BGR"
+
+    receiver = ET.SubElement(row, "receiver")
+    ET.SubElement(receiver, "name").text = "Иван Тестов"
+    ET.SubElement(receiver, "phone_num").text = "+359888123456"
+    ET.SubElement(receiver, "email").text = "test@econt.com"
+    ET.SubElement(receiver, "city").text = "София"
+    ET.SubElement(receiver, "post_code").text = "1404"
+    ET.SubElement(receiver, "street").text = "бул. България 1"
+    ET.SubElement(receiver, "country").text = "BGR"
+
+    shipment = ET.SubElement(row, "shipment")
+    ET.SubElement(shipment, "shipment_type").text = "PACK"
+    ET.SubElement(shipment, "weight").text = "1"
+
+    services = ET.SubElement(row, "services")
+    ET.SubElement(services, "cd").text = "1"
+    ET.SubElement(services, "cd_currency").text = "BGN"
+    ET.SubElement(services, "cd_amount").text = "1.00"
+
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
