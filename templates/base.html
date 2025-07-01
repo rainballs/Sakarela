@@ -103,6 +103,31 @@
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeMenuFn();
     });
+
+    // --- SWIPE GESTURE FOR HAMBURGER MENU (mobile/tablet only) ---
+    let touchStartX = 0;
+    let touchEndX = 0;
+    function handleTouchStart(e) {
+        if (e.touches && e.touches.length === 1) {
+            touchStartX = e.touches[0].clientX;
+        }
+    }
+    function handleTouchMove(e) {
+        if (e.touches && e.touches.length === 1) {
+            touchEndX = e.touches[0].clientX;
+        }
+    }
+    function handleTouchEnd() {
+        const minSwipeDistance = 60; // px
+        if (touchEndX - touchStartX > minSwipeDistance && window.innerWidth <= 1024) {
+            openMenu();
+        }
+        touchStartX = 0;
+        touchEndX = 0;
+    }
+    document.addEventListener('touchstart', handleTouchStart, {passive:true});
+    document.addEventListener('touchmove', handleTouchMove, {passive:true});
+    document.addEventListener('touchend', handleTouchEnd, {passive:true});
 </script>
 </body>
 </html>
