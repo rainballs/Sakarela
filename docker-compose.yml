@@ -1,16 +1,5 @@
 version: '3.9'
 services:
-  web:
-    build: .
-    env_file:
-      - .env
-    volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
   db:
     image: postgres:16
     environment:
@@ -19,6 +8,28 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-d", "sakarela" ]
+      interval: 10s
+      retries: 5
+      start_period: 40s
+
+  web:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - static_volume:/usr/src/app/staticfiles
+      - media_volume:/usr/src/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: bash -c "/usr/src/app/wait-for-it.sh db:5432 --timeout=60 --strict && /usr/src/app/entrypoint.sh"
+
 volumes:
   postgres_data:
   static_volume:
