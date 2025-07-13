@@ -15,4 +15,3 @@ RUN chmod +x /usr/src/app/entrypoint.sh
 RUN chmod +x /usr/src/app/wait-for-it.sh
 
 EXPOSE 8000
-CMD ["/usr/src/app/entrypoint.sh"]
