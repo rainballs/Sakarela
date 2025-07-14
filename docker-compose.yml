@@ -1,9 +1,9 @@
-version: '3.9'
 services:
   db:
     image: postgres:16
+    # send the POSTGRES_* vars Postgres expects, sourcing values from .env
     environment:
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_DB:   ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
@@ -11,13 +11,15 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: [ "CMD", "pg_isready", "-d", "sakarela" ]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
       interval: 10s
       retries: 5
       start_period: 40s
 
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     env_file:
       - .env
     volumes:
@@ -28,23 +30,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    develop:
-      watch:
-        - action: sync+restart
-          path: .
-          target: /usr/src/app/
-    command: bash -c "/usr/src/app/wait-for-it.sh db:5432 --timeout=60 --strict && /usr/src/app/entrypoint.sh"
+    entrypoint: ["/usr/src/app/entrypoint.sh"]
 
   nginx:
     image: nginx:1.25-alpine
-    ports:
-      - "80:80"
     depends_on:
       - web
+    ports:
+      - "80:80"
     volumes:
       - static_volume:/usr/src/app/staticfiles
       - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
-
 
 volumes:
   postgres_data:
