@@ -1,39 +1,43 @@
-# Media files (user uploads)
+# === User uploads ===
 media/
 
-# Static files (collected static files)
-static/
-staticfiles/
+# === Static build artifacts ===
+# We’ll collect into static_root/—keep it out of Git
+static_root/
 
-# Python
+# === Python artifacts ===
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual environments
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
 
-# Django
+# === Django ===
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# Environment variables
+# === Environment files ===
 .env
 .env.local
 
-# IDE
+# === IDE & Editors ===
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# === OS files ===
 .DS_Store
 Thumbs.db
+
+# === Private keys ===
 mypos/private_key.pem
