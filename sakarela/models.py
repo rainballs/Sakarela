@@ -1,4 +1,6 @@
 from django.db import models
+from django.urls import reverse
+from store.models import Product as StoreProduct
 
 
 # Create your models here.
@@ -13,8 +15,22 @@ class Product(models.Model):
 
     # nutrition = models.TextField()
 
+    store_product = models.OneToOneField(
+        StoreProduct,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='main_product',
+        help_text="If set, shows a ‘Buy online’ button"
+    )
+    
     def __str__(self):
         return self.title
+    
+    def get_store_url(self):
+        if not self.store_product:
+            return None
+        # assumes you have a URL pattern named 'store:product_detail'
+        return reverse('store:product_detail', args=[self.store_product.pk])
 
 
 class Nutrition(models.Model):

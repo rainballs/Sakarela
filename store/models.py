@@ -68,13 +68,26 @@ class PackagingOption(models.Model):
         blank=True, null=True,
         help_text="оставете празно, ако няма промо"
     )
+    is_on_sale = models.BooleanField(
+        default=False,
+        help_text="Отбележете, за да активирате sale_price като текуща цена"
+    )
 
     class Meta:
         unique_together = ('product', 'weight')
         ordering = ('weight',)
 
     def __str__(self):
-        return f"{self.weight} g – {self.price} лв"
+        return f"{self.weight} g – {self.current_price} лв"
+
+    @property
+    def current_price(self):
+        """
+        Returns sale_price if is_on_sale, else regular price.
+        """
+        if self.is_on_sale and self.sale_price is not None:
+            return self.sale_price
+        return self.price
 
 
 class Nutrition(models.Model):

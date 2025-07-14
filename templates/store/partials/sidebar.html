@@ -6,14 +6,12 @@
 
 <div class="store-sidebar sidebar-widget">
     <h3>Филтрирай по цена</h3>
-    <div id="price-slider"></div>
     <form method="get" id="filter-form">
-        <label for="min_price">Мин. цена:</label>
-        <input type="text" id="min_price" name="min_price" value="{{ request.GET.min_price|default_if_none:'' }}"
-               step="0.01"></br>
-        <label for="max_price">Макс. цена:</label>
-        <input type="text" id="max_price" name="max_price" value="{{ request.GET.max_price|default_if_none:'' }}"
-               step="0.01">
+        <div class="price-slider-inputs-desktop">
+            <input type="text" id="min_price" name="min_price" value="{{ request.GET.min_price|default_if_none:'' }}" step="0.01" class="price-input-desktop" placeholder="Мин">
+            <input type="text" id="max_price" name="max_price" value="{{ request.GET.max_price|default_if_none:'' }}" step="0.01" class="price-input-desktop" placeholder="Макс">
+        </div>
+        <div id="price-slider"></div>
         <input type="hidden" name="q" value="{{ query }}">
         <h3>Категории</h3>
         {% for cat in all_categories %}
@@ -63,6 +61,12 @@
                 to: value => value.toFixed(2),
                 from: value => parseFloat(value)
             }
+        });
+        slider.noUiSlider.on('update', function (values, handle) {
+            // Set data attributes for tooltip on handles
+            const handles = slider.querySelectorAll('.noUi-handle');
+            handles[0].setAttribute('data-price', values[0]);
+            handles[1].setAttribute('data-price', values[1]);
         });
         slider.noUiSlider.on('slide', function (values) {
             inputMin.value = values[0];

@@ -149,7 +149,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MYPOS_CLIENT_NUMBER = config('MYPOS_CLIENT_NUMBER')
 MYPOS_TERMINAL_ID = config('MYPOS_TERMINAL_ID')
-MYPOS_PRIVATE_KEY_PATH = Path(config('MYPOS_PRIVATE_KEY_PATH'))
+MYPOS_PRIVATE_KEY_PATH = config('MYPOS_PRIVATE_KEY_PATH')
 
 # -----------------------------------------------------------------------------
 # myPOS PSD2 sandbox (global TPP) settings

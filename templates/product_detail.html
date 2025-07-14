@@ -13,6 +13,19 @@
                 <div class="info-column">
                     <h2>{{ product.title }}</h2>
                     <p>{{ product.description }}</p>
+                    <div class="product-store-actions">
+                        <a href="{% url 'store:where_to_buy' %}"
+                           class="btn-store-where-to-buy">
+                            Намери в търговската мрежа
+                        </a>
+                        {% if product.get_store_url %}
+                            <a href="{{ product.get_store_url }}"
+                               class="btn-store-buy-online">
+                                Купи онлайн
+                            </a>
+                        {% endif %}
+                    </div>
+
                     {#                {%  %}#}
                     {#                    <div class="accordion">#}
                     {#                        <div class="accordion-item">#}
@@ -48,7 +61,8 @@
                     {#                    </div>#}
                 </div>
                 <div class="info-column">
-                    <h2 style="text-align: center; font-size: 2rem; margin-top: 2rem;">Вкусотии с {{ product.title }}</h2>
+                    <h2 style="text-align: center; font-size: 2rem; margin-top: 2rem;">Вкусотии
+                        с {{ product.title }}</h2>
                     {% if recipes %}
                         <div class="recipe-list">
                         {% for recipe in recipes %}

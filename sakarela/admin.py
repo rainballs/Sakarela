@@ -9,11 +9,11 @@ class NutritionInline(admin.StackedInline):
     can_delete = False
 
 
+@admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     inlines = [NutritionInline]
-
-
-admin.site.register(Product, ProductAdmin)
+    list_display   = ('title', 'store_product')
+    raw_id_fields  = ('store_product',)
 
 
 @admin.register(Recipe)

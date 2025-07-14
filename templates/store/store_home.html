@@ -4,18 +4,6 @@
 
 {% block content %}
 
-    {% if messages %}
-        <div class="container mt-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
     <div class="store-main-content">
         {% include 'store/partials/sidebar.html' %}
 
@@ -34,13 +22,13 @@
                     <div class="mobile-filter-dropdown" id="mobile-filter-dropdown">
                         <form id="mobile-filter-form" method="get" action="{% url 'store:store_home' %}">
                             <div class="mobile-filter-row">
-                                <label for="min_price_mobile">Мин. цена:</label>
-                                <input type="number" step="0.01" name="min_price" id="min_price_mobile"
+                                <label for="min_price_mobile"></label>
+                                <input type="number" step="0.01" name="min_price" id="min_price_mobile" placeholder="Мин"
                                        value="{{ request.GET.min_price|default_if_none:'' }}">
                             </div>
                             <div class="mobile-filter-row">
-                                <label for="max_price_mobile">Макс. цена:</label>
-                                <input type="number" step="0.01" name="max_price" id="max_price_mobile"
+                                <label for="max_price_mobile"></label>
+                                <input type="number" step="0.01" name="max_price" id="max_price_mobile" placeholder="Макс"
                                        value="{{ request.GET.max_price|default_if_none:'' }}">
                             </div>
                             <div class="mobile-filter-row">

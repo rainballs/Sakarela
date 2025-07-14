@@ -1,28 +1,49 @@
 {% if products %}
-    <div class="product-grid">
-        {% for product in products %}
-            <div class="product-card">
-                <img src="{{ product.image.url }}" alt="{{ product.name }}">
-                <h3>{{ product.name }} ({{ product.selected_packaging.weight|floatformat:2 }} кг)</h3>
-                {% if product.is_on_sale and product.selected_packaging.sale_price %}
-                    <p class="price">
-                        <span class="old-price">{{ product.selected_packaging.price }} лв.</span>
-                        <span class="sale-price">{{ product.selected_packaging.sale_price }} лв.</span>
-                    </p>
-                {% else %}
-                    <p class="price"><strong>{{ product.selected_packaging.price }} лв.</strong></p>
-                {% endif %}
-                <div class="product-actions">
-                    <a href="{% url 'store:product_detail' product.pk %}" class="btn-view">Виж продукта</a>
-                    <form action="{% url 'store:add_to_cart' product.id %}" method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="packaging_option" value="{{ product.selected_packaging.id }}">
-                        <button type="submit" class="btn-cart">Добави в количката</button>
-                    </form>
-                </div>
+  <div class="row product-grid">
+    {% for product in products %}
+      <div class="responsive-product-col">
+        <a href="{% url 'store:product_detail' product.pk %}" class="product-card-link-wrapper" style="text-decoration: none; color: inherit;">
+          <div class="card product-card h-100 text-center p-3 position-relative">
+            <div class="product-image-wrapper position-relative">
+              <img src="{{ product.image.url }}" class="card-img-top mb-2" alt="{{ product.name }}">
+
+              <!-- Clickable icon (still works independently) -->
+              <div class="see-product-icon-badge position-absolute d-flex align-items-center justify-content-center"
+                   style="left: 50%; transform: translateX(-50%); bottom: 0; width: 40px; height: 40px; background: #2563eb; color: #fff; border-radius: 50%; box-shadow: 0 2px 8px rgba(21,58,91,0.12); font-size: 1.3rem; z-index: 2;">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="11" cy="11" r="11" fill="none"/>
+                  <path d="M8 6L13 11L8 16" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
             </div>
-        {% endfor %}
-    </div>
+
+            <div class="card-body flex-column p-2">
+              <h5 class="card-title mb-1" style="font-size: 1.1rem;">{{ product.name }}</h5>
+
+              {% with first_option=product.packaging_options.all|first %}
+                <p class="price mb-2 justify-content-center align-items-center" style="font-size: 1.1rem;">
+                  {% if first_option.is_on_sale and first_option.sale_price %}
+                    <span class="text-muted"><s>от {{ first_option.price }} лв</s></span><br>
+                    <span class="font-weight-bold ml-1" style="color: #ef4444;">от {{ first_option.sale_price }} лв</span>
+                  {% else %}
+                    <span class="font-weight-bold">от {{ first_option.current_price }} лв</span>
+                  {% endif %}
+                </p>
+              {% endwith %}
+
+              <div class="badges mb-2 d-flex justify-content-center flex-wrap">
+                {% for option in product.packaging_options.all %}
+                  <span class="badge badge-pill {% if option.is_on_sale %}badge-danger{% else %}badge-primary{% endif %} m-1">
+                    {{ option.weight }} кг
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
 {% else %}
-    <p>Няма намерени продукти.</p>
-{% endif %} 
+  <p class="text-center">Няма намерени продукти.</p>
+{% endif %}

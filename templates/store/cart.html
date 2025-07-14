@@ -30,8 +30,8 @@
                                 <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}" class="qty-btn">+</a>
                             </td>
                             <td>
-                                {% if item.product.is_on_sale and item.packaging.sale_price %}
-                                    <span class="old-price">{{ item.packaging.price }} лв.</span>
+                                {% if item.packaging.is_on_sale and item.packaging.sale_price %}
+                                    <span class="old-price">{{ item.packaging.price|floatformat:2 }} лв.</span>
                                     <strong class="sale-price">{{ item.packaging.sale_price|floatformat:2 }} лв.</strong>
                                 {% else %}
                                     <strong>{{ item.packaging.price|floatformat:2 }} лв.</strong>

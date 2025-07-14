@@ -245,6 +245,36 @@
                     </a>
                 </div>
 
+            {% elif error %}
+                <!-- GENERIC ERROR STATE -->
+                <div class="error-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h1 class="result-title error-title">Payment Error</h1>
+                <div class="status-badge status-error">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Error
+                </div>
+                <p class="result-message">
+                    {% if debug %}
+                        {{ error }}
+                    {% else %}
+                        Unfortunately, there was a problem processing your payment. Please try again or contact support.
+                    {% endif %}
+                </p>
+                <div class="mt-4">
+                    <a href="{% url 'store:cart' %}" class="btn-custom">
+                        <i class="fas fa-credit-card me-2"></i>Try Again
+                    </a>
+                    <a href="{% url 'store:store_home' %}" class="btn-secondary-custom">
+                        <i class="fas fa-home me-2"></i>Back to Store
+                    </a>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-question-circle me-1"></i>
+                        Need help? <a href="mailto:support@yourstore.com">Contact Support</a>
+                    </small>
+                </div>
             {% else %}
                 <!-- ERROR STATE -->
                 <div class="error-icon">
@@ -270,7 +300,7 @@
                 {% endif %}
 
                 <div class="mt-4">
-                    <a href="{% url 'store:view_cart' %}" class="btn-custom">
+                    <a href="{% url 'store:cart' %}" class="btn-custom">
                         <i class="fas fa-credit-card me-2"></i>Try Again
                     </a>
                     <a href="{% url 'store:store_home' %}" class="btn-secondary-custom">

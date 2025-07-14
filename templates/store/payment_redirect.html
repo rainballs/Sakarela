@@ -69,31 +69,44 @@
 </head>
 <body>
     <div class="redirect-card">
-        <div class="spinner"></div>
-        <h3 class="redirect-text">Redirecting to Payment Gateway...</h3>
-        <p class="redirect-subtext">
-            Please wait while we securely redirect you to complete your payment.
-            <br>This should only take a few seconds.
-        </p>
+        {% if error %}
+            <div class="error-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="redirect-text">Payment Error</h3>
+            <p class="redirect-subtext">
+                {{ error }}
+            </p>
+            <div class="mt-4">
+                <a href="{% url 'store:cart' %}" class="btn btn-primary mt-3">Return to Cart</a>
+            </div>
+        {% else %}
+            <div class="spinner"></div>
+            <h3 class="redirect-text">Redirecting to Payment Gateway...</h3>
+            <p class="redirect-subtext">
+                Please wait while we securely redirect you to complete your payment.
+                <br>This should only take a few seconds.
+            </p>
 
-        <div class="secure-badge">
-            <i class="fas fa-shield-alt me-2"></i>
-            Secure Payment Processing
-        </div>
+            <div class="secure-badge">
+                <i class="fas fa-shield-alt me-2"></i>
+                Secure Payment Processing
+            </div>
 
-        <!-- Hidden form that auto-submits to myPOS -->
-        <form id="payment-form" class="payment-form" method="POST" action="{{ action_url }}">
-            {% for key, value in params.items %}
-                <input type="hidden" name="{{ key }}" value="{{ value }}">
-            {% endfor %}
-        </form>
+            <!-- Hidden form that auto-submits to myPOS -->
+            <form id="payment-form" class="payment-form" method="POST" action="{{ action_url }}">
+                {% for key, value in params.items %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endfor %}
+            </form>
 
-        <div class="mt-4">
-            <small class="text-muted">
-                If you are not redirected automatically,
-                <a href="#" onclick="document.getElementById('payment-form').submit();">click here</a>.
-            </small>
-        </div>
+            <div class="mt-4">
+                <small class="text-muted">
+                    If you are not redirected automatically,
+                    <a href="#" onclick="document.getElementById('payment-form').submit();">click here</a>.
+                </small>
+            </div>
+        {% endif %}
     </div>
 
     <script>

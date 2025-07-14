@@ -1,6 +1,7 @@
 # Create your views here.
 import base64
 import uuid
+import logging
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
@@ -24,6 +25,7 @@ from store.models import Product, Order, OrderItem, Category, Brand, PackagingOp
 from .forms import OrderForm
 from .utils import send_econt_label_request, handle_econt_response, generate_econt_label_xml
 
+logger = logging.getLogger(__name__)
 
 def store_home(request):
     query = request.GET.get('q', '')
@@ -39,19 +41,12 @@ def store_home(request):
     # All available weights for filter
     all_weights = PackagingOption.objects.values_list('weight', flat=True).distinct().order_by('weight')
 
-    # Only products that have a packaging option for the selected weight
-    packaging_qs = PackagingOption.objects.filter(weight=selected_weight)
-    product_ids = packaging_qs.values_list('product_id', flat=True)
+    # Only products that have at least one packaging option
+    product_ids = PackagingOption.objects.values_list('product_id', flat=True).distinct()
     base_qs = Product.objects.filter(id__in=product_ids)
 
-    # Prefetch the selected packaging option for each product
-    base_qs = base_qs.prefetch_related(
-        Prefetch(
-            'packaging_options',
-            queryset=PackagingOption.objects.filter(weight=selected_weight),
-            to_attr='selected_packaging_option'
-        )
-    )
+    # Prefetch all packaging options for each product
+    base_qs = base_qs.prefetch_related('packaging_options')
 
     # Apply search and category/brand filtering
     if query:
@@ -61,17 +56,13 @@ def store_home(request):
     if selected_brands:
         base_qs = base_qs.filter(brand__id__in=selected_brands)
 
-    # Filter by price for the selected packaging option
+    # Filter by price for the smallest packaging option
     filtered_products = []
     for product in base_qs:
-        packaging = product.selected_packaging_option[0] if product.selected_packaging_option else None
+        packaging = product.packaging_options.all().order_by('weight').first()
         if not packaging:
             continue
-        # Use sale_price only if product is on sale and sale_price exists
-        if product.is_on_sale and packaging.sale_price:
-            price = packaging.sale_price
-        else:
-            price = packaging.price
+        price = packaging.current_price
         if min_price and float(price) < float(min_price):
             continue
         if max_price and float(price) > float(max_price):
@@ -79,34 +70,41 @@ def store_home(request):
         product.selected_packaging = packaging
         filtered_products.append(product)
 
-    # Calculate max price for slider (for 1.00kg packaging only)
-    max_effective_price = 100
+    # Calculate min and max price for slider (using the lowest price packaging option per product)
+    prices = []
     if base_qs.exists():
-        prices = []
         for product in base_qs:
-            packaging = product.selected_packaging_option[0] if product.selected_packaging_option else None
+            # Get the smallest packaging option (lowest weight)
+            packaging = product.packaging_options.all().order_by('weight').first()
             if not packaging:
                 continue
-            if product.is_on_sale and packaging.sale_price:
-                prices.append(float(packaging.sale_price))
-            else:
-                prices.append(float(packaging.price))
-        if prices:
-            max_effective_price = max(prices)
+            price = packaging.current_price
+            prices.append(float(price))
+    if prices:
+        max_effective_price = max(prices)
+        min_effective_price = min(prices)
+    else:
+        max_effective_price = 100
+        min_effective_price = 0
 
     # Cart logic
     cart = request.session.get('cart', {})
     cart_items = []
+    cart_total = 0
     for cart_key, qty in cart.items():
         try:
             product_id, packaging_id = cart_key.split('_')
             product = Product.objects.get(pk=product_id)
             packaging = PackagingOption.objects.get(pk=packaging_id)
+            price = packaging.current_price
             cart_items.append({
                 'product': product,
                 'packaging': packaging,
-                'quantity': qty
+                'quantity': qty,
+                'price': price,
+                'subtotal': price * qty
             })
+            cart_total += price * qty
         except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
             continue
 
@@ -114,11 +112,13 @@ def store_home(request):
         'products': filtered_products,
         'query': query,
         'max_price': max_effective_price,
+        'min_price': min_effective_price,
         'all_categories': all_categories,
         'all_brands': all_brands,
         'selected_cats': selected_cats,
         'selected_brands': selected_brands,
         'cart_items': cart_items,
+        'cart_total': cart_total,
         'all_weights': all_weights,
         'selected_weight': selected_weight,
     }
@@ -216,15 +216,18 @@ def update_cart_quantity(request, product_id, action):
 def view_cart(request):
     cart = request.session.get('cart', {})
     cart_items = []
+    cart_total = 0
     for cart_key, qty in cart.items():
         try:
             product_id, packaging_id = cart_key.split('_')
             product = Product.objects.get(pk=product_id)
             packaging = PackagingOption.objects.get(pk=packaging_id)
-            cart_items.append({'product': product, 'packaging': packaging, 'quantity': qty})
+            price = packaging.current_price
+            cart_items.append({'product': product, 'packaging': packaging, 'quantity': qty, 'price': price, 'subtotal': price * qty})
+            cart_total += price * qty
         except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
             continue
-    return render(request, 'store/cart.html', {'cart_items': cart_items})
+    return render(request, 'store/cart.html', {'cart_items': cart_items, 'cart_total': cart_total})
 
 
 def order_info(request):
@@ -238,7 +241,7 @@ def order_info(request):
                     product_id, packaging_id = cart_key.split('_')
                     product = Product.objects.get(pk=product_id)
                     packaging = PackagingOption.objects.get(pk=packaging_id)
-                    price = packaging.sale_price if packaging.sale_price else packaging.price
+                    price = packaging.current_price
                     OrderItem.objects.create(
                         order=order,
                         product=product,
@@ -306,6 +309,14 @@ DEFAULT_PAYMENT_PARAMS_REQUIRED = "1"
 
 def _generate_signature(params):
     """Generate signature for myPOS API request following their v1.4 specification"""
+    required_settings = [
+        'MYPOS_PRIVATE_KEY_PATH', 'MYPOS_SID', 'MYPOS_WALLET', 'MYPOS_KEYINDEX', 'MYPOS_BASE_URL'
+    ]
+    for s in required_settings:
+        if not hasattr(settings, s) or not getattr(settings, s):
+            logger.error(f"Missing myPOS setting: {s}")
+            raise Exception(f"Payment configuration error. Please contact support. (Missing {s})")
+
     # Create concatenated string from parameters in specific order
     values_to_sign = []
 
@@ -350,11 +361,8 @@ def _generate_signature(params):
         return signature_b64
 
     except Exception as e:
-        print(f"\nError in signature generation: {str(e)}")
-        print(f"Error type: {type(e)}")
-        import traceback
-        traceback.print_exc()
-        raise
+        logger.exception("Error in signature generation")
+        raise Exception("Payment signature error. Please try again later or contact support.")
 
 
 def mypos_payment(request, order_id):
@@ -406,20 +414,26 @@ def mypos_payment(request, order_id):
     # Add cart items parameters - these don't go into signature
     cart_items_params = {}
     for idx, item in enumerate(order_items, start=1):
+        # If item has a related packaging, use its current_price
+        try:
+            packaging = PackagingOption.objects.get(product=item.product, price=item.price)
+            price = packaging.current_price
+        except PackagingOption.DoesNotExist:
+            price = item.price
         cart_items_params.update({
             f'Article_{idx}': item.product.name[:100],
             f'Quantity_{idx}': str(item.quantity),
-            f'Price_{idx}': f"{item.price:.2f}",
+            f'Price_{idx}': f"{price:.2f}",
             f'Currency_{idx}': DEFAULT_CURRENCY,
-            f'Amount_{idx}': f"{(item.quantity * item.price):.2f}"
+            f'Amount_{idx}': f"{(item.quantity * price):.2f}"
         })
 
     # Generate signature before adding cart items
     try:
         params["Signature"] = _generate_signature(params)
     except Exception as e:
-        print(f"Error generating signature: {e}")
-        return render(request, "store/payment_error.html", {"error": str(e)})
+        logger.exception("Error generating payment signature")
+        return render(request, "store/payment_error.html", {"error": str(e), "debug": getattr(settings, 'DEBUG', False)})
 
     # Add cart items parameters after signature generation
     params.update(cart_items_params)
@@ -479,11 +493,14 @@ def payment_result(request):
     """
     status = request.GET.get("Status", "")
     order_id = request.GET.get("OrderID", "")
+    error = request.GET.get("error", None)
 
     context = {
         "status": status,
         "order_id": order_id,
-        "success": status == "Success"
+        "success": status == "Success",
+        "error": error,
+        "debug": getattr(settings, 'DEBUG', False)
     }
 
     return render(request, "store/payment_result.html", context)

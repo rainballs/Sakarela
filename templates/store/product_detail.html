@@ -1,10 +1,21 @@
 {% extends 'store/base_store.html' %}
-
 {% load static %}
 
 {% block title %}{{ product.name }}{% endblock %}
 
 {% block content %}
+    {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
     <section class="product-detail-page">
         <div class="section-container">
             <div class="image-text split-layout">
@@ -14,55 +25,102 @@
                 <div class="info-column">
                     <h2>{{ product.name }}</h2>
                     <p>{{ product.description }}</p>
-                </div>
-            </div>
-            <!-- Add-to-cart form moved here, centered -->
-            <div class="add-to-cart-form-container" style="display: flex; justify-content: center; margin-top: 2.5rem;">
-                <form action="{% url 'store:add_to_cart' product.pk %}" method="post" class="add-to-cart-form">
-                    {% csrf_token %}
-                    <div class="packaging-options">
-                        <label for="packaging_option">Разфасовка:</label>
-                        <select name="packaging_option" id="packaging_option" required>
-                            {% for option in packaging_options %}
-                                <option value="{{ option.id }}" {% if option == default_option %}selected{% endif %}>
-                                    {{ option.weight|floatformat:2 }} кг -
-                                    {% if product.is_on_sale and option.sale_price %}
-                                        {{ option.sale_price }} лв.
-                                    {% else %}
-                                        {{ option.price }} лв.
-                                    {% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="quantity-selector">
-                        <label for="quantity">Количество:</label>
-                        <div class="quantity-controls">
-                            <button type="button" class="qty-btn" onclick="updateQuantity(-1)">-</button>
-                            <input type="number" name="quantity" id="quantity" value="1" min="1" required>
-                            <button type="button" class="qty-btn" onclick="updateQuantity(1)">+</button>
+
+                    <div class="price-form-row">
+                        <div class="form-side">
+                            <form action="{% url 'store:add_to_cart' product.pk %}" method="post"
+                                  class="add-to-cart-form">
+                                {% csrf_token %}
+                                <section class="add-to-cart-flex-group">
+
+                                    <!-- Разфасовка -->
+                                    <section class="packaging-options-col">
+                                        <label for="packaging_option">Разфасовка:</label>
+                                        <select name="packaging_option" id="packaging_option"
+                                                class="custom-packaging-select" required>
+                                            {% for option in packaging_options %}
+                                                <option value="{{ option.id }}"
+                                                        {% if option == default_option %}selected{% endif %}>
+                                                    {{ option.weight|floatformat:2 }} кг
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </section>
+
+                                    <!-- ✅ Mobile Price -->
+                                    <div class="mobile-price-block">
+                                        <section class="product-price-section">
+                                            <span class="price-label">Цена:</span>
+                                            <span class="selected-price-display" id="selected-price-mobile">
+                                                  {% with selected=default_option %}
+                                                      {% if selected.is_on_sale and selected.sale_price %}
+                                                          <span class="old-price">{{ selected.price|floatformat:2 }} лв.</span>
+                                                          <span class="sale-price">{{ selected.sale_price|floatformat:2 }} лв.</span>
+                                                      {% else %}
+                                                          <span class="regular-price">{{ selected.price|floatformat:2 }} лв.</span>
+                                                      {% endif %}
+                                                  {% endwith %}
+                                                </span>
+                                        </section>
+                                    </div>
+
+                                    <!-- Количество -->
+                                    <section class="quantity-col">
+                                        <label for="quantity">Количество:</label>
+                                        <div class="quantity-controls">
+                                            <button type="button" class="qty-btn" onclick="updateQuantity(-1)">-
+                                            </button>
+                                            <input type="number" name="quantity" id="quantity" value="1" min="1"
+                                                   required>
+                                            <button type="button" class="qty-btn" onclick="updateQuantity(1)">+</button>
+                                        </div>
+                                    </section>
+
+                                    <!-- Add to cart -->
+                                    <section class="add-to-cart-btn-col">
+                                        <button type="submit" class="btn-cart add-to-cart-oneline-btn">
+                                            Добави в количката
+                                        </button>
+                                    </section>
+                                </section>
+                            </form>
+                        </div>
+
+                        <!-- ✅ Desktop/Tablet Price -->
+                        <div class="price-side">
+                            <section class="product-price-section">
+                                <span class="price-label">Цена:</span>
+                                <span class="selected-price-display" id="selected-price-desktop">
+                {% with selected=default_option %}
+                    {% if selected.is_on_sale and selected.sale_price %}
+                        <span class="old-price">{{ selected.price|floatformat:2 }} лв.</span>
+                        <span class="sale-price">{{ selected.sale_price|floatformat:2 }} лв.</span>
+                    {% else %}
+                        <span class="regular-price">{{ selected.price|floatformat:2 }} лв.</span>
+                    {% endif %}
+                {% endwith %}
+              </span>
+                            </section>
                         </div>
                     </div>
-                    <button type="submit" class="btn-cart">
-                        Добави в количката
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
     </section>
+
     <section class="product-detail-extra section-container">
         <div class="product-detail-flex">
             <div class="accordion">
                 <div class="accordion-item">
-                    <h3 class="accordion-header">🧀 Състав</h3>
+                    <h3 class="accordion-header">Състав</h3>
                     <p class="accordion-content">{{ product.ingredients }}</p>
                 </div>
                 <div class="accordion-item">
-                    <h3 class="accordion-header">📦 Съхранение</h3>
+                    <h3 class="accordion-header">Съхранение</h3>
                     <p class="accordion-content">{{ product.storage }}</p>
                 </div>
                 <div class="accordion-item">
-                    <h3 class="accordion-header">❓ Хранителна таблица</h3>
+                    <h3 class="accordion-header">Хранителна таблица</h3>
                     {% if product.nutrition %}
                         <div class="accordion-content">
                             <ul class="nutrition-list" style="list-style: none; padding: 0; margin: 0;">
@@ -81,11 +139,9 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="product-actions">
-                <!-- Remove product-inquiry-form-section -->
-            </div>
         </div>
     </section>
+
     <section class="other-products section-container">
         <h2>Други продукти</h2>
         <div class="product-grid">
@@ -104,27 +160,55 @@
                         </div>
                     </a>
                 {% endif %}
-                {% empty %}
+            {% empty %}
                 <p>Няма други продукти.</p>
             {% endfor %}
         </div>
     </section>
+
     <script>
         document.querySelectorAll('.accordion-item').forEach(item => {
             const header = item.querySelector('.accordion-header');
             header.addEventListener('click', () => item.classList.toggle('open'));
         });
+
         function updateQuantity(change) {
             const input = document.getElementById('quantity');
             const newValue = Math.max(1, parseInt(input.value) + change);
             input.value = newValue;
         }
-        document.getElementById('packaging_option').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const priceDisplay = document.querySelector('.price-display');
-            if (priceDisplay) {
-                priceDisplay.innerHTML = selectedOption.innerHTML;
+
+        const packagingSelect = document.getElementById('packaging_option');
+        const priceDisplays = document.querySelectorAll('.selected-price-display');
+
+        const packagingData = [
+            {% for option in packaging_options %}
+                {
+                    id: '{{ option.id }}',
+                    price: '{{ option.price|floatformat:2 }}',
+                    sale_price: '{{ option.sale_price|floatformat:2 }}',
+                    is_on_sale: {{ option.is_on_sale|yesno:'true,false' }}
+                },
+            {% endfor %}
+        ];
+
+        function updatePriceDisplay() {
+            const selectedId = packagingSelect.value;
+            const found = packagingData.find(opt => opt.id === selectedId);
+            if (found) {
+                let html = '';
+                if (found.is_on_sale && found.sale_price !== '0.00') {
+                    html = `<span class="old-price" style="color:#94a3b8;text-decoration:line-through;margin-right:0.5rem;">${found.price} лв.</span><span class="sale-price" style="color:#ef4444;">${found.sale_price} лв.</span>`;
+                } else {
+                    html = `<span class="regular-price">${found.price} лв.</span>`;
+                }
+                priceDisplays.forEach(el => el.innerHTML = html);
             }
-        });
+        }
+
+        if (packagingSelect) {
+            packagingSelect.addEventListener('change', updatePriceDisplay);
+            document.addEventListener('DOMContentLoaded', updatePriceDisplay);
+        }
     </script>
 {% endblock %}
