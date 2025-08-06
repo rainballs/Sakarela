@@ -5,44 +5,70 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Магазин | Сакарела{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/store.css' %}">
+    
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
-    {# <link rel="stylesheet" href="{% static 'css/styles.css' %}"> #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={{ STATIC_VERSION }}">
+    <link rel="stylesheet" href="{% static 'css/store.css' %}">
+    
+    <!-- HTMX for dynamic content -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glider-js@1/glider.min.css">
-    <!-- Bootstrap 4 CSS -->
+    
+    <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    
+    {% block extra_head %}{% endblock %}
 
-    <!-- Auto-hide Bootstrap alerts after 3 seconds -->
+    <!-- Auto-hide Django messages -->
     <script>
-        setTimeout(() => {
+        document.addEventListener('DOMContentLoaded', function() {
             const alerts = document.querySelectorAll('.alert');
+            
             alerts.forEach(alert => {
-                $(alert).alert('close');  // Use Bootstrap's built-in close method
+                // Auto-dismiss after 4 seconds
+                setTimeout(() => {
+                    dismissAlert(alert);
+                }, 4000);
+                
+                // Handle close button clicks
+                const closeBtn = alert.querySelector('.close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        dismissAlert(alert);
+                    });
+                }
             });
-        }, 3000);
+            
+            function dismissAlert(alert) {
+                alert.classList.add('fade-out');
+                setTimeout(() => {
+                    alert.remove();
+                }, 300);
+            }
+        });
     </script>
-    </body>
 </head>
 
-<!-- jQuery, Popper.js, Bootstrap 4 JS -->
+<body>
+<div class="store-wrapper">
+    {% include 'store/partials/navbar.html' %}
+
+    <main class="store-main">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<!-- jQuery, Popper.js, Bootstrap JS -->
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" crossorigin="anonymous"></script>
 
-<body>
-
-<div class="store-wrapper">
-
-    {% include 'store/partials/navbar.html' %}
-
-    {% block content %}{% endblock %}
-
-</div>
-
+<!-- Glider.js for carousels -->
 <script src="https://cdn.jsdelivr.net/npm/glider-js@1/glider.min.js"></script>
-
-</body>
 
 <footer class="store-footer">
     <div class="footer-container">
@@ -56,4 +82,5 @@
         </div>
     </div>
 </footer>
+</body>
 </html>

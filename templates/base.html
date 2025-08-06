@@ -21,25 +21,51 @@
                 <span class="hamburger-bar"></span>
                 <span class="hamburger-bar"></span>
             </button>
-            <ul class="nav-left">
-                <li><a href="{% url 'home' %}">Начало</a></li>
-                <li><a href="{% url 'about' %}">За Нас</a></li>
-                <li><a href="{% url 'recipe_list' %}">Рецепти</a></li>
-            </ul>
             <div class="nav-logo">
                 <a href="{% url 'home' %}">
                     <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
                 </a>
             </div>
-            <ul class="nav-right">
+            <ul class="nav-left">
+                <li><a href="{% url 'about' %}">За Нас</a></li>
+                <li><a href="{% url 'store:where_to_buy' %}">Магазини</a></li>
+                <li><a href="{% url 'recipe_list' %}">Рецепти</a></li>
                 <li><a href="{% url 'products' %}">Продукти</a></li>
                 <li><a href="{% url 'contact' %}">Контакти</a></li>
+            </ul>
+            <ul class="nav-right">
                 <li>
                     <a href="{% url 'store:store_home' %}" class="buy-online">
-                        Купи Онлайн
+                        Онлайн магазин
                     </a>
                 </li>
             </ul>
+            {% if request.session.cart %}
+            <div class="cart-icon-wrapper">
+                <a href="{% url 'store:cart' %}" class="cart-icon" aria-label="Количка">
+                    🛒 <span class="cart-count">{{ request.session.cart|length }}</span>
+                </a>
+                <div class="cart-dropdown" id="cart-dropdown">
+                    {% if cart_items %}
+                        {% for item in cart_items %}
+                            <div class="cart-item">
+                                <span>{{ item.product.name }} ({{ item.packaging.weight|floatformat:2 }} кг)</span>
+                                <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}">-</a>
+                                <span>x{{ item.quantity }}</span>
+                                <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}">+</a>
+                                <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}">🗑</a>
+                            </div>
+                        {% endfor %}
+                        <div class="cart-total">
+                            <strong>Общо: {{ cart_total|floatformat:2 }} лв.</strong>
+                        </div>
+                    {% else %}
+                        <p>Количката е празна</p>
+                    {% endif %}
+                    <a href="{% url 'store:cart' %}" class="btn-cart-dropdown-white">Прегледай количката</a>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </nav>
     <!-- Slide-in mobile menu -->
@@ -48,10 +74,11 @@
         <ul>
             <li><a href="{% url 'home' %}">Начало</a></li>
             <li><a href="{% url 'about' %}">За Нас</a></li>
+            <li><a href="{% url 'store:where_to_buy' %}">Магазини</a></li>
             <li><a href="{% url 'recipe_list' %}">Рецепти</a></li>
             <li><a href="{% url 'products' %}">Продукти</a></li>
             <li><a href="{% url 'contact' %}">Контакти</a></li>
-            <li><a href="{% url 'store:store_home' %}">Купи Онлайн</a></li>
+            <li><a href="{% url 'store:store_home' %}">Онлайн магазин</a></li>
         </ul>
     </div>
     <div id="mobile-menu-backdrop" class="mobile-menu-backdrop"></div>
@@ -82,25 +109,30 @@
 </footer>
 <!-- Add JS for mobile menu toggle -->
 <script>
+    // Hamburger menu toggle (mobile/tablet)
     const menuToggle = document.getElementById('mobile-menu-toggle');
     const mobileMenu = document.getElementById('mobile-menu');
     const closeMenu = document.getElementById('close-mobile-menu');
     const backdrop = document.getElementById('mobile-menu-backdrop');
+    
     function openMenu() {
         mobileMenu.classList.add('open');
         backdrop.classList.add('show');
         menuToggle.setAttribute('aria-expanded', 'true');
         mobileMenu.setAttribute('aria-hidden', 'false');
     }
+    
     function closeMenuFn() {
         mobileMenu.classList.remove('open');
         backdrop.classList.remove('show');
         menuToggle.setAttribute('aria-expanded', 'false');
         mobileMenu.setAttribute('aria-hidden', 'true');
     }
-    menuToggle.addEventListener('click', openMenu);
-    closeMenu.addEventListener('click', closeMenuFn);
-    backdrop.addEventListener('click', closeMenuFn);
+    
+    if (menuToggle) menuToggle.addEventListener('click', openMenu);
+    if (closeMenu) closeMenu.addEventListener('click', closeMenuFn);
+    if (backdrop) backdrop.addEventListener('click', closeMenuFn);
+    
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeMenuFn();
     });
@@ -108,16 +140,19 @@
     // --- SWIPE GESTURE FOR HAMBURGER MENU (mobile/tablet only) ---
     let touchStartX = 0;
     let touchEndX = 0;
+    
     function handleTouchStart(e) {
         if (e.touches && e.touches.length === 1) {
             touchStartX = e.touches[0].clientX;
         }
     }
+    
     function handleTouchMove(e) {
         if (e.touches && e.touches.length === 1) {
             touchEndX = e.touches[0].clientX;
         }
     }
+    
     function handleTouchEnd() {
         const minSwipeDistance = 60; // px
         if (touchEndX - touchStartX > minSwipeDistance && window.innerWidth <= 1024) {
@@ -126,9 +161,24 @@
         touchStartX = 0;
         touchEndX = 0;
     }
+    
     document.addEventListener('touchstart', handleTouchStart, {passive:true});
     document.addEventListener('touchmove', handleTouchMove, {passive:true});
     document.addEventListener('touchend', handleTouchEnd, {passive:true});
+
+    // Cart dropdown functionality
+    const cartWrapper = document.querySelector('.cart-icon-wrapper');
+    const cartDropdown = document.querySelector('.cart-dropdown');
+    
+    if (cartWrapper && cartDropdown) {
+        cartWrapper.addEventListener('mouseenter', function() {
+            cartDropdown.style.display = 'block';
+        });
+        
+        cartWrapper.addEventListener('mouseleave', function() {
+            cartDropdown.style.display = 'none';
+        });
+    }
 </script>
 </body>
 </html>

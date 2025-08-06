@@ -2,48 +2,68 @@
   <div class="row product-grid">
     {% for product in products %}
       <div class="responsive-product-col">
-        <a href="{% url 'store:product_detail' product.pk %}" class="product-card-link-wrapper" style="text-decoration: none; color: inherit;">
-          <div class="card product-card h-100 text-center p-3 position-relative">
-            <div class="product-image-wrapper position-relative">
-              <img src="{{ product.image.url }}" class="card-img-top mb-2" alt="{{ product.name }}">
+        <div class="card product-card h-100 text-center">
+          <div class="product-image-wrapper">
+            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+          </div>
 
-              <!-- Clickable icon (still works independently) -->
-              <div class="see-product-icon-badge position-absolute d-flex align-items-center justify-content-center"
-                   style="left: 50%; transform: translateX(-50%); bottom: 0; width: 40px; height: 40px; background: #2563eb; color: #fff; border-radius: 50%; box-shadow: 0 2px 8px rgba(21,58,91,0.12); font-size: 1.3rem; z-index: 2;">
-                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="11" cy="11" r="11" fill="none"/>
-                  <path d="M8 6L13 11L8 16" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+          <div class="card-body">
+            <h5 class="card-title">{{ product.name }}</h5>
+            
+            {% with first_option=product.packaging_options.all|first %}
+              <div class="product-price">
+                {% if first_option.is_on_sale and first_option.sale_price %}
+                  <span class="old-price">{{ first_option.price }} лв</span>
+                  <span class="sale-price">{{ first_option.sale_price }} лв</span>
+                {% else %}
+                  <span class="current-price">{{ first_option.current_price }} лв</span>
+                {% endif %}
               </div>
-            </div>
+            {% endwith %}
 
-            <div class="card-body flex-column p-2">
-              <h5 class="card-title mb-1" style="font-size: 1.1rem;">{{ product.name }}</h5>
-
-              {% with first_option=product.packaging_options.all|first %}
-                <p class="price mb-2 justify-content-center align-items-center" style="font-size: 1.1rem;">
-                  {% if first_option.is_on_sale and first_option.sale_price %}
-                    <span class="text-muted"><s>от {{ first_option.price }} лв</s></span><br>
-                    <span class="font-weight-bold ml-1" style="color: #ef4444;">от {{ first_option.sale_price }} лв</span>
-                  {% else %}
-                    <span class="font-weight-bold">от {{ first_option.current_price }} лв</span>
-                  {% endif %}
-                </p>
-              {% endwith %}
-
-              <div class="badges mb-2 d-flex justify-content-center flex-wrap">
-                {% for option in product.packaging_options.all %}
-                  <span class="badge badge-pill {% if option.is_on_sale %}badge-danger{% else %}badge-primary{% endif %} m-1">
-                    {{ option.weight }} кг
-                  </span>
-                {% endfor %}
+            {% if product.badge %}
+              <div class="product-badges">
+                <span class="badge">{{ product.badge }}</span>
               </div>
+            {% endif %}
+
+            <div class="product-actions">
+              <a href="{% url 'store:product_detail' product.pk %}" class="btn-view">
+                <i class="fas fa-eye"></i> Разгледай
+              </a>
+              <button type="button" class="btn-cart" onclick="openWeightModal({{ product.pk }})">
+                <i class="fas fa-shopping-cart"></i> Купи
+              </button>
             </div>
           </div>
-        </a>
+        </div>
+
+        <!-- Weight Selection Modal for this product -->
+        <div id="weight-modal-{{ product.pk }}" class="weight-modal">
+          <div class="weight-modal-content">
+            <div class="weight-modal-header">
+              <h3 class="weight-modal-title">ИЗБЕРИ ГРАМАЖ</h3>
+              <button type="button" class="weight-modal-close" onclick="closeWeightModal({{ product.pk }})">&times;</button>
+            </div>
+            <div class="weight-options">
+              {% for option in product.packaging_options.all %}
+                <div class="weight-option" onclick="selectWeight({{ product.pk }}, {{ option.pk }}, '{{ option.weight }}', '{{ option.current_price }}')">
+                  <span class="weight-label">{{ option.weight }} кг</span>
+                  <span class="weight-price">{{ option.current_price }} лв</span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
       </div>
     {% endfor %}
   </div>
 {% else %}
-  <p class="text-center">Няма намерени продукти.</p>
+  <div class="no-products">
+    <div class="no-products-content">
+      <i class="fas fa-search"></i>
+      <h3>Няма намерени продукти</h3>
+      <p>Опитайте да промените филтрите или да потърсите нещо друго.</p>
+    </div>
+  </div>
 {% endif %}

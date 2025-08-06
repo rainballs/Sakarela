@@ -48,6 +48,8 @@ class Product(models.Model):
         null=True, blank=True,
         related_name='products'
     )
+    
+    badge = models.CharField(max_length=100, blank=True, null=True, help_text="Label/Badge for the product (e.g., 'ОВЧЕ МЛЯКО', 'БДС', 'КОЗЕ МЛЯКО', 'КРАВЕ МЛЯКО', 'С ПОДПРАВКИ')")
 
     def __str__(self):
         return self.name

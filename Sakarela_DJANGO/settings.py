@@ -177,3 +177,6 @@ MYPOS_BASE_URL = config('MYPOS_BASE_URL')
 ECONT_LABEL_URL = "https://demo.econt.com/ee/services/LabelService"
 ECONT_USERNAME = "iasp-dev"
 ECONT_PASSWORD = "1Asp-dev"
+
+# Google Maps API settings
+GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='YOUR_API_KEY')

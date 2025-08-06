@@ -1,18 +1,33 @@
 {% extends 'store/base_store.html' %}
 
-{% block title %}Начало на магазина{% endblock %}
+{% block title %}Онлайн магазин | Сакарела{% endblock %}
 
 {% block content %}
+    <!-- Breadcrumbs -->
+    <div class="breadcrumb-container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Начало</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Онлайн магазин</li>
+            </ol>
+        </nav>
+    </div>
 
     <div class="store-main-content">
         {% include 'store/partials/sidebar.html' %}
 
         <div class="store-right">
-            <section class="store-search">
-                <form id="search-form" hx-get="{% url 'store:store_home' %}" hx-target="#product-grid"
-                      hx-push-url="true" hx-trigger="keyup changed delay:150ms from:input">
-                    <input type="text" name="q" placeholder="Търси продукт..." value="{{ query }}" autocomplete="off">
-                </form>
+            <div class="store-header">
+                <section class="store-search">
+                    <form id="search-form" hx-get="{% url 'store:store_home' %}" hx-target="#product-grid"
+                          hx-push-url="true" hx-trigger="keyup changed delay:150ms from:input">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" name="q" placeholder="Търси продукт..." value="{{ query }}" autocomplete="off">
+                        </div>
+                    </form>
+                </section>
+                
                 <!-- Mobile/Tablet Filter Dropdown -->
                 <div class="mobile-filter-dropdown-wrapper">
                     <button type="button" class="mobile-filter-toggle" id="mobile-filter-toggle"
@@ -22,12 +37,12 @@
                     <div class="mobile-filter-dropdown" id="mobile-filter-dropdown">
                         <form id="mobile-filter-form" method="get" action="{% url 'store:store_home' %}">
                             <div class="mobile-filter-row">
-                                <label for="min_price_mobile"></label>
+                                <label for="min_price_mobile">Минимална цена:</label>
                                 <input type="number" step="0.01" name="min_price" id="min_price_mobile" placeholder="Мин"
                                        value="{{ request.GET.min_price|default_if_none:'' }}">
                             </div>
                             <div class="mobile-filter-row">
-                                <label for="max_price_mobile"></label>
+                                <label for="max_price_mobile">Максимална цена:</label>
                                 <input type="number" step="0.01" name="max_price" id="max_price_mobile" placeholder="Макс"
                                        value="{{ request.GET.max_price|default_if_none:'' }}">
                             </div>
@@ -55,23 +70,23 @@
                                     {% endfor %}
                                 </div>
                             </div>
+                            <div class="mobile-filter-row">
+                                <label>Етикет:</label>
+                                <div class="mobile-filter-checkboxes">
+                                    {% for badge in all_badges %}
+                                        <label><input type="checkbox" name="badge" value="{{ badge }}"
+                                                      {% if badge in selected_badges %}checked{% endif %}> {{ badge }}
+                                        </label>
+                                        {% empty %}
+                                        <span>Няма етикети.</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
                             <button type="submit" class="mobile-filter-apply">Приложи</button>
                         </form>
                     </div>
                 </div>
-                <script>
-                    // Mobile filter dropdown toggle
-                    const filterToggle = document.getElementById('mobile-filter-toggle');
-                    const filterDropdown = document.getElementById('mobile-filter-dropdown');
-                    const filterArrow = document.getElementById('mobile-filter-arrow');
-                    if (filterToggle && filterDropdown && filterArrow) {
-                        filterToggle.addEventListener('click', function () {
-                            filterDropdown.classList.toggle('open');
-                            filterArrow.textContent = filterDropdown.classList.contains('open') ? '▲' : '▼';
-                        });
-                    }
-                </script>
-            </section>
+            </div>
 
             <section class="store-products">
                 <div id="product-grid">
@@ -80,4 +95,65 @@
             </section>
         </div>
     </div>
+
+    <script>
+        // Mobile filter dropdown toggle
+        const filterToggle = document.getElementById('mobile-filter-toggle');
+        const filterDropdown = document.getElementById('mobile-filter-dropdown');
+        const filterArrow = document.getElementById('mobile-filter-arrow');
+        
+        if (filterToggle && filterDropdown && filterArrow) {
+            filterToggle.addEventListener('click', function () {
+                filterDropdown.classList.toggle('open');
+                filterArrow.textContent = filterDropdown.classList.contains('open') ? '▲' : '▼';
+            });
+        }
+
+        // Weight Modal Functions
+        function openWeightModal(productId) {
+            const modal = document.getElementById(`weight-modal-${productId}`);
+            if (modal) {
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeWeightModal(productId) {
+            const modal = document.getElementById(`weight-modal-${productId}`);
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function selectWeight(productId, optionId, weight, price) {
+            // Here you can add the logic to add the product to cart
+            console.log(`Selected ${weight} кг for product ${productId} at price ${price} лв`);
+            
+            // Close the modal
+            closeWeightModal(productId);
+            
+            // You can add AJAX call here to add to cart
+            // addToCart(productId, optionId);
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('weight-modal')) {
+                event.target.classList.remove('show');
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modals = document.querySelectorAll('.weight-modal.show');
+                modals.forEach(modal => {
+                    modal.classList.remove('show');
+                });
+                document.body.style.overflow = 'auto';
+            }
+        });
+    </script>
 {% endblock %}

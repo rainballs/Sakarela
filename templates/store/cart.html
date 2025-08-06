@@ -1,8 +1,19 @@
 {% extends 'store/base_store.html' %}
 {% load static %}
-{% block title %}Количка{% endblock %}
+{% block title %}Количка | Сакарела{% endblock %}
 
 {% block content %}
+    <!-- Breadcrumbs -->
+    <div class="breadcrumb-container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Начало</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'store:store_home' %}">Онлайн магазин</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Количка</li>
+            </ol>
+        </nav>
+    </div>
+
     <div class="container cart-container">
         <div class="cart-title-container">
             <h1 class="cart-title">Количка</h1>

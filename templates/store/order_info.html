@@ -1,7 +1,19 @@
 {% extends 'store/base_store.html' %}
-{% block title %}Поръчка{% endblock %}
+{% block title %}Информация за поръчка | Сакарела{% endblock %}
 
 {% block content %}
+    <!-- Breadcrumbs -->
+    <div class="breadcrumb-container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Начало</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'store:store_home' %}">Онлайн магазин</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'store:cart' %}">Количка</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Информация за поръчка</li>
+            </ol>
+        </nav>
+    </div>
+
     <div class="container cart-container">
         <h1 class="order-title-center">Информация за поръчка</h1>
         <div class="order-form-box" style="max-width: 500px; margin: 0 auto; background: var(--surface-color); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); padding: 2rem 2.5rem;">

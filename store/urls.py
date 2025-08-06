@@ -9,7 +9,7 @@ urlpatterns = [
     path('', views.store_home, name='store_home'),
     path('product/<int:pk>/', views.product_detail, name='product_detail'),
 
-    path('where-to-buy/', TemplateView.as_view(template_name="store/where_to_buy.html"), name='where_to_buy'),
+    path('where-to-buy/', views.where_to_buy, name='where_to_buy'),
 
     path('cart/', views.view_cart, name='cart'),
     path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),

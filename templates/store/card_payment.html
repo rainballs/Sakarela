@@ -1,9 +1,22 @@
 {% extends 'store/base_store.html' %}
-{% block title %}Плащане с карта{% endblock %}
+{% block title %}Плащане с карта | Сакарела{% endblock %}
 
 {% block content %}
-<div class="container cart-container">
-    <h1>Плащане с карта</h1>
-    <p>Тази страница е заместител и може да бъде премахната.</p>
-</div>
+    <!-- Breadcrumbs -->
+    <div class="breadcrumb-container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Начало</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'store:store_home' %}">Онлайн магазин</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'store:cart' %}">Количка</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'store:order_info' %}">Информация за поръчка</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Плащане с карта</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="container cart-container">
+        <h1>Плащане с карта</h1>
+        <p>Тази страница е заместител и може да бъде премахната.</p>
+    </div>
 {% endblock %}

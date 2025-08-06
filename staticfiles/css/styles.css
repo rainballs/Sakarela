@@ -1522,18 +1522,25 @@ html, body {
     background: #91a631;
 }
 
+/* Hide "Приложи филтри" button on desktop since filters update with HTMX */
+@media (min-width: 1025px) {
+    .sidebar-widget .btn-filter {
+        display: none;
+    }
+}
+
 #price-slider .noUi-handle {
     width: 22px;
     height: 22px;
     border-radius: 50%;
     top: -9px;
     background: #fff;
-    border: 2px solid #91a631;
+    border: 2px solid #2962FF;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 #price-slider .noUi-connect {
-    background: #91a631;
+    background: #2962FF;
 }
 
 #price-slider.noUi-target {

@@ -5,40 +5,77 @@
 <script src="https://cdn.jsdelivr.net/npm/nouislider@15.6.1/dist/nouislider.min.js"></script>
 
 <div class="store-sidebar sidebar-widget">
-    <h3>Филтрирай по цена</h3>
+    <div class="sidebar-header">
+        <h3>Филтрирай продукти</h3>
+    </div>
+    
     <form method="get" id="filter-form">
-        <div class="price-slider-inputs-desktop">
-            <input type="text" id="min_price" name="min_price" value="{{ request.GET.min_price|default_if_none:'' }}" step="0.01" class="price-input-desktop" placeholder="Мин">
-            <input type="text" id="max_price" name="max_price" value="{{ request.GET.max_price|default_if_none:'' }}" step="0.01" class="price-input-desktop" placeholder="Макс">
+        <div class="filter-section">
+            <h4>Цена</h4>
+            <div class="price-slider-inputs-desktop">
+                <input type="text" id="min_price" name="min_price" value="{{ request.GET.min_price|default_if_none:'' }}" step="0.01" class="price-input-desktop" placeholder="Мин">
+                <input type="text" id="max_price" name="max_price" value="{{ request.GET.max_price|default_if_none:'' }}" step="0.01" class="price-input-desktop" placeholder="Макс">
+            </div>
+            <div id="price-slider"></div>
         </div>
-        <div id="price-slider"></div>
+        
         <input type="hidden" name="q" value="{{ query }}">
-        <h3>Категории</h3>
-        {% for cat in all_categories %}
-            <div class="filter-checkbox">
-                <label>
-                    <input type="checkbox" name="category" value="{{ cat.id }}"
-                           {% if cat.id|stringformat:"s" in selected_cats %}checked{% endif %}>
-                    {{ cat.name }}
-                </label>
-            </div>
-            {% empty %}
-            <p>Няма категории.</p>
-        {% endfor %}
-        <h3>Брандове</h3>
-        {% for brand in all_brands %}
-            <div class="filter-checkbox">
-                <label>
-                    <input type="checkbox" name="brand" value="{{ brand.id }}"
-                           {% if brand.id|stringformat:"s" in selected_brands %}checked{% endif %}>
-                    {{ brand.name }}
-                </label>
-            </div>
-            {% empty %}
-            <p>Няма брандове.</p>
-        {% endfor %}
+        
+        <div class="filter-section">
+            <h4>Категории</h4>
+            {% for cat in all_categories %}
+                <div class="filter-checkbox">
+                    <label>
+                        <input type="checkbox" name="category" value="{{ cat.id }}"
+                               {% if cat.id|stringformat:"s" in selected_cats %}checked{% endif %}>
+                        <span class="checkmark"></span>
+                        {{ cat.name }}
+                    </label>
+                </div>
+                {% empty %}
+                <p class="no-categories">Няма категории.</p>
+            {% endfor %}
+        </div>
+        
+        <div class="filter-section">
+            <h4>Брандове</h4>
+            {% for brand in all_brands %}
+                <div class="filter-checkbox">
+                    <label>
+                        <input type="checkbox" name="brand" value="{{ brand.id }}"
+                               {% if brand.id|stringformat:"s" in selected_brands %}checked{% endif %}>
+                        <span class="checkmark"></span>
+                        {{ brand.name }}
+                    </label>
+                </div>
+                {% empty %}
+                <p class="no-brands">Няма брандове.</p>
+            {% endfor %}
+        </div>
+        
+        <div class="filter-section">
+            <h4>Етикет</h4>
+            {% for badge in all_badges %}
+                <div class="filter-checkbox">
+                    <label>
+                        <input type="checkbox" name="badge" value="{{ badge }}"
+                               {% if badge in selected_badges %}checked{% endif %}>
+                        <span class="checkmark"></span>
+                        {{ badge }}
+                    </label>
+                </div>
+                {% empty %}
+                <p class="no-badges">Няма етикети.</p>
+            {% endfor %}
+        </div>
+        
+        <div class="filter-actions">
+            <button type="submit" class="btn-filter">Приложи филтри</button>
+            <a href="{% url 'store:store_home' %}" class="btn-clear">Изчисти всички</a>
+        </div>
     </form>
 </div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const slider = document.getElementById('price-slider');
@@ -49,38 +86,54 @@
         const sliderMax = parseFloat("{{ max_price|floatformat:'2' }}");
         const startMin = parseFloat(inputMin.value) || sliderMin;
         const startMax = parseFloat(inputMax.value) || sliderMax;
-        noUiSlider.create(slider, {
-            start: [startMin, startMax],
-            connect: true,
-            step: 0.01,
-            range: {
-                'min': sliderMin,
-                'max': sliderMax
-            },
-            format: {
-                to: value => value.toFixed(2),
-                from: value => parseFloat(value)
-            }
-        });
-        slider.noUiSlider.on('update', function (values, handle) {
-            // Set data attributes for tooltip on handles
-            const handles = slider.querySelectorAll('.noUi-handle');
-            handles[0].setAttribute('data-price', values[0]);
-            handles[1].setAttribute('data-price', values[1]);
-        });
-        slider.noUiSlider.on('slide', function (values) {
-            inputMin.value = values[0];
-            inputMax.value = values[1];
-            filterForm.requestSubmit();
-        });
-        inputMin.addEventListener('change', function () {
-            slider.noUiSlider.set([this.value, null]);
-            filterForm.requestSubmit();
-        });
-        inputMax.addEventListener('change', function () {
-            slider.noUiSlider.set([null, this.value]);
-            filterForm.requestSubmit();
-        });
+        
+        if (slider) {
+            noUiSlider.create(slider, {
+                start: [startMin, startMax],
+                connect: true,
+                step: 0.01,
+                range: {
+                    'min': sliderMin,
+                    'max': sliderMax
+                },
+                format: {
+                    to: value => value.toFixed(2),
+                    from: value => parseFloat(value)
+                }
+            });
+            
+            slider.noUiSlider.on('update', function (values, handle) {
+                // Set data attributes for tooltip on handles
+                const handles = slider.querySelectorAll('.noUi-handle');
+                handles[0].setAttribute('data-price', values[0]);
+                handles[1].setAttribute('data-price', values[1]);
+            });
+            
+            slider.noUiSlider.on('slide', function (values) {
+                inputMin.value = values[0];
+                inputMax.value = values[1];
+                filterForm.requestSubmit();
+            });
+        }
+        
+        if (inputMin) {
+            inputMin.addEventListener('change', function () {
+                if (slider && slider.noUiSlider) {
+                    slider.noUiSlider.set([this.value, null]);
+                }
+                filterForm.requestSubmit();
+            });
+        }
+        
+        if (inputMax) {
+            inputMax.addEventListener('change', function () {
+                if (slider && slider.noUiSlider) {
+                    slider.noUiSlider.set([null, this.value]);
+                }
+                filterForm.requestSubmit();
+            });
+        }
+        
         // Checkbox change triggers submit
         filterForm.querySelectorAll('input[type=checkbox]').forEach(function(checkbox) {
             checkbox.addEventListener('change', function() {

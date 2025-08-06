@@ -15,6 +15,7 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+import json
 
 from zeep import Client
 from zeep.transports import Transport
@@ -35,8 +36,10 @@ def store_home(request):
 
     all_categories = Category.objects.order_by('name')
     all_brands = Brand.objects.order_by('name')
+    all_badges = Product.objects.exclude(badge__isnull=True).exclude(badge='').values_list('badge', flat=True).distinct().order_by('badge')
     selected_cats = request.GET.getlist('category')
     selected_brands = request.GET.getlist('brand')
+    selected_badges = request.GET.getlist('badge')
 
     # All available weights for filter
     all_weights = PackagingOption.objects.values_list('weight', flat=True).distinct().order_by('weight')
@@ -55,6 +58,8 @@ def store_home(request):
         base_qs = base_qs.filter(category__id__in=selected_cats)
     if selected_brands:
         base_qs = base_qs.filter(brand__id__in=selected_brands)
+    if selected_badges:
+        base_qs = base_qs.filter(badge__in=selected_badges)
 
     # Filter by price for the smallest packaging option
     filtered_products = []
@@ -115,8 +120,10 @@ def store_home(request):
         'min_price': min_effective_price,
         'all_categories': all_categories,
         'all_brands': all_brands,
+        'all_badges': all_badges,
         'selected_cats': selected_cats,
         'selected_brands': selected_brands,
+        'selected_badges': selected_badges,
         'cart_items': cart_items,
         'cart_total': cart_total,
         'all_weights': all_weights,
@@ -127,7 +134,7 @@ def store_home(request):
         if 'q' in request.GET:
             return render(request, 'store/partials/product_grid.html', context)
         # If a filter is changed, update both sidebar and product grid (OOB swap)
-        if any(param in request.GET for param in ['min_price', 'max_price', 'category', 'brand']):
+        if any(param in request.GET for param in ['min_price', 'max_price', 'category', 'brand', 'badge']):
             sidebar_html = render_to_string('store/partials/sidebar.html', context, request=request)
             product_grid_html = render_to_string('store/partials/product_grid.html', context, request=request)
             return HttpResponse(sidebar_html + product_grid_html)
@@ -518,6 +525,55 @@ def confirm_order(request, order_id):
     except Exception as e:
         messages.error(request, f"Econt error: {e}")
         return redirect("store:order_summary", pk=order.id)
+
+
+def where_to_buy(request):
+    # Store locations data - you can move this to a database model later
+    store_locations = [
+        {
+            'name': 'Сакарела - Централен офис',
+            'lat': 42.6977,
+            'lng': 23.3219,
+            'address': 'София, България',
+            'type': 'office',
+            'phone': '+359 2 123 4567',
+            'hours': 'Понеделник - Петък: 9:00 - 18:00'
+        },
+        {
+            'name': 'Сакарела - Магазин 1',
+            'lat': 42.6977,
+            'lng': 23.3219,
+            'address': 'ул. Витоша 1, София',
+            'type': 'store',
+            'phone': '+359 2 123 4568',
+            'hours': 'Понеделник - Неделя: 8:00 - 22:00'
+        },
+        {
+            'name': 'Сакарела - Магазин 2',
+            'lat': 42.6977,
+            'lng': 23.3219,
+            'address': 'ул. Граф Игнатиев 2, София',
+            'type': 'store',
+            'phone': '+359 2 123 4569',
+            'hours': 'Понеделник - Неделя: 8:00 - 22:00'
+        },
+        {
+            'name': 'Сакарела - Магазин 3',
+            'lat': 42.6977,
+            'lng': 23.3219,
+            'address': 'ул. Шипка 3, София',
+            'type': 'store',
+            'phone': '+359 2 123 4570',
+            'hours': 'Понеделник - Неделя: 8:00 - 22:00'
+        }
+    ]
+    
+    context = {
+        'store_locations': json.dumps(store_locations),
+        'google_maps_api_key': getattr(settings, 'GOOGLE_MAPS_API_KEY', 'YOUR_API_KEY')
+    }
+    
+    return render(request, 'store/where_to_buy.html', context)
 
 
 def test_econt_label(request):

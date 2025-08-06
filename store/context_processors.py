@@ -1,6 +1,4 @@
-from django.shortcuts import get_object_or_404
-from .models import Product, PackagingOption
-
+from store.models import Product, PackagingOption
 
 def cart_items_context(request):
     cart = request.session.get('cart', {})
@@ -10,8 +8,8 @@ def cart_items_context(request):
     for cart_key, qty in cart.items():
         try:
             product_id, packaging_id = cart_key.split('_')
-            product = get_object_or_404(Product, id=product_id)
-            packaging = get_object_or_404(PackagingOption, id=packaging_id)
+            product = Product.objects.get(pk=product_id)
+            packaging = PackagingOption.objects.get(pk=packaging_id)
             # Use packaging's current_price property for price
             price = packaging.current_price
             line_total = price * qty
