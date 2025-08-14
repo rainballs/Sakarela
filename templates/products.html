@@ -1,10 +1,15 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block content %}
-
+    <!-- Hero Section -->
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">Продукти</h1>
+        </div>
+    </div>
     <section class="products-page">
         <div class="section-container">
-            <h2>Продукти</h2>
+            {#            <h2>Продукти</h2>#}
             <section class="feature-row">
                 <div class="feature-list">
                     <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
@@ -16,23 +21,89 @@
                     <div class="feature-item">Модерна и съвременна база за производство</div>
                 </div>
             </section>
-            <div class="product-grid">
-                {% for product in products %}
-                    <a href="{% url 'product_detail' product.pk %}">
-                        <div class="product-card">
-                            <img src="{{ product.image.url }}" alt="{{ product.title }}">
-                            {% if product.badge %}
-                                <img src="{{ product.badge.url }}" alt="badge" class="badge-img">
-                            {% endif %}
-                            <div class="card-body">
-                                <h3 class="card-title">{{ product.title }}</h3>
-                                <p class="card-subtitle">{{ product.badge_text }}</p>
-                            </div>
-                        </div>
+            <!-- Filter Section -->
+            <div class="product-filter-section">
+                <div class="filter-container">
+                    <a href="{% url 'products' %}" class="filter-btn {% if not selected_type %}active{% endif %}">
+                        Всички продукти
                     </a>
-                {% endfor %}
+                    {% for type_code, type_name in product_types %}
+                        <a href="{% url 'products' %}?type={{ type_code }}"
+                           class="filter-btn {% if selected_type == type_code %}active{% endif %}">
+                            {{ type_name }}
+                        </a>
+                    {% endfor %}
+                </div>
             </div>
+
+            <!-- Products by Type -->
+            {% if selected_type %}
+                <!-- Show filtered products -->
+                <div class="product-section">
+                    <h3 class="product-section-title">
+                        {% for type_code, type_name in product_types %}
+                            {% if type_code == selected_type %}{{ type_name }}{% endif %}
+                        {% endfor %}
+                    </h3>
+                    <div class="product-grid">
+                        {% for product in products %}
+                            <div class="product-card">
+                                <a href="{% url 'product_detail' product.pk %}" class="product-card-link">
+                                    <div class="product-image-wrapper">
+                                        <img src="{{ product.image.url }}" alt="{{ product.title }}"
+                                             class="product-image">
+                                        {% if product.badge %}
+                                            <img src="{{ product.badge.url }}" alt="badge" class="badge-img">
+                                        {% endif %}
+                                    </div>
+                                    <div class="product-card-content">
+                                        <h3 class="product-title">{{ product.title }}</h3>
+                                        {% if product.badge_text %}
+                                            <p class="product-subtitle">{{ product.badge_text }}</p>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <!-- Show all products organized by type -->
+                {% regroup products by type as product_list %}
+                {% for product_type in product_list %}
+                    <div class="product-section">
+                        <h3 class="product-section-title">
+                            {% for type_code, type_name in product_types %}
+                                {% if type_code == product_type.grouper %}{{ type_name }}{% endif %}
+                            {% endfor %}
+                        </h3>
+                        <div class="product-grid">
+                            {% for product in product_type.list %}
+                                <div class="product-card">
+                                    <a href="{% url 'product_detail' product.pk %}" class="product-card-link">
+                                        <div class="product-image-wrapper">
+                                            <img src="{{ product.image.url }}" alt="{{ product.title }}"
+                                                 class="product-image">
+                                            {% if product.badge %}
+                                                <img src="{{ product.badge.url }}" alt="badge" class="badge-img">
+                                            {% endif %}
+                                        </div>
+                                        <div class="product-card-content">
+                                            <h3 class="product-title">{{ product.title }}</h3>
+                                            {% if product.badge_text %}
+                                                <p class="product-subtitle">{{ product.badge_text }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </a>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
         </div>
     </section>
-
+    <section class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
 {% endblock %}

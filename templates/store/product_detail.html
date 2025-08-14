@@ -1,9 +1,15 @@
 {% extends 'store/base_store.html' %}
 {% load static %}
+{% load currency %}
 
 {% block title %}{{ product.name }} | Сакарела{% endblock %}
 
 {% block content %}
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">Онлайн магазин</h1>
+        </div>
+    </div>
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
@@ -43,14 +49,17 @@
 
                     <div class="product-detail-layout">
                         <div class="purchase-section">
-                            <form action="{% url 'store:add_to_cart' product.pk %}" method="post" class="add-to-cart-form">
+                            <form action="{% url 'store:add_to_cart' product.pk %}" method="post"
+                                  class="add-to-cart-form">
                                 {% csrf_token %}
-                                
+
                                 <div class="form-group">
                                     <label for="packaging_option">Разфасовка:</label>
-                                    <select name="packaging_option" id="packaging_option" class="custom-packaging-select" required>
+                                    <select name="packaging_option" id="packaging_option"
+                                            class="custom-packaging-select" required>
                                         {% for option in packaging_options %}
-                                            <option value="{{ option.id }}" {% if option == default_option %}selected{% endif %}>
+                                            <option value="{{ option.id }}"
+                                                    {% if option == default_option %}selected{% endif %}>
                                                 {{ option.weight|floatformat:2 }} кг
                                             </option>
                                         {% endfor %}
@@ -85,10 +94,10 @@
                                         <span class="selected-price-display-eur" id="selected-price-display-eur">
                                             {% with selected=default_option %}
                                                 {% if selected.is_on_sale and selected.sale_price %}
-                                                    <span class="old-price">{{ selected.price|floatformat:2 }} €</span>
-                                                    <span class="sale-price">{{ selected.sale_price|floatformat:2 }} €</span>
+                                                    <span class="old-price">{{ selected.price|to_eur }}</span>
+                                                    <span class="sale-price">{{ selected.sale_price|to_eur }}</span>
                                                 {% else %}
-                                                    <span class="regular-price">{{ selected.price|floatformat:2 }} €</span>
+                                                    <span class="regular-price">{{ selected.price|to_eur }}</span>
                                                 {% endif %}
                                             {% endwith %}
                                         </span>
@@ -113,7 +122,7 @@
                                     <p>{{ product.ingredients }}</p>
                                 </div>
                             </div>
-                            
+
                             <div class="accordion-item">
                                 <div class="accordion-header">
                                     <i class="fas fa-snowflake accordion-icon"></i>
@@ -124,7 +133,7 @@
                                     <p>{{ product.storage }}</p>
                                 </div>
                             </div>
-                            
+
                             <div class="accordion-item">
                                 <div class="accordion-header">
                                     <i class="fas fa-clock accordion-icon"></i>
@@ -173,16 +182,25 @@
                                 <div class="product-price">
                                     {% with first_option=other.packaging_options.all|first %}
                                         {% if first_option.is_on_sale and first_option.sale_price %}
-                                            <span class="old-price">{{ first_option.price|floatformat:2 }} ЛВ</span>
-                                            <span class="sale-price">{{ first_option.sale_price|floatformat:2 }} ЛВ</span>
+                                            <div class="price-row">
+                                                <span class="old-price">{{ first_option.price|floatformat:2 }} ЛВ</span>
+                                                <span class="sale-price">{{ first_option.sale_price|floatformat:2 }} ЛВ</span>
+                                            </div>
+                                            <div class="price-row">
+                                                <span class="old-price">{{ first_option.price|to_eur }}</span>
+                                                <span class="sale-price">{{ first_option.sale_price|to_eur }}</span>
+                                            </div>
                                         {% else %}
-                                            <span class="regular-price">{{ first_option.price|floatformat:2 }} ЛВ</span>
+                                            <div class="price-row">
+                                                <span class="regular-price">{{ first_option.price|floatformat:2 }} ЛВ</span>
+                                            </div>
+                                            <div class="price-row">
+                                                <span class="regular-price">{{ first_option.price|to_eur }}</span>
+                                            </div>
                                         {% endif %}
                                     {% endwith %}
                                 </div>
-                                <button class="btn-add-to-cart-small">
-                                    <i class="fas fa-shopping-cart"></i>
-                                </button>
+
                             </div>
                         </a>
                     </div>
@@ -192,16 +210,18 @@
             {% endfor %}
         </div>
     </section>
-
+    <section class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
     <script>
         // Accordion functionality
         document.querySelectorAll('.accordion-item').forEach(item => {
             const header = item.querySelector('.accordion-header');
             const arrow = item.querySelector('.accordion-arrow');
-            
+
             header.addEventListener('click', () => {
                 const isOpen = item.classList.contains('open');
-                
+
                 // Close all other accordion items
                 document.querySelectorAll('.accordion-item').forEach(otherItem => {
                     if (otherItem !== item) {
@@ -209,7 +229,7 @@
                         otherItem.querySelector('.accordion-arrow').style.transform = 'rotate(0deg)';
                     }
                 });
-                
+
                 // Toggle current item
                 item.classList.toggle('open');
                 arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
@@ -250,13 +270,13 @@
                     html = `<span class="regular-price">${found.price} ЛВ</span>`;
                 }
                 priceDisplay.innerHTML = html;
-                
-                // Update EUR price (assuming 1 EUR = 2 BGN for demo)
-                const priceInEur = parseFloat(found.is_on_sale && found.sale_price !== '0.00' ? found.sale_price : found.price) / 2;
+
+                // Update EUR price using correct conversion rate (1.95583)
+                const priceInEur = parseFloat(found.is_on_sale && found.sale_price !== '0.00' ? found.sale_price : found.price) / 1.95583;
                 const priceInEurFormatted = priceInEur.toFixed(2);
                 let htmlEur = '';
                 if (found.is_on_sale && found.sale_price !== '0.00') {
-                    const oldPriceInEur = (parseFloat(found.price) / 2).toFixed(2);
+                    const oldPriceInEur = (parseFloat(found.price) / 1.95583).toFixed(2);
                     htmlEur = `<span class="old-price">${oldPriceInEur} €</span><span class="sale-price">${priceInEurFormatted} €</span>`;
                 } else {
                     htmlEur = `<span class="regular-price">${priceInEurFormatted} €</span>`;

@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <title>Сакарела</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={{ STATIC_VERSION }}">
+    
+    {% block extra_css %}{% endblock %}
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -40,10 +43,9 @@
                     </a>
                 </li>
             </ul>
-            {% if request.session.cart %}
             <div class="cart-icon-wrapper">
                 <a href="{% url 'store:cart' %}" class="cart-icon" aria-label="Количка">
-                    🛒 <span class="cart-count">{{ request.session.cart|length }}</span>
+                    <i class="fas fa-shopping-cart"></i> <span class="cart-count">{{ request.session.cart|length|default:0 }}</span>
                 </a>
                 <div class="cart-dropdown" id="cart-dropdown">
                     {% if cart_items %}
@@ -65,7 +67,6 @@
                     <a href="{% url 'store:cart' %}" class="btn-cart-dropdown-white">Прегледай количката</a>
                 </div>
             </div>
-            {% endif %}
         </div>
     </nav>
     <!-- Slide-in mobile menu -->
@@ -87,26 +88,7 @@
 
 {% block content %}{% endblock %}
 
-<footer class="site-footer">
-    <div class="footer-container">
-        <div class="footer-links">
-            <ul>
-                <li><a href="{% url 'home' %}">Начало</a></li>
-                <li><a href="{% url 'about' %}">За Нас</a></li>
-                <li><a href="{% url 'products' %}">Продукти</a></li>
-                <li><a href="{% url 'contact' %}">Контакти</a></li>
-                <li><a href="{% url 'recipe_list' %}">Рецепти</a></li>
-                <li><a href="{% url 'store:store_home' %}">Магазин</a></li>
-            </ul>
-        </div>
-        <div class="footer-logos">
-            <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
-            <img src="/media/uploads/logos/eu-logo.jpg" alt="EU">
-            <img src="/media/uploads/logos/program-logo.jpg" alt="Program">
-        </div>
-        <p class="footer-copy">© Всички права запазени САКАРЕЛА | Designed by Modify</p>
-    </div>
-</footer>
+{% include 'partials/footer.html' %}
 <!-- Add JS for mobile menu toggle -->
 <script>
     // Hamburger menu toggle (mobile/tablet)

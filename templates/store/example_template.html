@@ -6,42 +6,7 @@
     <title>Магазин | Сакарела</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
           rel="stylesheet">
-    <style>
-        /* ========== GLOBAL RESET & BASE STYLES ========== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
 
-        :root {
-            --primary-color: #2563eb;
-            --primary-dark: #1d4ed8;
-            --secondary-color: #64748b;
-            --accent-color: #f59e0b;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-            --background-color: #f8fafc;
-            --surface-color: #ffffff;
-            --border-color: #e2e8f0;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --text-muted: #94a3b8;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-            --border-radius: 8px;
-            --border-radius-lg: 12px;
-            --transition: all 0.2s ease-in-out;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-primary);
-            line-height: 1.6;
-        }
 
         /* ========== LAYOUT CONTAINERS ========== */
         .sakarela-store-container {
@@ -557,7 +522,6 @@
                 padding: 1rem;
             }
         }
-    </style>
 </head>
 <body>
 <div class="sakarela-store-container">
@@ -677,7 +641,7 @@
                     </div>
 
                     <!-- No Products State (hidden by default) -->
-                    <div class="sakarela-no-products" style="display: none;">
+                    <div class="sakarela-no-products">
                         <div class="sakarela-no-products-icon">📦</div>
                         <div class="sakarela-no-products-text">Няма намерени продукти</div>
                         <div class="sakarela-no-products-subtitle">Опитайте с различни критерии за търсене</div>
@@ -693,9 +657,11 @@
             <ul class="sakarela-footer-links">
                 <li><a href="/" class="sakarela-footer-link">Начало</a></li>
                 <li><a href="/about/" class="sakarela-footer-link">За Нас</a></li>
+                <li><a href="/store/where-to-buy/" class="sakarela-footer-link">Магазини</a></li>
+                <li><a href="/recipes/" class="sakarela-footer-link">Рецепти</a></li>
                 <li><a href="/products/" class="sakarela-footer-link">Продукти</a></li>
                 <li><a href="/contact/" class="sakarela-footer-link">Контакти</a></li>
-                <li><a href="/store/" class="sakarela-footer-link">Магазин</a></li>
+                <li><a href="/store/" class="sakarela-footer-link">Онлайн магазин</a></li>
             </ul>
             <div class="sakarela-footer-logos">
                 <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела" class="sakarela-footer-logo">

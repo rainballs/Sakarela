@@ -3,6 +3,11 @@
 {% block title %}Онлайн магазин | Сакарела{% endblock %}
 
 {% block content %}
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">Онлайн магазин</h1>
+        </div>
+    </div>
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
@@ -23,11 +28,12 @@
                           hx-push-url="true" hx-trigger="keyup changed delay:150ms from:input">
                         <div class="search-wrapper">
                             <i class="fas fa-search search-icon"></i>
-                            <input type="text" name="q" placeholder="Търси продукт..." value="{{ query }}" autocomplete="off">
+                            <input type="text" name="q" placeholder="Търси продукт..." value="{{ query }}"
+                                   autocomplete="off">
                         </div>
                     </form>
                 </section>
-                
+
                 <!-- Mobile/Tablet Filter Dropdown -->
                 <div class="mobile-filter-dropdown-wrapper">
                     <button type="button" class="mobile-filter-toggle" id="mobile-filter-toggle"
@@ -38,12 +44,14 @@
                         <form id="mobile-filter-form" method="get" action="{% url 'store:store_home' %}">
                             <div class="mobile-filter-row">
                                 <label for="min_price_mobile">Минимална цена:</label>
-                                <input type="number" step="0.01" name="min_price" id="min_price_mobile" placeholder="Мин"
+                                <input type="number" step="0.01" name="min_price" id="min_price_mobile"
+                                       placeholder="Мин"
                                        value="{{ request.GET.min_price|default_if_none:'' }}">
                             </div>
                             <div class="mobile-filter-row">
                                 <label for="max_price_mobile">Максимална цена:</label>
-                                <input type="number" step="0.01" name="max_price" id="max_price_mobile" placeholder="Макс"
+                                <input type="number" step="0.01" name="max_price" id="max_price_mobile"
+                                       placeholder="Макс"
                                        value="{{ request.GET.max_price|default_if_none:'' }}">
                             </div>
                             <div class="mobile-filter-row">
@@ -53,7 +61,7 @@
                                         <label><input type="checkbox" name="category" value="{{ cat.id }}"
                                                       {% if cat.id|stringformat:'s' in selected_cats %}checked{% endif %}> {{ cat.name }}
                                         </label>
-                                        {% empty %}
+                                    {% empty %}
                                         <span>Няма категории.</span>
                                     {% endfor %}
                                 </div>
@@ -65,7 +73,7 @@
                                         <label><input type="checkbox" name="brand" value="{{ brand.id }}"
                                                       {% if brand.id|stringformat:'s' in selected_brands %}checked{% endif %}> {{ brand.name }}
                                         </label>
-                                        {% empty %}
+                                    {% empty %}
                                         <span>Няма брандове.</span>
                                     {% endfor %}
                                 </div>
@@ -77,7 +85,7 @@
                                         <label><input type="checkbox" name="badge" value="{{ badge }}"
                                                       {% if badge in selected_badges %}checked{% endif %}> {{ badge }}
                                         </label>
-                                        {% empty %}
+                                    {% empty %}
                                         <span>Няма етикети.</span>
                                     {% endfor %}
                                 </div>
@@ -95,13 +103,15 @@
             </section>
         </div>
     </div>
-
+    <section class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
     <script>
         // Mobile filter dropdown toggle
         const filterToggle = document.getElementById('mobile-filter-toggle');
         const filterDropdown = document.getElementById('mobile-filter-dropdown');
         const filterArrow = document.getElementById('mobile-filter-arrow');
-        
+
         if (filterToggle && filterDropdown && filterArrow) {
             filterToggle.addEventListener('click', function () {
                 filterDropdown.classList.toggle('open');
@@ -127,18 +137,102 @@
         }
 
         function selectWeight(productId, optionId, weight, price) {
-            // Here you can add the logic to add the product to cart
-            console.log(`Selected ${weight} кг for product ${productId} at price ${price} лв`);
-            
+            // Add product to cart via AJAX
+            const formData = new FormData();
+            formData.append('packaging_option', optionId);
+            formData.append('quantity', 1);
+
+            fetch(`/store/cart/add/${productId}/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+                .then(response => {
+                    if (response.ok) {
+                        // Show success message
+                        showNotification('Продуктът беше добавен в количката!', 'success');
+
+                        // Update cart count if it exists
+                        updateCartCount();
+
+                        // Silently refresh the page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showNotification('Грешка при добавяне в количката!', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Грешка при добавяне в количката!', 'error');
+                });
+
             // Close the modal
             closeWeightModal(productId);
-            
-            // You can add AJAX call here to add to cart
-            // addToCart(productId, optionId);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10000;
+                animation: slideInRight 0.3s ease;
+                ${type === 'success' ? 'background: #10b981;' : 'background: #ef4444;'}
+            `;
+
+            document.body.appendChild(notification);
+
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function updateCartCount() {
+            // Update cart count if cart count element exists
+            const cartCount = document.querySelector('.store-cart-count');
+            if (cartCount) {
+                // You can implement AJAX call to get current cart count
+                // For now, just increment the current count
+                const currentCount = parseInt(cartCount.textContent) || 0;
+                cartCount.textContent = currentCount + 1;
+            }
         }
 
         // Close modal when clicking outside
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             if (event.target.classList.contains('weight-modal')) {
                 event.target.classList.remove('show');
                 document.body.style.overflow = 'auto';
@@ -146,7 +240,7 @@
         });
 
         // Close modal with Escape key
-        document.addEventListener('keydown', function(event) {
+        document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 const modals = document.querySelectorAll('.weight-modal.show');
                 modals.forEach(modal => {

@@ -2,6 +2,11 @@
 {% block title %}Информация за поръчка | Сакарела{% endblock %}
 
 {% block content %}
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">Количка</h1>
+        </div>
+    </div>
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
@@ -14,32 +19,99 @@
         </nav>
     </div>
 
-    <div class="container cart-container">
-        <h1 class="order-title-center">Информация за поръчка</h1>
-        <div class="order-form-box" style="max-width: 500px; margin: 0 auto; background: var(--surface-color); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); padding: 2rem 2.5rem;">
+    <div class="container order-info-container">
+        <h1 class="order-title-center">ДАННИ ЗА ДОСТАВКА</h1>
+
+        <div class="order-form-box">
             <form method="post" class="order-form">
                 {% csrf_token %}
                 {{ form.non_field_errors }}
 
-                <div class="form-row">{{ form.full_name.label_tag }} {{ form.full_name }}</div>
-                <div class="form-row">{{ form.last_name.label_tag }} {{ form.last_name }}</div>
-                <div class="form-row">{{ form.email.label_tag }} {{ form.email }}</div>
-                <div class="form-row">{{ form.country.label_tag }} {{ form.country }}</div>
-                <div class="form-row">{{ form.state.label_tag }} {{ form.state }}</div>
-                <div class="form-row">{{ form.city.label_tag }} {{ form.city }}</div>
-                <div class="form-row">{{ form.address1.label_tag }} {{ form.address1 }}</div>
-                <div class="form-row">{{ form.address2.label_tag }} {{ form.address2 }}</div>
-                <div class="form-row">{{ form.post_code.label_tag }} {{ form.post_code }}</div>
-                <div class="form-row">
-                    {{ form.payment_method.label_tag }}
-                    <div class="payment-methods-row">
-                        {{ form.payment_method }}
+                <div class="form-grid">
+                    <div class="form-field">
+                        {{ form.full_name }}
+                        {% if form.full_name.errors %}
+                            <div class="error-message">{{ form.full_name.errors.0 }}</div>
+                        {% endif %}
                     </div>
-                    {{ form.payment_method.errors }}
+
+                    <div class="form-field">
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                            <div class="error-message">{{ form.last_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-field">
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="error-message">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-field">
+                        {{ form.country }}
+                        {% if form.country.errors %}
+                            <div class="error-message">{{ form.country.errors.0 }}</div>
+                        {% endif %}
+                    </div>
                 </div>
 
-                <button type="submit" class="btn-submit btn-primary" style="width: 100%; margin-top: 1.5rem;">Продължи</button>
+                <div class="form-section">
+                    <h2 class="section-title">АДРЕС ЗА ДОСТАВКА</h2>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            {{ form.state }}
+                            {% if form.state.errors %}
+                                <div class="error-message">{{ form.state.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field">
+                            {{ form.city }}
+                            {% if form.city.errors %}
+                                <div class="error-message">{{ form.city.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field full-width">
+                            {{ form.address1 }}
+                            {% if form.address1.errors %}
+                                <div class="error-message">{{ form.address1.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field full-width">
+                            {{ form.address2 }}
+                            {% if form.address2.errors %}
+                                <div class="error-message">{{ form.address2.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field">
+                            {{ form.post_code }}
+                            {% if form.post_code.errors %}
+                                <div class="error-message">{{ form.post_code.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2 class="section-title">НАЧИН НА ПЛАЩАНЕ</h2>
+                    <div class="payment-methods">
+                        {{ form.payment_method }}
+                        {% if form.payment_method.errors %}
+                            <div class="error-message">{{ form.payment_method.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">ЗАВЪРШИ ПОРЪЧКАТА</button>
             </form>
         </div>
     </div>
+    <section class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
 {% endblock %}

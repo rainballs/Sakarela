@@ -5,10 +5,19 @@ from store.models import Product as StoreProduct
 
 # Create your models here.
 class Product(models.Model):
+    PRODUCT_TYPES = [
+        ('kashkaval', 'Кашкавал'),
+        ('sirene', 'Сирене'),
+        ('yogurt', 'Йогурт'),
+        ('milk', 'Мляко'),
+        ('other', 'Други'),
+    ]
+    
     title = models.CharField(max_length=100)
     description = models.TextField()
     image = models.ImageField(upload_to='products/')
     badge = models.ImageField(upload_to='badges/', blank=True, null=True)
+    type = models.CharField(max_length=20, choices=PRODUCT_TYPES, default='other', help_text="Тип на продукта")
 
     ingredients = models.TextField()
     storage = models.CharField(max_length=255)
@@ -57,10 +66,47 @@ class Recipe(models.Model):
     )
     title = models.CharField(max_length=200)
     image = models.ImageField(upload_to='recipes/')
-    ingredients = models.TextField(help_text="List of ingredients, one per line")
+    short_description = models.TextField(max_length=300, help_text="Brief description of the recipe")
     cook_time = models.PositiveIntegerField(help_text="Time in minutes")
-    steps = models.TextField(help_text="Step-by-step instructions")
+    servings = models.PositiveIntegerField(default=4, help_text="Number of servings")
+    appliance = models.CharField(max_length=200, help_text="Cooking equipment/appliances needed")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
+
+
+class RecipeIngredient(models.Model):
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='recipe_ingredients',
+        help_text="The recipe this ingredient belongs to"
+    )
+    product = models.CharField(max_length=200, help_text="Name of the ingredient/product")
+    amount = models.CharField(max_length=100, help_text="Amount/quantity of the ingredient")
+    order = models.PositiveIntegerField(default=0, help_text="Order of the ingredient (1, 2, 3, etc.)")
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.recipe.title} - {self.product}"
+
+
+class RecipeStep(models.Model):
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='recipe_steps',
+        help_text="The recipe this step belongs to"
+    )
+    step_name = models.CharField(max_length=100, help_text="Example: Step 1, Step 2, etc.")
+    step_content = models.TextField(help_text="The content/instructions for this step")
+    order = models.PositiveIntegerField(default=0, help_text="Order of the step (1, 2, 3, etc.)")
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.recipe.title} - {self.step_name}"

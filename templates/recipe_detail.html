@@ -1,20 +1,154 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}{{ recipe.title }}{% endblock %}
+{% block title %}{{ recipe.title }} | Рецепти | Сакарела{% endblock %}
 {% block content %}
-<article class="recipe-detail-article">
-    <h1>{{ recipe.title }}</h1>
-    <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}">
-    <p><strong>⏱️ Време за приготвяне:</strong> {{ recipe.cook_time }} минути</p>
+<!-- Hero Section -->
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">РЕЦЕПТИ</h1>
+            <p class="recipe-hero-subtitle">Открийте вкусните рецепти с нашите висококачествени продукти</p>
+        </div>
+    </div>
 
-    <h3>Необходими продукти:</h3>
-    <ul>
-        {% for line in recipe.ingredients.splitlines %}
-            <li>{{ line }}</li>
-        {% endfor %}
-    </ul>
 
-    <h3>Начин на приготвяне:</h3>
-    <p>{{ recipe.steps|linebreaks }}</p>
-</article>
+<!-- RECIPE HERO SECTION -->
+<section class="recipe-hero-section">
+    <div class="container">
+        <div class="recipe-hero-grid">
+            <!-- RECIPE IMAGE -->
+            <div class="recipe-hero-image">
+                <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="recipe-main-image">
+            </div>
+            
+            <!-- RECIPE INFO -->
+            <div class="recipe-hero-info">
+                <div class="recipe-category">ЗАКУСКА</div>
+                <h1 class="recipe-title">{{ recipe.title }}</h1>
+                <p class="recipe-description">
+                    {{ recipe.short_description }}
+                </p>
+                
+                <!-- RECIPE STATS -->
+                <div class="recipe-stats">
+                    <div class="recipe-stat">
+                        <i class="fas fa-users"></i>
+                        <span>ПОРЦИИ: {{ recipe.servings }}</span>
+                    </div>
+                    <div class="recipe-stat">
+                        <i class="fas fa-clock"></i>
+                        <span>ВРЕМЕ ЗА ПРИГОТВЯНЕ: {{ recipe.cook_time }} МИН</span>
+                    </div>
+                    <div class="recipe-stat">
+                        <i class="fas fa-fire"></i>
+                        <span>УРЕД: {{ recipe.appliance }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- INGREDIENTS SECTION -->
+<section class="ingredients-section">
+    <div class="container">
+        <h2 class="recipe-section-title">НЕОБХОДИМИ ПРОДУКТИ</h2>
+        <div class="ingredients-list">
+            {% for ingredient in recipe.recipe_ingredients.all %}
+                <div class="ingredient-item">
+                    <span class="ingredient-product">{{ ingredient.product }}</span>
+                    <span class="ingredient-amount">{{ ingredient.amount }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- RECIPE CONTENT SECTION -->
+<section class="recipe-content-section">
+    <div class="container">
+        <div class="recipe-content-grid">
+            <!-- INSTRUCTIONS COLUMN -->
+            <div class="recipe-instructions-column">
+                <h2 class="recipe-section-title">НАЧИН НА ПРИГОТВЯНЕ</h2>
+                <div class="instructions-list">
+                    {% for step in recipe.recipe_steps.all %}
+                        <div class="instruction-step">
+                            <div class="step-number">{{ step.step_name }}</div>
+                            <div class="step-content">{{ step.step_content|linebreaks }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- OTHER RECIPES SECTION -->
+<section class="other-recipes-section">
+    <div class="container">
+        <h2 class="section-title">ДРУГИ РЕЦЕПТИ</h2>
+        <div class="recipes-grid">
+            {% for other_recipe in other_recipes|slice:":4" %}
+            <div class="recipe-card">
+                <div class="recipe-card-image">
+                    <img src="{{ other_recipe.image.url }}" alt="{{ other_recipe.title }}">
+                </div>
+                <div class="recipe-card-content">
+                    <h3 class="recipe-card-title">{{ other_recipe.title }}</h3>
+                    <div class="recipe-card-meta">
+                        <span class="recipe-time">{{ other_recipe.cook_time }} мин</span>
+                        <span class="recipe-servings">4 ПОРЦИИ</span>
+                    </div>
+                    <a href="{% url 'recipe_detail' other_recipe.id %}" class="recipe-card-button">Прочети рецептата</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="recipes-pagination">
+            <span class="pagination-dot active"></span>
+            <span class="pagination-dot"></span>
+            <span class="pagination-dot"></span>
+        </div>
+    </div>
+</section>
+
+<!-- QUALITY ASSURANCE SECTION -->
+<section class="quality-assurance-section">
+    <div class="quality-grid">
+        <div class="quality-item">
+            <h3 class="quality-title">НАЙ-ВИСОКО КАЧЕСТВО СУРОВИНИ ОТ ДОКАЗАНИ ФЕРМИ</h3>
+            <p class="quality-description">Гарантирано 100% натурални продукти</p>
+        </div>
+        
+        <div class="quality-item">
+            <h3 class="quality-title">ВЕРОЯТНО НАЙ-ГОЛЕМИЯТ ПРОИЗВОДИТЕЛ НА КАШКАВАЛ В БЪЛГАРИЯ</h3>
+            <p class="quality-description">Лидер в производството на качествени млечни продукти</p>
+        </div>
+        
+                    <div class="quality-item center-item">
+                <div class="quality-emblem">
+                    <img src="{% static 'uploads/traditional_tech_logo.png' %}" alt="Традиционна технология" class="emblem-image">
+                    <div class="emblem-text">
+                        <div class="emblem-title">ТРАДИЦИОННА ТЕХНОЛОГИЯ</div>
+                        <div class="emblem-subtitle">100% БЪЛГАРСКО МЛЯКО</div>
+                    </div>
+                </div>
+            </div>
+        
+        <div class="quality-item">
+            <h3 class="quality-title">ВИСОКОКВАЛИФИЦИРАНИ СПЕЦИАЛИСТИ И ТЕХНОЛОЗИ</h3>
+            <p class="quality-description">Експерти с дългогодишен опит в млечната промишленост</p>
+        </div>
+        
+        <div class="quality-item">
+            <h3 class="quality-title">МОДЕРНА И СЪВРЕМЕННА БАЗА ЗА ПРОИЗВОДСТВО</h3>
+            <p class="quality-description">Най-новите технологии за производство на млечни продукти</p>
+        </div>
+    </div>
+    
+    <div class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </div>
+</section>
+
 {% endblock %}

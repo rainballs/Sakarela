@@ -234,7 +234,17 @@ def view_cart(request):
             cart_total += price * qty
         except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
             continue
-    return render(request, 'store/cart.html', {'cart_items': cart_items, 'cart_total': cart_total})
+    
+    # Get recommended products (random selection of products with packaging options)
+    recommended_products = Product.objects.filter(
+        packaging_options__isnull=False
+    ).prefetch_related('packaging_options').distinct().order_by('?')[:6]  # Get 6 random products
+    
+    return render(request, 'store/cart.html', {
+        'cart_items': cart_items, 
+        'cart_total': cart_total,
+        'recommended_products': recommended_products
+    })
 
 
 def order_info(request):

@@ -1,30 +1,15 @@
 {% extends 'store/base_store.html' %}
+{% load static %}
 {% block title %}Къде да купите | Сакарела{% endblock %}
 
-{% block extra_head %}
-<style>
-    .map-container {
-        position: relative;
-        width: 100%;
-        height: 400px;
-        border-radius: 12px;
-        overflow: hidden;
-        background: #f5f5f5;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .map-image {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-        border-radius: 12px;
-    }
-</style>
-{% endblock %}
+{% block extra_head %}{% endblock %}
 
 {% block content %}
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">Обекти</h1>
+        </div>
+    </div>
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
@@ -38,65 +23,92 @@
 
     <div class="store-wrapper">
         <section class="where-to-buy">
-            <h1 style="text-align: center;">Къде да купите</h1>
-            
+            <h1 class="where-to-buy-title">Къде да купите</h1>
+
             <!-- Partners Carousel -->
             <div class="partners-carousel-section">
                 <h2>Нашите партньори</h2>
                 <div class="carousel-wrapper">
                     <div class="carousel-track">
-                        <a href="https://www.kaufland.bg" target="_blank"><img src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
-                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png" alt="Partner 2"></a>
-                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png" alt="Partner 3"></a>
-                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png" alt="Partner 4"></a>
+                        <a href="https://www.kaufland.bg" target="_blank"><img
+                                src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
+                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png"
+                                                                          alt="Partner 2"></a>
+                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png"
+                                                                          alt="Partner 3"></a>
+                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png"
+                                                                            alt="Partner 4"></a>
                         <!-- Copy of the first 4 logos -->
-                        <a href="https://www.kaufland.bg" target="_blank"><img src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
-                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png" alt="Partner 2"></a>
-                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png" alt="Partner 3"></a>
-                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png" alt="Partner 4"></a>
+                        <a href="https://www.kaufland.bg" target="_blank"><img
+                                src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
+                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png"
+                                                                          alt="Partner 2"></a>
+                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png"
+                                                                          alt="Partner 3"></a>
+                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png"
+                                                                            alt="Partner 4"></a>
                         <!-- Copy of the first 4 logos -->
-                        <a href="https://www.kaufland.bg" target="_blank"><img src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
-                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png" alt="Partner 2"></a>
-                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png" alt="Partner 3"></a>
-                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png" alt="Partner 4"></a>
+                        <a href="https://www.kaufland.bg" target="_blank"><img
+                                src="/media/uploads/partners/partner1.png" alt="Partner 1"></a>
+                        <a href="https://tmarket.bg" target="_blank"><img src="/media/uploads/partners/partner2.png"
+                                                                          alt="Partner 2"></a>
+                        <a href="https://paconi.net" target="_blank"><img src="/media/uploads/partners/partner3.png"
+                                                                          alt="Partner 3"></a>
+                        <a href="https://www.metro.bg" target="_blank"><img src="/media/uploads/partners/partner4.png"
+                                                                            alt="Partner 4"></a>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Store Locations Map -->
             <div class="store-locations-section">
                 <h2>Магазини и локации</h2>
-                
+
                 <!-- Static Map Image -->
                 <div class="map-container">
-                    <img src="/static/map/map_sakarela.png" alt="Карта на България с магазини Сакарела" class="map-image">
+                    <img src="/static/map/map_sakarela.png" alt="Карта на България с магазини Сакарела"
+                         class="map-image">
                 </div>
             </div>
         </section>
     </div>
-
+    <!-- FEATURE ROW -->
+    <section class="feature-row">
+        <div class="feature-list">
+            <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
+            <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
+            <div class="info-logo">
+                <img src="{% static 'uploads/traditional_tech_logo.png' %}" alt="100% Българско мляко">
+            </div>
+            <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
+            <div class="feature-item">Модерна и съвременна база за производство</div>
+        </div>
+    </section>
+    <section class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
     <script>
         // Carousel functionality - Fixed to prevent infinite loops
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const track = document.querySelector('.carousel-track');
             const wrapper = document.querySelector('.carousel-wrapper');
-            
+
             if (!track || !wrapper) {
                 console.warn('Carousel elements not found');
                 return;
             }
-            
+
             const logos = Array.from(track.children);
             if (logos.length === 0) {
                 console.warn('No carousel logos found');
                 return;
             }
-            
+
             let trackWidth = track.scrollWidth;
             const wrapperWidth = wrapper.offsetWidth;
             let iterationCount = 0;
             const maxIterations = 10; // Prevent infinite loops
-            
+
             // Duplicate until track is at least 2x wrapper width, but with safety limit
             while (trackWidth < wrapperWidth * 2 && iterationCount < maxIterations) {
                 logos.forEach(logo => {
@@ -105,45 +117,13 @@
                 trackWidth = track.scrollWidth;
                 iterationCount++;
             }
-            
+
             // Add CSS animation for smooth scrolling
             if (trackWidth > wrapperWidth) {
                 track.style.animation = 'scroll-carousel 30s linear infinite';
             }
         });
     </script>
-    
-    <style>
-        @keyframes scroll-carousel {
-            0% {
-                transform: translateX(0);
-            }
-            100% {
-                transform: translateX(-50%);
-            }
-        }
-        
-        .carousel-track {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-        }
-        
-        .carousel-track img {
-            height: 60px;
-            width: auto;
-            object-fit: contain;
-            transition: transform 0.3s ease;
-        }
-        
-        .carousel-track img:hover {
-            transform: scale(1.1);
-        }
-        
-        .carousel-wrapper {
-            overflow: hidden;
-            position: relative;
-            width: 100%;
-        }
-    </style>
+
+
 {% endblock %}

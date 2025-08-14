@@ -1,10 +1,15 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block content %}
-
+<!-- Hero Section -->
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">КОНТАКТИ</h1>
+        </div>
+    </div>
     <section class="contact-page">
         <div class="section-container">
-            <h2>Контакти</h2>
+{#            <h2>Контакти</h2>#}
 
             <form method="post" class="contact-form">
                 {% csrf_token %}

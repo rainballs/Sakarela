@@ -25,10 +25,10 @@
                 </a>
             </li>
         </ul>
-        {% if request.session.cart %}
+        {% if request.resolver_match.url_name != 'order_info' %}
         <div class="cart-icon-wrapper">
             <a href="{% url 'store:cart' %}" class="cart-icon" aria-label="Количка">
-                🛒 <span class="cart-count">{{ request.session.cart|length }}</span>
+                <i class="fas fa-shopping-cart"></i> <span class="cart-count">{{ request.session.cart|length|default:0 }}</span>
             </a>
             <div class="cart-dropdown" id="cart-dropdown">
                 {% if cart_items %}

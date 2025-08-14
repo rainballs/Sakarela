@@ -2,6 +2,11 @@
 {% block title %}Обобщение на поръчката | Сакарела{% endblock %}
 
 {% block content %}
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">Количка</h1>
+        </div>
+    </div>
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
@@ -15,50 +20,82 @@
         </nav>
     </div>
 
-    <div class="order-summary">
-        <div class="order-summary-box" style="max-width: 800px; margin: 2rem auto; background: var(--surface-color); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); padding: 2.5rem 2.5rem 2rem 2.5rem;">
-            <h2>Обобщение на поръчката</h2>
+    <div class="order-summary-container">
+        <div class="order-summary-box">
+            <h1 class="order-summary-title">ОБОБЩЕНИЕ НА ПОРЪЧКАТА</h1>
 
-            <section class="order-details">
-                <h4>Данни за клиента</h4>
-                <ul>
-                    <li><strong>Име:</strong> {{ order.full_name }} {{ order.last_name }}</li>
-                    <li><strong>Адрес:</strong> {{ order.country }}, {{ order.state }}, {{ order.city }}</li>
-                    <li>{{ order.address1 }}{% if order.address2 %}, {{ order.address2 }}{% endif %}</li>
-                    <li><strong>Пощенски код:</strong> {{ order.post_code }}</li>
-                    <li><strong>Имейл:</strong> {{ order.email }}</li>
-                    <li><strong>Метод на плащане:</strong> {{ order.get_payment_method_display }}</li>
-                </ul>
-            </section>
+            <div class="order-summary-content">
+                <section class="customer-details-section">
+                    <h2 class="section-title">ДАННИ ЗА КЛИЕНТА</h2>
+                    <div class="customer-details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Име:</span>
+                            <span class="detail-value">{{ order.full_name }} {{ order.last_name }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Имейл:</span>
+                            <span class="detail-value">{{ order.email }}</span>
+                        </div>
+                        <div class="detail-item full-width">
+                            <span class="detail-label">Адрес:</span>
+                            <span class="detail-value">{{ order.country }}, {{ order.state }}, {{ order.city }}</span>
+                        </div>
+                        <div class="detail-item full-width">
+                            <span class="detail-label">Улица:</span>
+                            <span class="detail-value">{{ order.address1 }}{% if order.address2 %},
+                                {{ order.address2 }}{% endif %}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Пощенски код:</span>
+                            <span class="detail-value">{{ order.post_code }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Метод на плащане:</span>
+                            <span class="detail-value">{{ order.get_payment_method_display }}</span>
+                        </div>
+                    </div>
+                </section>
 
-            <section class="order-products">
-                <h4>Продукти</h4>
-                <table class="cart-table">
-                    <thead>
-                    <tr>
-                        <th>Продукт</th>
-                        <th>Количество</th>
-                        <th>Цена</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for item in cart_items %}
-                        <tr>
-                            <td>{{ item.product.name }}</td>
-                            <td>{{ item.quantity }}</td>
-                            <td>{{ item.price|floatformat:2 }} лв.</td>
-                        </tr>
-                    {% endfor %}
-                    <tr>
-                        <td colspan="2" style="text-align:right;"><strong>Общо:</strong></td>
-                        <td><strong>{{ order.total|floatformat:2 }} лв.</strong></td>
-                    </tr>
-                    </tbody>
-                </table>
-            </section>
-            <div class="summary-actions">
-                <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
+                <section class="order-products-section">
+                    <h2 class="section-title">ПРОДУКТИ</h2>
+                    <div class="products-table-container">
+                        <table class="products-table">
+                            <thead>
+                            <tr>
+                                <th>Продукт</th>
+                                <th>Количество</th>
+                                <th>Цена</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for item in cart_items %}
+                                <tr>
+                                    <td class="product-name">{{ item.product.name }}</td>
+                                    <td class="product-quantity">{{ item.quantity }}</td>
+                                    <td class="product-price">{{ item.price|floatformat:2 }} лв.</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                            <tfoot>
+                            <tr class="total-row">
+                                <td colspan="2" class="total-label">ОБЩО:</td>
+                                <td class="total-amount">{{ order.total|floatformat:2 }} лв.</td>
+                            </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+
+                <div class="summary-actions">
+                    <a href="{% url 'store:store_home' %}" class="btn-return-to-store">
+                        <i class="fas fa-arrow-left"></i>
+                        Към магазин
+                    </a>
+                </div>
             </div>
         </div>
     </div>
+    <section class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
 {% endblock %}

@@ -1,63 +1,82 @@
+{% load currency %}
 {% if products %}
   <div class="row product-grid">
     {% for product in products %}
       <div class="responsive-product-col">
-        <div class="card product-card h-100 text-center">
-          <div class="product-image-wrapper">
-            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
-          </div>
+                 <div class="card product-card h-100 text-center">
+           <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
 
-          <div class="card-body">
-            <h5 class="card-title">{{ product.name }}</h5>
-            
-            {% with first_option=product.packaging_options.all|first %}
-              <div class="product-price">
-                {% if first_option.is_on_sale and first_option.sale_price %}
-                  <span class="old-price">{{ first_option.price }} лв</span>
-                  <span class="sale-price">{{ first_option.sale_price }} лв</span>
-                {% else %}
-                  <span class="current-price">{{ first_option.current_price }} лв</span>
-                {% endif %}
-              </div>
-            {% endwith %}
-
-            {% if product.badge %}
-              <div class="product-badges">
-                <span class="badge">{{ product.badge }}</span>
-              </div>
-            {% endif %}
-
-            <div class="product-actions">
-              <a href="{% url 'store:product_detail' product.pk %}" class="btn-view">
-                <i class="fas fa-eye"></i> Разгледай
-              </a>
-              <button type="button" class="btn-cart" onclick="openWeightModal({{ product.pk }})">
-                <i class="fas fa-shopping-cart"></i> Купи
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Weight Selection Modal for this product -->
-        <div id="weight-modal-{{ product.pk }}" class="weight-modal">
-          <div class="weight-modal-content">
-            <div class="weight-modal-header">
-              <h3 class="weight-modal-title">ИЗБЕРИ ГРАМАЖ</h3>
-              <button type="button" class="weight-modal-close" onclick="closeWeightModal({{ product.pk }})">&times;</button>
-            </div>
-            <div class="weight-options">
-              {% for option in product.packaging_options.all %}
-                <div class="weight-option" onclick="selectWeight({{ product.pk }}, {{ option.pk }}, '{{ option.weight }}', '{{ option.current_price }}')">
-                  <span class="weight-label">{{ option.weight }} кг</span>
-                  <span class="weight-price">{{ option.current_price }} лв</span>
+           <div class="card-body">
+             <h5 class="card-title">{{ product.name }}</h5>
+             
+                           {% with first_option=product.packaging_options.all|first %}
+                <div class="product-price">
+                  {% if first_option.is_on_sale and first_option.sale_price %}
+                    <div class="price-row">
+                      <span class="old-price">{{ first_option.price }} лв</span>
+                      <span class="sale-price">{{ first_option.sale_price }} лв</span>
+                    </div>
+                    <div class="price-row">
+                      <span class="old-price">{{ first_option.price|to_eur }}</span>
+                      <span class="sale-price">{{ first_option.sale_price|to_eur }}</span>
+                    </div>
+                  {% else %}
+                    <div class="price-row">
+                      <span class="current-price">{{ first_option.current_price }} лв</span>
+                    </div>
+                    <div class="price-row">
+                      <span class="current-price">{{ first_option.current_price|to_eur }}</span>
+                    </div>
+                  {% endif %}
                 </div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
+              {% endwith %}
+
+             {% if product.badge %}
+               <div class="product-badges">
+                 <span class="badge">{{ product.badge }}</span>
+               </div>
+             {% endif %}
+
+             <div class="product-actions">
+               <a href="{% url 'store:product_detail' product.pk %}" class="btn-view">
+                 <i class="fas fa-eye"></i> Разгледай
+               </a>
+               <button type="button" class="btn-cart" onclick="openWeightModal({{ product.pk }})">
+                 <i class="fas fa-shopping-cart"></i> Купи
+               </button>
+             </div>
+           </div>
+         </div>
+
+         <!-- Weight Selection Modal for this product -->
+         <div id="weight-modal-{{ product.pk }}" class="weight-modal">
+           <div class="weight-modal-content">
+             <div class="weight-modal-header">
+               <h3 class="weight-modal-title">ИЗБЕРИ ГРАМАЖ</h3>
+               <button type="button" class="weight-modal-close" onclick="closeWeightModal({{ product.pk }})">&times;</button>
+             </div>
+                          <div class="weight-options">
+                {% for option in product.packaging_options.all %}
+                  <div class="weight-option" onclick="selectWeight({{ product.pk }}, {{ option.pk }}, '{{ option.weight }}', '{{ option.current_price }}')">
+                    <span class="weight-label">{{ option.weight }} кг</span>
+                    <div class="weight-price">
+                      {% if option.is_on_sale and option.sale_price %}
+                        <span class="price-leva old-price">{{ option.price }} лв</span>
+                        <span class="price-leva sale-price">{{ option.sale_price }} лв</span>
+                        <span class="price-euro">{{ option.sale_price|to_eur }}</span>
+                      {% else %}
+                        <span class="price-leva">{{ option.current_price }} лв</span>
+                        <span class="price-euro">{{ option.current_price|to_eur }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+           </div>
+         </div>
+       </div>
+     {% endfor %}
+   </div>
 {% else %}
   <div class="no-products">
     <div class="no-products-content">

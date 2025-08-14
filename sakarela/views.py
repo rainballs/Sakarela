@@ -18,8 +18,23 @@ def about(request):
 
 
 def products(request):
-    products = Product.objects.all()
-    return render(request, 'products.html', {'products': products})
+    # Get the type filter from URL parameters
+    product_type = request.GET.get('type', '')
+    
+    # Filter products by type if specified
+    if product_type:
+        products = Product.objects.filter(type=product_type).order_by('title')
+    else:
+        products = Product.objects.all().order_by('type', 'title')
+    
+    # Get all available product types for the filter dropdown
+    product_types = Product.PRODUCT_TYPES
+    
+    return render(request, 'products.html', {
+        'products': products,
+        'product_types': product_types,
+        'selected_type': product_type
+    })
 
 
 def contact_view(request):
@@ -63,10 +78,15 @@ def product_detail(request, pk):
 
 
 def recipe_list(request):
-    recipes = Recipe.objects.order_by('-created_at')
-    return render(request, 'recipe_list.html', {'recipes': recipes})
+    # Get products that have recipes
+    products_with_recipes = Product.objects.filter(recipes__isnull=False).distinct().prefetch_related('recipes')
+    return render(request, 'recipe_list.html', {'products_with_recipes': products_with_recipes})
 
 
 def recipe_detail(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
-    return render(request, 'recipe_detail.html', {'recipe': recipe})
+    other_recipes = Recipe.objects.exclude(pk=pk).order_by('?')[:4]  # Random 4 other recipes
+    return render(request, 'recipe_detail.html', {
+        'recipe': recipe,
+        'other_recipes': other_recipes
+    })

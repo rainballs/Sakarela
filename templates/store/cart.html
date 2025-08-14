@@ -1,8 +1,16 @@
 {% extends 'store/base_store.html' %}
 {% load static %}
+{% load currency %}
 {% block title %}Количка | Сакарела{% endblock %}
 
 {% block content %}
+    <!-- Hero Section with Background Image -->
+    <div class="recipe-hero">
+        <div class="recipe-hero-content">
+            <h1 class="recipe-hero-title">Количка</h1>
+        </div>
+    </div>
+
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
@@ -14,73 +22,406 @@
         </nav>
     </div>
 
-    <div class="container cart-container">
-        <div class="cart-title-container">
-            <h1 class="cart-title">Количка</h1>
-        </div>
-
+    <!-- Main Cart Content -->
+    <div class="cart-main-container">
         {% if cart_items %}
-            <div class="cart-items-box">
-                <table class="cart-table">
-                    <thead>
-                    <tr>
-                        <th>Продукт</th>
-                        <th>Разфасовка</th>
-                        <th>Количество</th>
-                        <th>Цена</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for item in cart_items %}
-                        <tr>
-                            <td>{{ item.product.name }} ({{ item.packaging.weight|floatformat:2 }} кг)</td>
-                            <td class="cart-qty">
-                                <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}" class="qty-btn">-</a>
-                                <span class="qty-count">{{ item.quantity }}</span>
-                                <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}" class="qty-btn">+</a>
-                            </td>
-                            <td>
-                                {% if item.packaging.is_on_sale and item.packaging.sale_price %}
-                                    <span class="old-price">{{ item.packaging.price|floatformat:2 }} лв.</span>
-                                    <strong class="sale-price">{{ item.packaging.sale_price|floatformat:2 }} лв.</strong>
-                                {% else %}
-                                    <strong>{{ item.packaging.price|floatformat:2 }} лв.</strong>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}" class="delete-btn">🗑</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                    <tfoot>
-                    <tr class="total-row">
-                        <td colspan="2"></td>
-                        <td colspan="2" class="cart-total">Общо: <strong>{{ cart_total|floatformat:2 }} лв.</strong></td>
-                    </tr>
-                    </tfoot>
-                </table>
-                <div class="cart-actions">
-                    <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
-                    <a href="{% url 'store:order_info' %}" class="btn btn-primary">Продължи към поръчка</a>
+            <!-- Cart with Items -->
+            <div class="cart-with-items">
+                <div class="cart-items-container">
+                    <h2 class="cart-section-title">Вашата количка</h2>
+
+                    <div class="cart-items-grid">
+                        {% for item in cart_items %}
+                            <div class="cart-item-card">
+                                <div class="cart-item-image">
+                                    {% if item.product.image %}
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}"
+                                             class="product-image">
+                                    {% else %}
+                                        <div class="no-image-placeholder">
+                                            <i class="fas fa-image"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="cart-item-details">
+                                    <h3 class="cart-product-name">{{ item.product.name }}</h3>
+                                    <p class="cart-product-weight">{{ item.packaging.weight|floatformat:2 }} кг</p>
+
+                                    <div class="cart-item-price">
+                                        {% if item.packaging.is_on_sale and item.packaging.sale_price %}
+                                            <div class="price-row">
+                                                <span class="old-price">{{ item.packaging.price|floatformat:2 }} лв.</span>
+                                                <span class="old-price-euro">{{ item.packaging.price|to_eur }}</span>
+                                            </div>
+                                            <div class="price-row">
+                                                <strong class="sale-price">{{ item.packaging.sale_price|floatformat:2 }}
+                                                    лв.</strong>
+                                                <strong class="sale-price-euro">{{ item.packaging.sale_price|to_eur }}</strong>
+                                            </div>
+                                        {% else %}
+                                            <div class="price-row">
+                                                <strong class="regular-price">{{ item.packaging.price|floatformat:2 }}
+                                                    лв.</strong>
+                                                <strong class="regular-price-euro">{{ item.packaging.price|to_eur }}</strong>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="cart-item-controls">
+                                    <div class="quantity-controls">
+                                        <a href="{% url 'store:update_cart_quantity' item.product.id 'decrement' %}?packaging_id={{ item.packaging.id }}"
+                                           class="qty-btn">-</a>
+                                        <span class="qty-count">{{ item.quantity }}</span>
+                                        <a href="{% url 'store:update_cart_quantity' item.product.id 'increment' %}?packaging_id={{ item.packaging.id }}"
+                                           class="qty-btn">+</a>
+                                    </div>
+
+                                    <div class="cart-item-total">
+                                        <span class="quantity-label">Количество: {{ item.quantity }}</span>
+                                    </div>
+
+                                    <a href="{% url 'store:remove_from_cart' item.product.id %}?packaging_id={{ item.packaging.id }}"
+                                       class="remove-btn" title="Премахни от количката">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="cart-summary">
+                        <div class="cart-total-section">
+                            <div class="cart-total-row">
+                                <span class="total-label">Общо:</span>
+                                <span class="total-amount">{{ cart_total|floatformat:2 }} лв.</span>
+                                <span class="total-amount-euro">{{ cart_total|to_eur }}</span>
+                            </div>
+                        </div>
+
+                        <div class="cart-actions">
+                            <a href="{% url 'store:store_home' %}" class="btn-continue-shopping">
+                                <i class="fas fa-arrow-left"></i>
+                                Продължи пазаруването
+                            </a>
+                            <a href="{% url 'store:order_info' %}" class="btn-checkout">
+                                <i class="fas fa-shopping-cart"></i>
+                                Продължи към поръчка
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
-        {% else %}
-            <section class="empty-cart-section" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 420px;">
-                <div class="empty-cart" style="text-align: center;">
-                    <p class="cart-empty">Количката е празна</p>
-                    <img
-                        src="{% static 'uploads/empty_cart.png' %}"
-                        alt="Empty cart"
-                        class="empty-cart-image"
-                        style="display: block; margin: 0 auto;"
-                    >
-                </div>
-                <div class="summary-actions" style="margin-top: 1.2rem;">
-                    <a href="{% url 'store:store_home' %}" class="btn-secondary">← Към магазин</a>
+
+            <!-- You Might Also Like Section -->
+            <section class="recommended-products-section">
+                <div class="recommended-products-container">
+                    <h2 class="recommended-products-title">МОЖЕ ДА ХАРЕСАШ ОЩЕ</h2>
+
+                    <div class="recommended-products-grid">
+                        {% for product in recommended_products|slice:":3" %}
+                            <div class="recommended-product-card">
+                                <div class="recommended-product-image">
+                                    {% if product.image %}
+                                        <img src="{{ product.image.url }}" alt="{{ product.name }}"
+                                             class="product-image">
+                                    {% else %}
+                                        <div class="no-image-placeholder">
+                                            <i class="fas fa-image"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="recommended-product-info">
+                                    <p class="recommended-product-category">{{ product.category.name|upper }}</p>
+                                    <h3 class="recommended-product-name">{{ product.name|upper }}</h3>
+
+                                    <div class="recommended-product-price">
+                                        {% if product.packaging_options.first.is_on_sale and product.packaging_options.first.sale_price %}
+                                            <div class="price-row">
+                                                <span class="old-price">{{ product.packaging_options.first.price|floatformat:2 }} €</span>
+                                            </div>
+                                            <div class="price-row">
+                                                <strong class="sale-price">{{ product.packaging_options.first.sale_price|floatformat:2 }}
+                                                    €</strong>
+                                            </div>
+                                        {% else %}
+                                            <div class="price-row">
+                                                <strong class="regular-price">{{ product.packaging_options.first.current_price|floatformat:2 }}
+                                                    €</strong>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <button class="recommended-add-to-cart-btn"
+                                        onclick="openWeightModal({{ product.id }})"
+                                        title="Добави в количката">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </button>
+                            </div>
+
+                            <!-- Weight Selection Modal for this recommended product -->
+                            <div id="weight-modal-{{ product.id }}" class="weight-modal">
+                                <div class="weight-modal-content">
+                                    <div class="weight-modal-header">
+                                        <h3 class="weight-modal-title">ИЗБЕРИ ГРАМАЖ</h3>
+                                        <button type="button" class="weight-modal-close"
+                                                onclick="closeWeightModal({{ product.id }})">&times;
+                                        </button>
+                                    </div>
+                                    <div class="weight-options">
+                                        {% for option in product.packaging_options.all %}
+                                            <div class="weight-option"
+                                                 onclick="selectWeight({{ product.id }}, {{ option.id }}, '{{ option.weight }}', '{{ option.current_price }}')">
+                                                <span class="weight-label">{{ option.weight }} кг</span>
+                                                <div class="weight-price">
+                                                    {% if option.is_on_sale and option.sale_price %}
+                                                        <span class="price-leva old-price">{{ option.price }} лв</span>
+                                                        <span class="price-leva sale-price">{{ option.sale_price }} лв</span>
+                                                        <span class="price-euro">{{ option.sale_price|to_eur }}</span>
+                                                    {% else %}
+                                                        <span class="price-leva">{{ option.current_price }} лв</span>
+                                                        <span class="price-euro">{{ option.current_price|to_eur }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="recommended-products-dots">
+                        <span class="dot active"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
                 </div>
             </section>
+        {% else %}
+            <!-- Empty Cart Section -->
+
+            <div class="empty-cart-container">
+                <div class="empty-cart-icon">
+                    <img src="{% static 'uploads/empty_cart.png' %}" alt="Празна количка" class="sad-cart-image">
+                </div>
+                <div class="empty-cart-message">
+                    <h2 class="empty-cart-title">КОЛИЧКАТА Е ПРАЗНА</h2>
+                    <p class="empty-cart-subtitle">Добавете продукти от нашия магазин</p>
+                </div>
+                <div class="empty-cart-actions">
+                    <a href="{% url 'store:store_home' %}" class="btn-return-to-store">
+                        <i class="fas fa-store"></i>
+                        ВЪРНИ СЕ КЪМ МАГАЗИНА
+                    </a>
+                </div>
+            </div>
+
         {% endif %}
     </div>
+
+    <!-- Quality Assurance Section -->
+    <section class="cart-quality-assurance">
+        <div class="cart-quality-container">
+            <div class="cart-quality-item">
+                <div class="cart-quality-icon">
+                    <i class="fas fa-award"></i>
+                </div>
+                <div class="cart-quality-content">
+                    <h3 class="cart-quality-title">НАЙ-ВИСОКО КАЧЕСТВО СУРОВИНИ ОТ ДОКАЗАНИ ФЕРМИ</h3>
+                    <p class="cart-quality-description">Гарантираме първокачествени суровини от проверени партньори</p>
+                </div>
+            </div>
+
+            <div class="cart-quality-item">
+                <div class="cart-quality-icon">
+                    <i class="fas fa-cheese"></i>
+                </div>
+                <div class="cart-quality-content">
+                    <h3 class="cart-quality-title">ВЕРОЯТНО НАЙ-ГОЛЕМИЯТ ПРОИЗВОДИТЕЛ НА КАШКАВАЛ В БЪЛГАРИЯ</h3>
+                    <p class="cart-quality-description">Довереността на милиони български семейства</p>
+                </div>
+            </div>
+
+            <div class="cart-quality-item">
+                <div class="cart-quality-icon">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <div class="cart-quality-content">
+                    <h3 class="cart-quality-title">ВИСОКОКВАЛИФИЦИРАНИ СПЕЦИАЛИСТИ И ТЕХНОЛОЗИ</h3>
+                    <p class="cart-quality-description">Екип от експерти с дългогодишен опит в млекопреработването</p>
+                </div>
+            </div>
+
+            <div class="cart-quality-item">
+                <div class="cart-quality-icon">
+                    <i class="fas fa-industry"></i>
+                </div>
+                <div class="cart-quality-content">
+                    <h3 class="cart-quality-title">МОДЕРНА И СЪВРЕМЕННА БАЗА ЗА ПРОИЗВОДСТВО</h3>
+                    <p class="cart-quality-description">Най-новите технологии за гарантиране на качеството</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quality Bar -->
+    <section class="yellow-bar">
+        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+    </section>
+{% endblock %}
+
+{% block extra_head %}
+    <script>
+        // Weight Modal Functions
+        function openWeightModal(productId) {
+            const modal = document.getElementById(`weight-modal-${productId}`);
+            if (modal) {
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeWeightModal(productId) {
+            const modal = document.getElementById(`weight-modal-${productId}`);
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function selectWeight(productId, optionId, weight, price) {
+            // Add product to cart via AJAX
+            const formData = new FormData();
+            formData.append('packaging_option', optionId);
+            formData.append('quantity', 1);
+
+            fetch(`/store/cart/add/${productId}/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+                .then(response => {
+                    if (response.ok) {
+                        // Show success message
+                        showNotification('Продуктът беше добавен в количката!', 'success');
+
+                        // Silently refresh the page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showNotification('Грешка при добавяне в количката!', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Грешка при добавяне в количката!', 'error');
+                });
+
+            // Close the modal
+            closeWeightModal(productId);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        color: white;
+        font-weight: 600;
+        z-index: 1000;
+        animation: slideInRight 0.3s ease;
+        background: ${type === 'success' ? '#28a745' : '#dc3545'};
+    `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function (event) {
+            if (event.target.classList.contains('weight-modal')) {
+                event.target.classList.remove('show');
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                const modals = document.querySelectorAll('.weight-modal.show');
+                modals.forEach(modal => {
+                    modal.classList.remove('show');
+                });
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        // Cart dropdown delay functionality
+        let cartDropdownTimeout;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const cartButton = document.querySelector('.store-cart-btn-desktop');
+            const cartDropdown = document.querySelector('.cart-dropdown');
+
+            if (cartButton && cartDropdown) {
+                // When hovering over cart button
+                cartButton.addEventListener('mouseenter', function () {
+                    clearTimeout(cartDropdownTimeout);
+                    cartDropdown.style.display = 'block';
+                });
+
+                // When leaving cart button
+                cartButton.addEventListener('mouseleave', function () {
+                    cartDropdownTimeout = setTimeout(() => {
+                        cartDropdown.style.display = 'none';
+                    }, 1500); // 1500ms delay
+                });
+
+                // When hovering over dropdown
+                cartDropdown.addEventListener('mouseenter', function () {
+                    clearTimeout(cartDropdownTimeout);
+                });
+
+                // When leaving dropdown
+                cartDropdown.addEventListener('mouseleave', function () {
+                    cartDropdownTimeout = setTimeout(() => {
+                        cartDropdown.style.display = 'none';
+                    }, 800); // 800ms delay for more time to interact
+                });
+            }
+        });
+    </script>
 {% endblock %}
