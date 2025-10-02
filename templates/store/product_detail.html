@@ -24,7 +24,7 @@
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
+            <ol class="breadcrumb" style="background: #E6EBE8 !important;">
                 <li class="breadcrumb-item"><a href="{% url 'home' %}">Начало</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'store:store_home' %}">Онлайн магазин</a></li>
                 <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
@@ -34,6 +34,27 @@
 
     <section class="product-detail-page">
         <div class="section-container">
+            <style>
+                .split-layout { /* CHANGED */
+                    display: grid;
+                    grid-template-columns: minmax(420px, 560px) 1fr;
+                    gap: 56px;
+                    align-items: center;
+                }
+
+                @media (max-width: 1024px) {
+                    .split-layout {
+                        gap: 36px;
+                    }
+                }
+
+                @media (max-width: 860px) {
+                    .split-layout {
+                        grid-template-columns: 1fr;
+                        gap: 28px;
+                    }
+                }
+            </style>
             <div class="image-text split-layout">
                 <div class="image-column">
                     <div class="product-image-wrapper">
@@ -46,39 +67,45 @@
                         <h1 class="product-title">{{ product.name }}</h1>
                         <p class="product-description">{{ product.description }}</p>
                     </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-                    <div class="product-detail-layout">
-                        <div class="purchase-section">
-                            <form action="{% url 'store:add_to_cart' product.pk %}" method="post"
-                                  class="add-to-cart-form">
-                                {% csrf_token %}
+    <section class="product-detail-info-page">
+        <div class="product-detail-layout">
+            <div class="purchase-section">
+                <form style="align-items: unset !important;" action="{% url 'store:add_to_cart' product.pk %}"
+                      method="post"
+                      class="add-to-cart-form">
+                    {% csrf_token %}
 
-                                <div class="form-group">
-                                    <label for="packaging_option">Разфасовка:</label>
-                                    <select name="packaging_option" id="packaging_option"
-                                            class="custom-packaging-select" required>
-                                        {% for option in packaging_options %}
-                                            <option value="{{ option.id }}"
-                                                    {% if option == default_option %}selected{% endif %}>
-                                                {{ option.weight|floatformat:2 }} кг
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                    <div class="form-group">
+                        <label for="packaging_option">Разфасовка:</label>
+                        <select name="packaging_option" id="packaging_option"
+                                class="custom-packaging-select" required>
+                            {% for option in packaging_options %}
+                                <option value="{{ option.id }}"
+                                        {% if option == default_option %}selected{% endif %}>
+                                    {{ option.weight|floatformat:2 }} кг
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                                <div class="form-group">
-                                    <label for="quantity">Количество:</label>
-                                    <div class="quantity-controls">
-                                        <button type="button" class="qty-btn" onclick="updateQuantity(-1)">-</button>
-                                        <input type="number" name="quantity" id="quantity" value="1" min="1" required>
-                                        <button type="button" class="qty-btn" onclick="updateQuantity(1)">+</button>
-                                    </div>
-                                </div>
+                    <div class="form-group">
+                        <label for="quantity">Количество:</label>
+                        <div class="quantity-controls">
+                            <button type="button" class="qty-btn" onclick="updateQuantity(-1)">-</button>
+                            <input type="number" name="quantity" id="quantity" value="1" min="1" required>
+                            <button type="button" class="qty-btn" onclick="updateQuantity(1)">+</button>
+                        </div>
+                    </div>
 
-                                <div class="price-display">
-                                    <div class="price-row">
-                                        <span class="price-label">Крайна цена ЛВ:</span>
-                                        <span class="selected-price-display" id="selected-price-display">
+                    <div class="price-display">
+                        <div class="price-row">
+                            <span class="price-label">цена ЛВ:</span>
+                            <span class="selected-price-display" id="selected-price-display">
                                             {% with selected=default_option %}
                                                 {% if selected.is_on_sale and selected.sale_price %}
                                                     <span class="old-price">{{ selected.price|floatformat:2 }} ЛВ</span>
@@ -88,10 +115,10 @@
                                                 {% endif %}
                                             {% endwith %}
                                         </span>
-                                    </div>
-                                    <div class="price-row">
-                                        <span class="price-label">Крайна цена €:</span>
-                                        <span class="selected-price-display-eur" id="selected-price-display-eur">
+                        </div>
+                        <div class="price-row">
+                            <span class="price-label">цена €:</span>
+                            <span class="selected-price-display-eur" id="selected-price-display-eur">
                                             {% with selected=default_option %}
                                                 {% if selected.is_on_sale and selected.sale_price %}
                                                     <span class="old-price">{{ selected.price|to_eur }}</span>
@@ -101,63 +128,60 @@
                                                 {% endif %}
                                             {% endwith %}
                                         </span>
-                                    </div>
-                                </div>
-
-                                <button type="submit" class="btn-add-to-cart">
-                                    <i class="fas fa-shopping-cart"></i>
-                                    Добави в количката
-                                </button>
-                            </form>
                         </div>
+                    </div>
 
-                        <div class="product-accordion">
-                            <div class="accordion-item">
-                                <div class="accordion-header">
-                                    <i class="fas fa-leaf accordion-icon"></i>
-                                    <span>Състав</span>
-                                    <i class="fas fa-chevron-down accordion-arrow"></i>
-                                </div>
-                                <div class="accordion-content">
-                                    <p>{{ product.ingredients }}</p>
-                                </div>
-                            </div>
+                    <button type="submit" class="btn-add-to-cart">
+                        <i class="fas fa-shopping-cart"></i>
+                        Добави в количката
+                    </button>
+                </form>
+            </div>
 
-                            <div class="accordion-item">
-                                <div class="accordion-header">
-                                    <i class="fas fa-snowflake accordion-icon"></i>
-                                    <span>Съхранение</span>
-                                    <i class="fas fa-chevron-down accordion-arrow"></i>
-                                </div>
-                                <div class="accordion-content">
-                                    <p>{{ product.storage }}</p>
-                                </div>
-                            </div>
+            <div class="product-accordion">
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <i class="fas fa-leaf accordion-icon"></i>
+                        <span>Състав</span>
+                        <i class="fas fa-chevron-down accordion-arrow"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <p>{{ product.ingredients }}</p>
+                    </div>
+                </div>
 
-                            <div class="accordion-item">
-                                <div class="accordion-header">
-                                    <i class="fas fa-clock accordion-icon"></i>
-                                    <span>Хранителна таблица</span>
-                                    <i class="fas fa-chevron-down accordion-arrow"></i>
-                                </div>
-                                <div class="accordion-content">
-                                    {% if product.nutrition %}
-                                        <ul class="nutrition-list">
-                                            <li><strong>Хранителна стойност за 100g:</strong></li>
-                                            <li>Енергийна стойност: {{ product.nutrition.energy }}</li>
-                                            <li>Мазнини: {{ product.nutrition.fat }}g</li>
-                                            <li>От които наситени мастни киселини: {{ product.nutrition.saturated_fat }}g</li>
-                                            <li>Въглехидрати: {{ product.nutrition.carbohydrates }}g</li>
-                                            <li>От които захари: {{ product.nutrition.sugars }}g</li>
-                                            <li>Белтъци: {{ product.nutrition.protein }}g</li>
-                                            <li>Сол: {{ product.nutrition.salt }}g</li>
-                                        </ul>
-                                    {% else %}
-                                        <p>Няма налична информация.</p>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <i class="fas fa-snowflake accordion-icon"></i>
+                        <span>Съхранение</span>
+                        <i class="fas fa-chevron-down accordion-arrow"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <p>{{ product.storage }}</p>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <i class="fas fa-clock accordion-icon"></i>
+                        <span>Хранителна таблица</span>
+                        <i class="fas fa-chevron-down accordion-arrow"></i>
+                    </div>
+                    <div class="accordion-content">
+                        {% if product.nutrition %}
+                            <ul class="nutrition-list">
+                                <li><strong>Хранителна стойност за 100g:</strong></li>
+                                <li>Енергийна стойност: {{ product.nutrition.energy }}</li>
+                                <li>Мазнини: {{ product.nutrition.fat }}g</li>
+                                <li>От които наситени мастни киселини: {{ product.nutrition.saturated_fat }}g</li>
+                                <li>Въглехидрати: {{ product.nutrition.carbohydrates }}g</li>
+                                <li>От които захари: {{ product.nutrition.sugars }}g</li>
+                                <li>Белтъци: {{ product.nutrition.protein }}g</li>
+                                <li>Сол: {{ product.nutrition.salt }}g</li>
+                            </ul>
+                        {% else %}
+                            <p>Няма налична информация.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>

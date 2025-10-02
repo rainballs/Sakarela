@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={{ STATIC_VERSION }}">
-    
+
     {% block extra_css %}{% endblock %}
 
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -96,25 +96,25 @@
     const mobileMenu = document.getElementById('mobile-menu');
     const closeMenu = document.getElementById('close-mobile-menu');
     const backdrop = document.getElementById('mobile-menu-backdrop');
-    
+
     function openMenu() {
         mobileMenu.classList.add('open');
         backdrop.classList.add('show');
         menuToggle.setAttribute('aria-expanded', 'true');
         mobileMenu.setAttribute('aria-hidden', 'false');
     }
-    
+
     function closeMenuFn() {
         mobileMenu.classList.remove('open');
         backdrop.classList.remove('show');
         menuToggle.setAttribute('aria-expanded', 'false');
         mobileMenu.setAttribute('aria-hidden', 'true');
     }
-    
+
     if (menuToggle) menuToggle.addEventListener('click', openMenu);
     if (closeMenu) closeMenu.addEventListener('click', closeMenuFn);
     if (backdrop) backdrop.addEventListener('click', closeMenuFn);
-    
+
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeMenuFn();
     });
@@ -122,19 +122,19 @@
     // --- SWIPE GESTURE FOR HAMBURGER MENU (mobile/tablet only) ---
     let touchStartX = 0;
     let touchEndX = 0;
-    
+
     function handleTouchStart(e) {
         if (e.touches && e.touches.length === 1) {
             touchStartX = e.touches[0].clientX;
         }
     }
-    
+
     function handleTouchMove(e) {
         if (e.touches && e.touches.length === 1) {
             touchEndX = e.touches[0].clientX;
         }
     }
-    
+
     function handleTouchEnd() {
         const minSwipeDistance = 60; // px
         if (touchEndX - touchStartX > minSwipeDistance && window.innerWidth <= 1024) {
@@ -143,7 +143,7 @@
         touchStartX = 0;
         touchEndX = 0;
     }
-    
+
     document.addEventListener('touchstart', handleTouchStart, {passive:true});
     document.addEventListener('touchmove', handleTouchMove, {passive:true});
     document.addEventListener('touchend', handleTouchEnd, {passive:true});
@@ -151,12 +151,12 @@
     // Cart dropdown functionality
     const cartWrapper = document.querySelector('.cart-icon-wrapper');
     const cartDropdown = document.querySelector('.cart-dropdown');
-    
+
     if (cartWrapper && cartDropdown) {
         cartWrapper.addEventListener('mouseenter', function() {
             cartDropdown.style.display = 'block';
         });
-        
+
         cartWrapper.addEventListener('mouseleave', function() {
             cartDropdown.style.display = 'none';
         });

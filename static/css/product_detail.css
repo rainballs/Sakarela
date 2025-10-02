@@ -4,8 +4,21 @@
 
 /* Reset and base styles for this page */
 body .product-detail-page {
-    background: #fff !important;
-    min-height: 100vh !important;
+    /*background: #fff;*/
+    /*min-height: 100vh !important;*/
+    overflow-x: hidden;
+}
+
+body .product-detail-page .background {
+    position: relative;
+    left: 50%;
+    margin-left: -50vw;
+    width: 100vw; /* span the entire screen width */
+    background-image: url('../uploads/Other-Products-bg.png');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover; /* fill the container, crop if needed */
+    padding: clamp(24px, 4vw, 60px) 0; /* vertical spacing for the content */
 }
 
 body .product-detail-page .section-container {
@@ -224,6 +237,58 @@ body .product-detail-page .storage-content p {
 /* Recipes section */
 body .product-detail-page .recipes-section {
     margin-top: 3rem !important;
+
+}
+
+.recipe-bg {
+    position: relative;
+    left: 50%;
+    margin-left: -50vw;
+    width: 100vw; /* span the whole viewport width */
+    background-image: url('../uploads/Other-Recipes-bg.png');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover; /* fill section; crop if needed */
+    padding: clamp(24px, 4vw, 64px) 0;
+    --fade-color: #FFF8EA; /* set this to the exact cream of the section above */
+}
+
+.recipe-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    /* solid cream at very top -> fully transparent by ~220px */
+    background: linear-gradient(
+            to bottom,
+            var(--fade-color) 0,
+            rgba(255, 242, 224, 0.85) 80px,
+            rgba(255, 242, 224, 0) 220px
+    );
+}
+
+.recipe-bg::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 220px; /* match last stop */
+    pointer-events: none;
+    z-index: 0;
+    background: linear-gradient(
+            to top,
+            var(--fade-color) 0,
+            rgba(255, 242, 224, 0.85) 80px,
+            rgba(255, 242, 224, 0) 220px
+    );
+}
+
+.recipe-bg .recipes-section {
+    max-width: 1200px; /* match your site’s content width */
+    margin: 0 auto;
+    padding: 0 24px; /* side gutters; set to 0 for edge-to-edge cards */
 }
 
 body .product-detail-page .recipes-section h2 {
@@ -510,7 +575,7 @@ body .product-detail-page .yellow-bar p {
     body .product-detail-page .image-text.split-layout {
         gap: 2rem !important;
     }
-    
+
     body .product-detail-page .info-column h2 {
         font-size: 2rem !important;
     }
@@ -520,47 +585,47 @@ body .product-detail-page .yellow-bar p {
     body .product-detail-page .section-container {
         padding: 1rem !important;
     }
-    
+
     body .product-detail-page .image-text.split-layout {
         flex-direction: column !important;
         gap: 2rem !important;
     }
-    
+
     body .product-detail-page .info-column h2 {
         font-size: 1.75rem !important;
     }
-    
+
     body .product-detail-page .product-store-actions {
         flex-direction: column !important;
     }
-    
+
     body .product-detail-page .product-info-sections {
         flex-direction: column !important;
         gap: 1.5rem !important;
     }
-    
+
     body .product-detail-page .recipe-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 1rem !important;
     }
-    
+
     body .product-detail-page .recipe-image-wrapper {
         height: 140px !important;
     }
-    
+
     body .product-detail-page .recipe-title {
         font-size: 1rem !important;
     }
-    
+
     body .product-detail-page .product-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 1rem !important;
     }
-    
+
     body .product-detail-page .product-image-wrapper {
         height: 140px !important;
     }
-    
+
     body .product-detail-page .product-title {
         font-size: 1rem !important;
     }
@@ -570,34 +635,37 @@ body .product-detail-page .yellow-bar p {
     body .product-detail-page .info-column h2 {
         font-size: 1.5rem !important;
     }
-    
+
     body .product-detail-page .recipe-grid {
         grid-template-columns: 1fr !important;
         gap: 1rem !important;
     }
-    
+
     body .product-detail-page .recipe-card-content {
         padding: 0.75rem !important;
     }
-    
+
     body .product-detail-page .recipe-title {
         font-size: 1rem !important;
     }
-    
+
     body .product-detail-page .product-grid {
         grid-template-columns: 1fr !important;
         gap: 1rem !important;
     }
-    
+
     body .product-detail-page .product-card-content {
         padding: 0.75rem !important;
     }
-    
+
     body .product-detail-page .product-title {
         font-size: 1rem !important;
     }
-    
+
     body .product-detail-page .yellow-bar p {
         font-size: 1rem !important;
     }
+}
+.recipes-grid {
+    margin-bottom: 8rem !important;
 }

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block content %}
-<!-- Hero Section -->
+    <!-- Hero Section -->
     <div class="recipe-hero">
         <div class="recipe-hero-content">
             <h1 class="recipe-hero-title">КОНТАКТИ</h1>
@@ -9,7 +9,7 @@
     </div>
     <section class="contact-page">
         <div class="section-container">
-{#            <h2>Контакти</h2>#}
+            {#            <h2>Контакти</h2>#}
 
             <form method="post" class="contact-form">
                 {% csrf_token %}
@@ -55,11 +55,21 @@
             </div>
         </div>
     </section>
-    <section class="team-banner">
-        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">
+    <!-- FEATURE ROW -->
+    <section class="feature-row">
+        <div class="feature-list">
+            <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
+            <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
+            <div class="info-logo">
+                <img src="{% static 'uploads/traditional_tech_logo_clear.png' %}" alt="100% Българско мляко">
+            </div>
+            <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
+            <div class="feature-item">Модерна и съвременна база за производство</div>
+        </div>
     </section>
     <section class="yellow-bar">
         <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
+
 
 {% endblock %}

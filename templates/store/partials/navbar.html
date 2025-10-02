@@ -6,19 +6,19 @@
             <span class="hamburger-bar"></span>
             <span class="hamburger-bar"></span>
         </button>
-        <div class="nav-logo">
+        <div class="nav-logo" style="margin-left: 0.35rem; margin-bottom: 0.1rem">
             <a href="{% url 'home' %}">
                 <img src="/media/uploads/logos/sakarela_logo.png" alt="Сакарела">
             </a>
         </div>
-        <ul class="nav-left">
+        <ul class="nav-left" style="margin-top: 0.75rem; margin-left: 0.27rem">
             <li><a href="{% url 'about' %}">За Нас</a></li>
             <li><a href="{% url 'store:where_to_buy' %}">Магазини</a></li>
             <li><a href="{% url 'recipe_list' %}">Рецепти</a></li>
             <li><a href="{% url 'products' %}">Продукти</a></li>
             <li><a href="{% url 'contact' %}">Контакти</a></li>
         </ul>
-        <ul class="nav-right">
+        <ul class="nav-right" style="margin-top: 0.75rem; margin-left: 0.4rem">
             <li>
                 <a href="{% url 'store:store_home' %}" class="buy-online">
                     Онлайн магазин
@@ -74,25 +74,25 @@
     const mobileMenu = document.getElementById('mobile-menu');
     const closeMenu = document.getElementById('close-mobile-menu');
     const backdrop = document.getElementById('mobile-menu-backdrop');
-    
+
     function openMenu() {
         mobileMenu.classList.add('open');
         backdrop.classList.add('show');
         menuToggle.setAttribute('aria-expanded', 'true');
         mobileMenu.setAttribute('aria-hidden', 'false');
     }
-    
+
     function closeMenuFn() {
         mobileMenu.classList.remove('open');
         backdrop.classList.remove('show');
         menuToggle.setAttribute('aria-expanded', 'false');
         mobileMenu.setAttribute('aria-hidden', 'true');
     }
-    
+
     if (menuToggle) menuToggle.addEventListener('click', openMenu);
     if (closeMenu) closeMenu.addEventListener('click', closeMenuFn);
     if (backdrop) backdrop.addEventListener('click', closeMenuFn);
-    
+
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeMenuFn();
     });
@@ -100,19 +100,19 @@
     // --- SWIPE GESTURE FOR HAMBURGER MENU (mobile/tablet only) ---
     let touchStartX = 0;
     let touchEndX = 0;
-    
+
     function handleTouchStart(e) {
         if (e.touches && e.touches.length === 1) {
             touchStartX = e.touches[0].clientX;
         }
     }
-    
+
     function handleTouchMove(e) {
         if (e.touches && e.touches.length === 1) {
             touchEndX = e.touches[0].clientX;
         }
     }
-    
+
     function handleTouchEnd() {
         const minSwipeDistance = 60; // px
         if (touchEndX - touchStartX > minSwipeDistance && window.innerWidth <= 1024) {
@@ -121,7 +121,7 @@
         touchStartX = 0;
         touchEndX = 0;
     }
-    
+
     document.addEventListener('touchstart', handleTouchStart, {passive:true});
     document.addEventListener('touchmove', handleTouchMove, {passive:true});
     document.addEventListener('touchend', handleTouchEnd, {passive:true});
@@ -129,12 +129,12 @@
     // Cart dropdown functionality
     const cartWrapper = document.querySelector('.cart-icon-wrapper');
     const cartDropdown = document.querySelector('.cart-dropdown');
-    
+
     if (cartWrapper && cartDropdown) {
         cartWrapper.addEventListener('mouseenter', function() {
             cartDropdown.style.display = 'block';
         });
-        
+
         cartWrapper.addEventListener('mouseleave', function() {
             cartDropdown.style.display = 'none';
         });

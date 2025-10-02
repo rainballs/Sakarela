@@ -14,7 +14,7 @@
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
+            <ol class="breadcrumb" style="background: #E6EBE8 !important;">
                 <li class="breadcrumb-item"><a href="{% url 'home' %}">Начало</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'store:store_home' %}">Онлайн магазин</a></li>
                 <li class="breadcrumb-item active" aria-current="page">Количка</li>
@@ -223,55 +223,27 @@
         {% endif %}
     </div>
 
-    <!-- Quality Assurance Section -->
-    <section class="cart-quality-assurance">
-        <div class="cart-quality-container">
-            <div class="cart-quality-item">
-                <div class="cart-quality-icon">
-                    <i class="fas fa-award"></i>
-                </div>
-                <div class="cart-quality-content">
-                    <h3 class="cart-quality-title">НАЙ-ВИСОКО КАЧЕСТВО СУРОВИНИ ОТ ДОКАЗАНИ ФЕРМИ</h3>
-                    <p class="cart-quality-description">Гарантираме първокачествени суровини от проверени партньори</p>
-                </div>
+    <!-- QUALITY ASSURANCE SECTION -->
+    <!-- FEATURE ROW -->
+    <section class="feature-row" style="background: #E6EBE8 !important">
+        <div class="feature-list">
+            <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
+            <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
+            <div class="info-logo">
+                <img src="{% static 'uploads/traditional_tech_logo_clear.png' %}" alt="100% Българско мляко">
             </div>
-
-            <div class="cart-quality-item">
-                <div class="cart-quality-icon">
-                    <i class="fas fa-cheese"></i>
-                </div>
-                <div class="cart-quality-content">
-                    <h3 class="cart-quality-title">ВЕРОЯТНО НАЙ-ГОЛЕМИЯТ ПРОИЗВОДИТЕЛ НА КАШКАВАЛ В БЪЛГАРИЯ</h3>
-                    <p class="cart-quality-description">Довереността на милиони български семейства</p>
-                </div>
-            </div>
-
-            <div class="cart-quality-item">
-                <div class="cart-quality-icon">
-                    <i class="fas fa-user-graduate"></i>
-                </div>
-                <div class="cart-quality-content">
-                    <h3 class="cart-quality-title">ВИСОКОКВАЛИФИЦИРАНИ СПЕЦИАЛИСТИ И ТЕХНОЛОЗИ</h3>
-                    <p class="cart-quality-description">Екип от експерти с дългогодишен опит в млекопреработването</p>
-                </div>
-            </div>
-
-            <div class="cart-quality-item">
-                <div class="cart-quality-icon">
-                    <i class="fas fa-industry"></i>
-                </div>
-                <div class="cart-quality-content">
-                    <h3 class="cart-quality-title">МОДЕРНА И СЪВРЕМЕННА БАЗА ЗА ПРОИЗВОДСТВО</h3>
-                    <p class="cart-quality-description">Най-новите технологии за гарантиране на качеството</p>
-                </div>
-            </div>
+            <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
+            <div class="feature-item">Модерна и съвременна база за производство</div>
         </div>
     </section>
-
-    <!-- Quality Bar -->
     <section class="yellow-bar">
-        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
+        <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
+
+{#    <!-- Quality Bar -->#}
+{#    <section class="yellow-bar">#}
+{#        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>#}
+{#    </section>#}
 {% endblock %}
 
 {% block extra_head %}

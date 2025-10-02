@@ -1,6 +1,9 @@
 from django.contrib import admin
 
-from .models import Product, Nutrition, Order, OrderItem, Category, Brand, PackagingOption
+from .models import Product, Nutrition, Order, OrderItem, Category, Brand, PackagingOption, Store
+from django import forms
+from django.templatetags.static import static
+from django.utils.html import format_html
 
 
 @admin.register(Category)
@@ -60,6 +63,42 @@ class OrderAdmin(admin.ModelAdmin):
         ("Payment", {'fields': ('payment_method',)}),
         ("System info", {'fields': ('created_at', 'updated_at', 'total')}),
     )
+
+
+class StoreAdminForm(forms.ModelForm):
+    class Meta:
+        model = Store
+        fields = "__all__"
+
+    class Media:
+        js = ("admin/map_picker.js",)  # your existing JS
+        css = {"all": ("admin/map_picker.css",)}  # optional
+
+
+@admin.register(Store)
+class StoreAdmin(admin.ModelAdmin):
+    form = StoreAdminForm
+    readonly_fields = ("map_picker",)
+
+    fieldsets = (
+        (None, {"fields": ("name", "city", "address", "map_url", "working_hours", "logo", "show_on_map")}),
+        ("Координати за картата", {"fields": ("map_x_pct", "map_y_pct", "map_picker")}),
+    )
+
+    def map_picker(self, obj=None):
+        url = static("map/map_sakarela.png")  # reuse the same image
+        return format_html(
+            """
+            <div id="adminMapPicker"
+                 style="max-width:700px;position:relative;aspect-ratio:1600/900;
+                        background:url('{}') center/contain no-repeat;
+                        border:1px solid #eee;border-radius:12px;"></div>
+            <p style="color:#666">Кликнете върху картата, за да зададете <b>map_x_pct</b> и <b>map_y_pct</b>.</p>
+            """,
+            url
+        )
+
+    map_picker.short_description = "Избор от карта"
 
 
 admin.site.register(Product, ProductAdmin)

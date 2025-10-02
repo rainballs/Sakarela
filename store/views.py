@@ -2,6 +2,7 @@
 import base64
 import uuid
 import logging
+from collections import OrderedDict
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
@@ -22,11 +23,19 @@ from zeep.transports import Transport
 from requests.auth import HTTPBasicAuth
 import requests
 
-from store.models import Product, Order, OrderItem, Category, Brand, PackagingOption
+from store.models import Product, Order, OrderItem, Category, Brand, PackagingOption, Store
 from .forms import OrderForm
 from .utils import send_econt_label_request, handle_econt_response, generate_econt_label_xml
 
 logger = logging.getLogger(__name__)
+
+
+# ---- myPOS-safe OrderID generator (≤30 chars, ASCII, no dashes) ----
+def generate_mypos_order_id(order_pk: int) -> str:
+    # Example: O000123 + 16 hex chars = 23 chars total
+    # (Trim to 30 just in case you tweak the format later)
+    return f"O{order_pk:06d}{uuid.uuid4().hex[:16]}".upper()[:30]
+
 
 def store_home(request):
     query = request.GET.get('q', '')
@@ -36,7 +45,9 @@ def store_home(request):
 
     all_categories = Category.objects.order_by('name')
     all_brands = Brand.objects.order_by('name')
-    all_badges = Product.objects.exclude(badge__isnull=True).exclude(badge='').values_list('badge', flat=True).distinct().order_by('badge')
+    all_badges = Product.objects.exclude(badge__isnull=True).exclude(badge='').values_list('badge',
+                                                                                           flat=True).distinct().order_by(
+        'badge')
     selected_cats = request.GET.getlist('category')
     selected_brands = request.GET.getlist('brand')
     selected_badges = request.GET.getlist('badge')
@@ -230,18 +241,19 @@ def view_cart(request):
             product = Product.objects.get(pk=product_id)
             packaging = PackagingOption.objects.get(pk=packaging_id)
             price = packaging.current_price
-            cart_items.append({'product': product, 'packaging': packaging, 'quantity': qty, 'price': price, 'subtotal': price * qty})
+            cart_items.append(
+                {'product': product, 'packaging': packaging, 'quantity': qty, 'price': price, 'subtotal': price * qty})
             cart_total += price * qty
         except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
             continue
-    
+
     # Get recommended products (random selection of products with packaging options)
     recommended_products = Product.objects.filter(
         packaging_options__isnull=False
     ).prefetch_related('packaging_options').distinct().order_by('?')[:6]  # Get 6 random products
-    
+
     return render(request, 'store/cart.html', {
-        'cart_items': cart_items, 
+        'cart_items': cart_items,
         'cart_total': cart_total,
         'recommended_products': recommended_products
     })
@@ -318,7 +330,7 @@ SIGN_ORDER = [
 
 # Default values for myPOS integration
 DEFAULT_PHONE = "0889402222"  # Placeholder phone number
-DEFAULT_CURRENCY = "EUR"  # Changed back to BGN
+DEFAULT_CURRENCY = "BGN"
 DEFAULT_LANGUAGE = "EN"
 DEFAULT_CARD_TOKEN_REQUEST = "0"
 DEFAULT_PAYMENT_PARAMS_REQUIRED = "1"
@@ -382,90 +394,117 @@ def _generate_signature(params):
         raise Exception("Payment signature error. Please try again later or contact support.")
 
 
+def sign_params_in_post_order(ordered_params: "OrderedDict[str, str]", private_key_pem_bytes: bytes) -> str:
+    """
+    Signs exactly the values you will POST (all keys except 'Signature'),
+    in the same insertion order, as myPOS expects:
+    base64( '-'.join(values) ) -> sign(SHA256, RSA) -> base64(signature)
+    """
+    # 1) Concatenate values in post order (excluding 'Signature')
+    values = []
+    for k, v in ordered_params.items():
+        if k == "Signature":
+            continue
+        values.append(str(v).strip())
+    concatenated = "-".join(values)
+
+    # 2) Base64 encode concatenated string
+    to_sign = base64.b64encode(concatenated.encode("utf-8"))
+
+    # 3) Load PK and sign (SHA256, PKCS#1 v1.5)
+    private_key = serialization.load_pem_private_key(private_key_pem_bytes, password=None)
+    signature = private_key.sign(to_sign, padding.PKCS1v15(), hashes.SHA256())
+
+    # 4) Return base64(signature)
+    return base64.b64encode(signature).decode("utf-8")
+
+
 def mypos_payment(request, order_id):
     """Handle myPOS payment initiation with proper signature generation"""
     order = get_object_or_404(Order, id=order_id)
 
-    # Generate unique transaction ID if not exists
-    if not order.transaction_id:
-        order.transaction_id = str(uuid.uuid4())
+    # --- SET & REUSE a myPOS-safe OrderID (this is what myPOS calls OrderID) ---
+    if (not order.transaction_id) or ("-" in (order.transaction_id or "")) or (len(order.transaction_id) > 30):
+        order.transaction_id = generate_mypos_order_id(order.pk)
         order.save(update_fields=["transaction_id"])
-
-    # Get order items
-    order_items = order.order_items.select_related('product').all()
+    # ---------------------------------------------------------------------------
 
     # Clean up URLs - remove trailing slashes for consistency
     base_url = request.build_absolute_uri('/').rstrip('/')
     result_url = f"{base_url}{reverse('store:payment_result')}".rstrip('/')
     callback_url = f"{base_url}{reverse('store:payment_callback')}".rstrip('/')
 
-    # Base parameters required for signature
-    params = {
-        "IPCmethod": "IPCPurchase",
-        "IPCVersion": "1.4",
-        "IPCLanguage": DEFAULT_LANGUAGE,
-        "SID": settings.MYPOS_SID,
-        "walletnumber": settings.MYPOS_WALLET,
-        "Amount": f"{order.get_total():.2f}",
-        "Currency": DEFAULT_CURRENCY,
-        "OrderID": order.transaction_id,
-        "URL_OK": result_url,
-        "URL_Cancel": result_url,
-        "URL_Notify": callback_url,
-        "CardTokenRequest": DEFAULT_CARD_TOKEN_REQUEST,
-        "KeyIndex": settings.MYPOS_KEYINDEX,
-        "PaymentParametersRequired": DEFAULT_PAYMENT_PARAMS_REQUIRED,
-        "customeremail": order.email,
-        "customerfirstnames": order.full_name,
-        "customerfamilyname": order.last_name,
-        "customerphone": DEFAULT_PHONE,
-        "customercountry": "BGR",
-        # "customercountry": order.country,
-        "customercity": order.city,
-        "customerzipcode": order.post_code,
-        "customeraddress": order.address1,  # Only use primary address
-        "Note": "",
-        "CartItems": str(order_items.count())
-    }
+    # Build params in insertion order
+    params = OrderedDict([
+        ("IPCmethod", "IPCPurchase"),
+        ("IPCVersion", "1.4"),
+        ("IPCLanguage", DEFAULT_LANGUAGE),  # "EN"
+        ("SID", settings.MYPOS_SID),
+        ("walletnumber", settings.MYPOS_WALLET),
+        ("Amount", f"{order.get_total():.2f}"),
+        ("Currency", DEFAULT_CURRENCY),  # "BGN"
+        ("OrderID", order.transaction_id),
+        ("URL_OK", result_url),
+        ("URL_Cancel", result_url),
+        ("URL_Notify", callback_url),
+        ("CardTokenRequest", DEFAULT_CARD_TOKEN_REQUEST),  # "0"
+        ("KeyIndex", str(settings.MYPOS_KEYINDEX)),
+        ("PaymentParametersRequired", DEFAULT_PAYMENT_PARAMS_REQUIRED),  # "1"
+        ("customeremail", order.email or ""),
+        ("customerfirstnames", order.full_name or ""),
+        ("customerfamilyname", order.last_name or ""),
+        ("customerphone", DEFAULT_PHONE),  # "0889402222"
+        ("customercountry", "BGR"),
+        ("customercity", order.city or ""),
+        ("customerzipcode", order.post_code or ""),
+        ("customeraddress", order.address1 or ""),
+        ("Note", ""),
+    ])
 
-    # Add cart items parameters - these don't go into signature
-    cart_items_params = {}
+    # Add cart rows BEFORE signing (and include CartItems)
+    order_items = order.order_items.select_related('product').all()
+    params["CartItems"] = str(order_items.count())
+
     for idx, item in enumerate(order_items, start=1):
-        # If item has a related packaging, use its current_price
-        try:
-            packaging = PackagingOption.objects.get(product=item.product, price=item.price)
-            price = packaging.current_price
-        except PackagingOption.DoesNotExist:
-            price = item.price
-        cart_items_params.update({
-            f'Article_{idx}': item.product.name[:100],
-            f'Quantity_{idx}': str(item.quantity),
-            f'Price_{idx}': f"{price:.2f}",
-            f'Currency_{idx}': DEFAULT_CURRENCY,
-            f'Amount_{idx}': f"{(item.quantity * price):.2f}"
-        })
+        # Use the price captured in OrderItem (avoid re-calculating to prevent mismatch)
+        price = float(item.price)
+        params[f'Article_{idx}'] = (item.product.name or "")[:100]
+        params[f'Quantity_{idx}'] = str(int(item.quantity))
+        params[f'Price_{idx}'] = f"{price:.2f}"
+        params[f'Currency_{idx}'] = DEFAULT_CURRENCY  # "BGN"
+        params[f'Amount_{idx}'] = f"{item.quantity * price:.2f}"
 
-    # Generate signature before adding cart items
-    try:
-        params["Signature"] = _generate_signature(params)
-    except Exception as e:
-        logger.exception("Error generating payment signature")
-        return render(request, "store/payment_error.html", {"error": str(e), "debug": getattr(settings, 'DEBUG', False)})
+    # Sign over the FINAL ordered params (without Signature)
+    with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as fh:
+        pk_bytes = fh.read()
+    params["Signature"] = sign_params_in_post_order(params, pk_bytes)
 
-    # Add cart items parameters after signature generation
-    params.update(cart_items_params)
+    # Optional debug
+    if getattr(settings, 'DEBUG', False):
+        print("\nmyPOS payload about to POST:")
+        for k, v in params.items():
+            print(f"{k}: {v}")
 
-    # Debug information
-    print("\nFinal parameters being sent to myPOS:")
-    for key, value in params.items():
-        print(f"{key}: {value}")
+    # ---- precise payment debug (paste right before the return) ----
+    paylog = logging.getLogger("payments")
 
-    print("\nVerifying signature components:")
-    verify_string = []
-    for param in SIGN_ORDER:
-        value = params.get(param, '')
-        verify_string.append(f"{param}={value}")
-    print("Parameters used in signature:\n" + "\n".join(verify_string))
+    # Sanity: sum of line items
+    sum_items = 0.0
+    for idx, item in enumerate(order.order_items.select_related('product').all(), start=1):
+        sum_items += float(item.quantity) * float(item.price)
+
+    # The exact raw string we concatenated (BEFORE base64 + sign)
+    concat_debug = "-".join(str(v).strip() for k, v in params.items() if k != "Signature")
+    b64_debug = base64.b64encode(concat_debug.encode("utf-8")).decode("ascii")
+
+    paylog.info(
+        "POST myPOS | endpoint=%s | OrderID=%s | Amount=%s | SumItems=%.2f | Currency=%s | KeyIndex=%s",
+        settings.MYPOS_BASE_URL, params.get("OrderID"), params.get("Amount"), sum_items,
+        params.get("Currency"), params.get("KeyIndex"),
+    )
+    paylog.info("concat=%s", concat_debug)
+    paylog.info("base64=%s", b64_debug)
+    paylog.info("signature=%s…%s", params["Signature"][:12], params["Signature"][-12:])
 
     return render(request, "store/payment_redirect.html", {
         "action_url": settings.MYPOS_BASE_URL,
@@ -537,53 +576,53 @@ def confirm_order(request, order_id):
         return redirect("store:order_summary", pk=order.id)
 
 
-def where_to_buy(request):
-    # Store locations data - you can move this to a database model later
-    store_locations = [
-        {
-            'name': 'Сакарела - Централен офис',
-            'lat': 42.6977,
-            'lng': 23.3219,
-            'address': 'София, България',
-            'type': 'office',
-            'phone': '+359 2 123 4567',
-            'hours': 'Понеделник - Петък: 9:00 - 18:00'
-        },
-        {
-            'name': 'Сакарела - Магазин 1',
-            'lat': 42.6977,
-            'lng': 23.3219,
-            'address': 'ул. Витоша 1, София',
-            'type': 'store',
-            'phone': '+359 2 123 4568',
-            'hours': 'Понеделник - Неделя: 8:00 - 22:00'
-        },
-        {
-            'name': 'Сакарела - Магазин 2',
-            'lat': 42.6977,
-            'lng': 23.3219,
-            'address': 'ул. Граф Игнатиев 2, София',
-            'type': 'store',
-            'phone': '+359 2 123 4569',
-            'hours': 'Понеделник - Неделя: 8:00 - 22:00'
-        },
-        {
-            'name': 'Сакарела - Магазин 3',
-            'lat': 42.6977,
-            'lng': 23.3219,
-            'address': 'ул. Шипка 3, София',
-            'type': 'store',
-            'phone': '+359 2 123 4570',
-            'hours': 'Понеделник - Неделя: 8:00 - 22:00'
-        }
-    ]
-    
-    context = {
-        'store_locations': json.dumps(store_locations),
-        'google_maps_api_key': getattr(settings, 'GOOGLE_MAPS_API_KEY', 'YOUR_API_KEY')
-    }
-    
-    return render(request, 'store/where_to_buy.html', context)
+# def where_to_buy(request):
+#     # Store locations data - you can move this to a database model later
+#     store_locations = [
+#         {
+#             'name': 'Сакарела - Централен офис',
+#             'lat': 42.6977,
+#             'lng': 23.3219,
+#             'address': 'София, България',
+#             'type': 'office',
+#             'phone': '+359 2 123 4567',
+#             'hours': 'Понеделник - Петък: 9:00 - 18:00'
+#         },
+#         {
+#             'name': 'Сакарела - Магазин 1',
+#             'lat': 42.6977,
+#             'lng': 23.3219,
+#             'address': 'ул. Витоша 1, София',
+#             'type': 'store',
+#             'phone': '+359 2 123 4568',
+#             'hours': 'Понеделник - Неделя: 8:00 - 22:00'
+#         },
+#         {
+#             'name': 'Сакарела - Магазин 2',
+#             'lat': 42.6977,
+#             'lng': 23.3219,
+#             'address': 'ул. Граф Игнатиев 2, София',
+#             'type': 'store',
+#             'phone': '+359 2 123 4569',
+#             'hours': 'Понеделник - Неделя: 8:00 - 22:00'
+#         },
+#         {
+#             'name': 'Сакарела - Магазин 3',
+#             'lat': 42.6977,
+#             'lng': 23.3219,
+#             'address': 'ул. Шипка 3, София',
+#             'type': 'store',
+#             'phone': '+359 2 123 4570',
+#             'hours': 'Понеделник - Неделя: 8:00 - 22:00'
+#         }
+#     ]
+#
+#     context = {
+#         'store_locations': json.dumps(store_locations),
+#         'google_maps_api_key': getattr(settings, 'GOOGLE_MAPS_API_KEY', 'YOUR_API_KEY')
+#     }
+#
+#     return render(request, 'store/where_to_buy.html', context)
 
 
 def test_econt_label(request):
@@ -605,7 +644,9 @@ def test_econt_label(request):
     print(response.content)
 
     if not response.content.strip():
-        return HttpResponse("Econt API returned an empty response. Please check your XML and credentials, or try again later.", content_type="text/plain")
+        return HttpResponse(
+            "Econt API returned an empty response. Please check your XML and credentials, or try again later.",
+            content_type="text/plain")
 
     return HttpResponse(response.text, content_type="text/xml")
 
@@ -649,3 +690,11 @@ def generate_econt_label_xml(order=None):
     ET.SubElement(services, "cd_amount").text = "1.00"
 
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def where_to_buy(request):
+    stores = Store.objects.filter(show_on_map=True).only(
+        "id", "name", "city", "address", "logo", "map_x_pct", "map_y_pct",
+    )
+    brands = Store.objects.filter(show_on_map=True).order_by().values_list("name", flat=True).distinct()
+    return render(request, "store/where_to_buy.html", {"stores": stores, "brands": brands})

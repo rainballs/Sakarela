@@ -111,6 +111,35 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+LOG_DIR = BASE_DIR / "logs"
+os.makedirs(LOG_DIR, exist_ok=True)  # ensure it exists at startup
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "plain": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "payments_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "payments.log"),
+            "maxBytes": 5 * 1024 * 1024,  # 5 MB
+            "backupCount": 5,
+            "formatter": "plain",
+        },
+        "console": {"class": "logging.StreamHandler", "formatter": "plain"},
+    },
+    "loggers": {
+        # our custom logger name used in views.py
+        "payments": {
+            "handlers": ["payments_file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -180,3 +209,8 @@ ECONT_PASSWORD = "1Asp-dev"
 
 # Google Maps API settings
 GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='YOUR_API_KEY')
+
+# TRUSTED ORIGINS
+CSRF_TRUSTED_ORIGINS = [
+    "https://www.mypos.com/vmp/checkout",
+]

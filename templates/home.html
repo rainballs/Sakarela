@@ -21,19 +21,20 @@
             <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
             <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
             <div class="info-logo">
-                <img src="{% static 'uploads/traditional_tech_logo.png' %}" alt="100% Българско мляко">
+                <img src="{% static 'uploads/traditional_tech_logo_clear.png' %}" alt="100% Българско мляко">
             </div>
             <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
             <div class="feature-item">Модерна и съвременна база за производство</div>
         </div>
     </section>
 
-    <!-- HOME PRODUCTS PREVIEW -->
-    <section class="products-page">  {# ✅ Use same class as products.html for consistent styles #}
+    <!-- HOME PRODUCTS PREVIEW (FULL-BLEED + FADE) -->
+    <section class="products-page full-bleed warehouse-bg fade-top fade-bottom">
         <div class="section-container">
             <h2>100% Натурални Млечни Продукти, които си заслужават</h2>
+
             <div class="product-grid">
-                {% for product in products|slice:":3" %}
+                {% for product in products|slice:":4" %}
                     <a href="{% url 'product_detail' product.pk %}">
                         <div class="product-card">
                             <img src="{{ product.image.url }}" alt="{{ product.title }}">
@@ -49,27 +50,28 @@
                 {% endfor %}
             </div>
 
-            <div style="text-align:center;">
+            <div class="text-center">
                 <a href="{% url 'products' %}" class="btn-view-all">Виж всички продукти</a>
             </div>
         </div>
     </section>
+
     <section class="quality-section">
         <div class="quality-top-bg">
             <div class="quality-overlay">
                 <div class="quality-content">
-                    <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">
+                    {#                    <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">#}
                     <div class="quality-text">
-                        <h2 class="quality-title">Първокачествени суровини, добивани в Първокласни ферми</h2>
-                        <p class="quality-description">Гарантирано 100% натурални продукти</p>
+                        <div class="align-quality-section">
+                            <h2 class="quality-title">Първокачествени суровини, </h2>
+                            <h2 class="quality-title">добивани в Първокласни ферми</h2>
+                            <p class="quality-description">Гарантирано 100% натурални продукти</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <section class="yellow-bar">
-            <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
-        </section>
 
         <div class="quality-bottom-bg"></div>
     </section>
@@ -105,10 +107,13 @@
             </div>
         </div>
     </section>
-    <!-- TEAM PHOTO SECTION -->
-    <section class="team-banner">
-        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">
+    <section class="yellow-bar">
+        <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
+    {#    <!-- TEAM PHOTO SECTION -->#}
+    {#    <section class="team-banner">#}
+    {#        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">#}
+    {#    </section>#}
 
 
 {% endblock %}

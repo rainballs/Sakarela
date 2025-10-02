@@ -45,6 +45,7 @@ RUN apt-get update && \
       zlib1g-dev \
       dos2unix \
       netcat-openbsd \
+      curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python dependencies from builder

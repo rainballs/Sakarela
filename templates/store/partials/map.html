@@ -1,0 +1,814 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="bg">
+{#{% include "store/partials/map.html" with stores=stores brands=brands %}#}
+<head>
+    <meta charset="utf-8"/>
+    <title>Магазини и локации</title>
+    <link rel="preload" as="image" href="{% static 'images/bg-bulgaria.png' %}">
+    <style>
+        /* NEW: flash highlight when we jump to a store row */
+        .store-row.highlight {
+            background: rgba(190, 153, 70, 0.06);
+            outline: 2px solid #BE9946;
+            border-radius: 8px;
+            transition: outline-color .6s ease, background-color .6s ease;
+        }
+
+        /* Wrapper uses the map image ratio — adjust 1600/900 if your PNG is different */
+        .store-map {
+            max-width: 1200px;
+            margin: 16px auto 32px;
+            position: relative;
+            aspect-ratio: 1600 / 900; /* <-- set to the natural ratio of map_sakarela.png */
+            background: url("{% static 'map/map_sakarela_clear_bg.png' %}") center/contain no-repeat;
+            border-radius: 16px;
+        {#box-shadow: 0 4px 24px rgba(0, 0, 0, .08);#}
+        }
+
+        .store-pin {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            width: 38px;
+            height: 38px;
+            border-radius: 9999px;
+            border: 2px solid #fff;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, .18);
+            cursor: pointer;
+            background: #fff;
+            overflow: hidden;
+            display: grid;
+            place-items: center;
+            transition: transform .12s ease, box-shadow .12s ease;
+        }
+
+        .store-pin:hover {
+            transform: translate(-50%, -100%) scale(1.06);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, .24);
+        }
+
+        .store-pin img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .store-pin .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: #ff4d4f;
+        }
+
+        .store-pop {
+            position: absolute;
+            transform: translate(-50%, calc(-100% - 12px));
+            min-width: 220px;
+            max-width: 300px;
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, .08);
+            border-radius: 14px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, .22);
+            padding: 12px 14px;
+            z-index: 50;
+            pointer-events: auto;
+        }
+
+        .store-pop header {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .store-pop header img {
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            object-fit: cover;
+        }
+
+        .store-pop h4 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .store-pop p {
+            margin: 4px 0;
+            font-size: 13px;
+            line-height: 1.35;
+            color: #444;
+        }
+
+        .store-pop .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn {
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            background: #fafafa;
+            cursor: pointer;
+        }
+
+        .btn.primary {
+            background: #111;
+            color: #fff;
+            border-color: #111;
+        }
+
+        .pop-hidden {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            .store-pin {
+                width: 44px;
+                height: 44px;
+            }
+
+            .store-pop {
+                max-width: 90vw;
+            }
+        }
+
+        /* ===== Filter panel (like your reference) ===== */
+        .filters-panel {
+            max-width: 800px;
+            margin: 24px auto 8px;
+            padding: 40px 12px;
+        }
+
+        .filters-panel__inner {
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 18px 20px 20px;
+        }
+
+        .filters-panel__title {
+            margin: 0 0 14px 2px;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: .02em;
+        }
+
+        /* Row */
+        .filters-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 14px;
+            align-items: center;
+        }
+
+        /* Pretty selects */
+        .select-wrap {
+            position: relative;
+            display: inline-block;
+        }
+
+        .filter-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+
+            background: #fff;
+            border: 1.5px solid rgba(0, 0, 0, 0.12);
+            border-radius: 9999px;
+            padding: 10px 38px 10px 14px;
+            font-weight: 800;
+            font-size: 14px;
+            letter-spacing: .02em;
+            color: #1F2937;
+            cursor: pointer;
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) inset;
+            transition: border-color .15s ease, box-shadow .15s ease, transform .06s ease;
+        }
+
+        .filter-select:hover {
+            border-color: rgba(0, 0, 0, 0.24);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #BE9946; /* your brand gold */
+            box-shadow: 0 0 0 3px rgba(190, 153, 70, 0.18);
+        }
+
+        /* caret */
+        .select-wrap::after {
+            content: "▾";
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            translate: 0 -50%;
+            pointer-events: none;
+            font-weight: 900;
+            color: #1F2937;
+        }
+
+        /* Clear button */
+        .btn-clear {
+            background: #FFE8B3;
+            color: #1F2937;
+            border: 1.5px solid rgba(0, 0, 0, 0.08);
+            border-radius: 9999px;
+            padding: 10px 14px;
+            font-weight: 800;
+            font-size: 14px;
+            letter-spacing: .02em;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: filter .15s ease, transform .06s ease;
+            max-width: 220px;
+        }
+
+        .btn-clear:hover {
+            filter: brightness(0.98);
+        }
+
+        .btn-clear:active {
+            transform: translateY(1px);
+        }
+
+        @media (max-width: 640px) {
+            .filters-panel__inner {
+                padding: 14px;
+            }
+
+            .filter-select, .btn-clear {
+                width: 100%;
+            }
+
+            .filters-row {
+                gap: 10px;
+            }
+        }
+
+        /* ================= Accordion List ================= */ /* ADDED */
+        .stores-accordion {
+            max-width: 1200px;
+            margin: 24px auto 80px;
+            padding: 0 16px;
+        }
+
+        /* ADDED */
+        .city-group {
+            border-top: 3px solid #F3A600;
+        }
+
+        /* ADDED brand line */
+        .city-header { /* ADDED */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .city-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .city-caret {
+            transition: transform .15s ease;
+        }
+
+        .city-group.open .city-caret {
+            transform: rotate(180deg);
+        }
+
+        /* ADDED */
+
+        .city-content {
+            display: none;
+            padding: 8px 0 0 0;
+        }
+
+        /* ADDED */
+        .city-group.open .city-content {
+            display: block;
+        }
+
+        /* ADDED */
+
+        .store-row { /* ADDED store item line */
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            align-items: center;
+            padding: 18px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, .08);
+        }
+
+        .store-name {
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+
+        .store-meta {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .pill-open {
+            background: #0B5;
+            color: #fff;
+            font-weight: 800;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        .pill-closed {
+            background: #C22;
+            color: #fff;
+            font-weight: 800;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        .more-link {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            color: #1F2937;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .more-link .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #F3A600;
+        }
+
+        /* ================= Right Drawer ================= */ /* ADDED */
+        .drawer-overlay { /* ADDED overlay */
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .25);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease;
+            z-index: 80;
+        }
+
+        .drawer { /* ADDED drawer */
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: min(520px, 100%);
+            background: #fff;
+            box-shadow: -8px 0 32px rgba(0, 0, 0, .25);
+            transform: translateX(100%);
+            transition: transform .24s ease;
+            z-index: 90;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .drawer-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 22px;
+            border-bottom: 1px solid rgba(0, 0, 0, .08);
+        }
+
+        .drawer-header .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 800;
+            color: #111;
+            text-decoration: none;
+        }
+
+        .drawer-body {
+            padding: 18px 22px 28px;
+            overflow: auto;
+        }
+
+        .drawer-title {
+            font-size: 32px;
+            font-weight: 900;
+            line-height: 1.1;
+            margin: 6px 0 18px;
+        }
+
+        .info-line {
+            display: grid;
+            grid-template-columns: 28px 1fr;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 10px 0;
+        }
+
+        .info-line .icon {
+            width: 24px;
+            height: 24px;
+            display: inline-block;
+        }
+
+        .u-list {
+            display: flex;
+            gap: 22px;
+            flex-wrap: wrap;
+            padding: 6px 0 18px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- FILTER PANEL -->
+<section class="filters-panel">
+    <div class="filters-panel__inner">
+        <h3 class="filters-panel__title">Филтрирай обектите</h3>
+
+        <div class="filters-row">
+            <!-- City -->
+            <label class="select-wrap">
+                <select id="city-filter" class="filter-select">
+                    <option value="">Избери град</option>
+                    {% regroup stores by city as cities %}
+                    {% for c in cities %}
+                        {% if c.grouper %}
+                            <option value="{{ c.grouper|escape }}">{{ c.grouper }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </label>
+
+            <!-- Chain / Brand -->
+            <label class="select-wrap">
+                <select id="brand-filter" class="filter-select">
+                    <option value="">Избери магазин</option>
+                    {% for brand in brands %}
+                        <option value="{{ brand|escape }}">{{ brand }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <!-- Exact store (auto-populates from current filters) -->
+            <label class="select-wrap">
+                <select id="store-filter" class="filter-select">
+                    <option value="">Всички обекти</option>
+                    {% for s in stores %}
+                        <option value="{{ s.id }}">{{ s.name }}</option> <!-- CHANGED -->
+                    {% endfor %}
+                </select>
+            </label>
+
+            <!-- Clear -->
+            <button id="clear-filters" type="button" class="btn-clear">
+                <span aria-hidden="true">✕</span> Изчисти филтъра
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Map -->
+<div class="store-map" id="storeMap">
+    {% for s in stores %}
+        <button
+                class="store-pin"
+                style="left: {{ s.map_x_pct }}%; top: {{ s.map_y_pct }}%;"
+                data-id="{{ s.id }}"
+                data-name="{{ s.name|escape }}"
+                data-brand="{{ s.name|escape }}"
+                data-city="{{ s.city|default:""|escape }}"
+                data-address="{{ s.address|default:""|escape }}"
+                data-hours="{{ s.working_hours|default:""|escape }}"
+                data-url="#store-{{ s.id }}"
+                data-map-url="{{ s.map_url|default:''|escape }}"
+                {% if s.logo %}data-logo="{{ s.logo.url }}"{% endif %}
+                aria-label="{{ s.name }}"
+                type="button"
+        >
+            {% if s.logo %}
+                <img src="{{ s.logo.url }}" alt="{{ s.name }}">
+            {% else %}
+                <span class="dot" aria-hidden="true"></span>
+            {% endif %}
+        </button>
+    {% empty %}
+        <p class="no-stores">Няма магазини за показване.</p>
+    {% endfor %}
+</div>
+
+<div id="storePop" class="store-pop pop-hidden" role="dialog" aria-modal="false">
+    <header>
+        <img id="popLogo" src="" alt="" onerror="this.style.display='none'">
+        <h4 id="popTitle">Магазин</h4>
+    </header>
+    <p id="popCity"></p>
+    <p id="popAddr"></p>
+    <p id="popHours"></p>
+    <div class="actions">
+        <a id="popLink" class="btn primary" href="#">Виж детайли</a>
+        <button id="popClose" class="btn" type="button">Затвори</button>
+    </div>
+</div>
+<!-- ================= Accordion list by city ================= --> <!-- ADDED -->
+<section class="stores-accordion" id="storesAccordion">                                     <!-- ADDED -->
+    {% regroup stores by city as cities %}
+    {% for group in cities %}
+        <div class="city-group" data-city="{{ group.grouper|default:''|escape }}">              <!-- ADDED -->
+            <div class="city-header">                                                             <!-- ADDED -->
+                <h3 class="city-title">{{ group.grouper|default:"Без град" }}</h3>
+                <span class="city-caret">▾</span>
+            </div>
+            <div class="city-content">                                                            <!-- ADDED -->
+                {% for s in group.list %}
+                    <div class="store-row"
+                         id="store-{{ s.id }}"
+                         data-id="{{ s.id }}"
+                         data-name="{{ s.name|escape }}"
+                         data-brand="{{ s.name|escape }}"
+                         data-city="{{ s.city|default:''|escape }}"
+                         data-address="{{ s.address|default:''|escape }}"
+                         data-hours="{{ s.working_hours|default:''|escape }}"
+                         data-map-url="{{ s.map_url|default:''|escape }}"
+                         {% if s.logo %}data-logo="{{ s.logo.url }}"{% endif %}
+                         data-url="#store-{{ s.id }}">
+                        <div>
+                            <div class="store-name">{{ s.name }}</div>
+                            {% if s.working_hours %}
+                                <div class="store-meta"><span
+                                        class="pill-open">Работно време</span> {{ s.working_hours }}</div>
+                            {% endif %}
+                        </div>
+                        <a class="more-link" href="javascript:void(0)"><span>Вижте повече</span><span
+                                class="dot"></span></a>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</section>
+
+<!-- ================= Right Drawer ================= --> <!-- ADDED -->
+<div class="drawer-overlay" id="drawerOverlay"></div>                                      <!-- ADDED -->
+<aside class="drawer" id="storeDrawer" aria-hidden="true">                                 <!-- ADDED -->
+    <div class="drawer-header">
+        <a href="javascript:void(0)" class="back" id="drawerBack">⟵ Назад</a>
+    </div>
+    <div class="drawer-body">
+        <div id="drawerLogoWrap" style="margin-bottom:10px;"></div>
+        <h2 class="drawer-title" id="drawerTitle">Магазин</h2>
+        <div class="info-line">
+            <span class="icon">📍</span>
+            <div id="drawerAddress">Адрес</div>
+        </div>
+        <div class="info-line">
+            <span class="icon">⏰</span>
+            <div id="drawerHours">Работно време</div>
+        </div>
+        <!-- Optional amenities area -->
+        <div class="u-list" id="drawerExtras"></div>
+    </div>
+</aside>
+
+<script>
+    (function () {
+        const map = document.getElementById('storeMap');
+        const pop = document.getElementById('storePop');
+        const popTitle = document.getElementById('popTitle');
+        const popCity = document.getElementById('popCity');
+        const popAddr = document.getElementById('popAddr');
+        const popHours = document.getElementById('popHours');
+        const popLogo = document.getElementById('popLogo');
+        const popLink = document.getElementById('popLink');
+        const popClose = document.getElementById('popClose');
+
+        const citySel = document.getElementById('city-filter');
+        const brandSel = document.getElementById('brand-filter');
+        const storeSel = document.getElementById('store-filter');
+        const clearBtn = document.getElementById('clear-filters');
+
+        const pins = Array.from(document.querySelectorAll('.store-pin'));
+
+        const listRoot = document.getElementById('storesAccordion');
+        document.querySelector('.city-group')?.classList.add('open');
+
+        map.addEventListener('click', (e) => {
+            const pin = e.target.closest('.store-pin');
+            if (!pin) return;
+
+            popTitle.textContent = pin.dataset.name || 'Магазин';
+            // NEW: make address clickable if we have a maps link
+            if (pin.dataset.address) {                                                     // NEW
+                if (pin.dataset.mapUrl) {                                                  // NEW
+                    popAddr.innerHTML = `Адрес: <a href="${pin.dataset.mapUrl}" target="_blank" rel="noopener">${pin.dataset.address}</a>`; // NEW
+                } else {                                                                    // NEW
+                    popAddr.textContent = `Адрес: ${pin.dataset.address}`;                 // NEW
+                }                                                                           // NEW
+            } else {                                                                        // NEW
+                popAddr.textContent = '';                                                   // NEW
+            }
+            popHours.textContent = pin.dataset.hours ? `Раб. време: ${pin.dataset.hours}` : '';
+            if (pin.dataset.logo) {
+                popLogo.src = pin.dataset.logo;
+                popLogo.style.display = '';
+            } else {
+                popLogo.style.display = 'none';
+            }
+            popLink.href = pin.dataset.url || '#';
+
+            pop.style.left = pin.style.left;
+            pop.style.top = pin.style.top;
+            pop.classList.remove('pop-hidden');
+
+            popLink.href = '#';                                            // NEW: we’ll handle the jump
+            popLink.dataset.targetId = pin.dataset.id;                     // NEW: remember which store to open
+        });
+
+        popLink.addEventListener('click', (e) => {    // <--- ADD THIS LISTENER
+            e.preventDefault();                         // stop default href="#"
+            const id = popLink.dataset.targetId;
+            if (id) goToStoreById(id);
+        });
+
+        popClose.addEventListener('click', () => pop.classList.add('pop-hidden'));
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') pop.classList.add('pop-hidden');
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.store-pin') && !e.target.closest('#storePop')) {
+                pop.classList.add('pop-hidden');
+            }
+        });
+
+        function applyFilters() {
+            const city = citySel?.value || '';
+            const brand = brandSel?.value || '';
+            const store = storeSel?.value || ''; // store id
+
+            pins.forEach(pin => {
+                const matchesCity = !city || (pin.dataset.city || '') === city;
+                const matchesBrand = !brand || (pin.dataset.brand || '') === brand;
+                const matchesStore = !store || (pin.dataset.id || '') === store;
+                pin.style.display = (matchesCity && matchesBrand && matchesStore) ? '' : 'none';
+            });
+
+            // hide popup if its pin is filtered out
+            if (!document.querySelector('.store-pin:not([style*="display: none"])')) {
+                pop.classList.add('pop-hidden');
+            }
+        }
+
+        function updateStoreOptions() {             /* CHANGED: dynamic store list based on filters */
+            const city = citySel?.value || '';
+            const brand = brandSel?.value || '';
+
+            const list = [];
+            pins.forEach(pin => {
+                const okCity = !city || (pin.dataset.city || '') === city;
+                const okBrand = !brand || (pin.dataset.brand || '') === brand;
+                if (okCity && okBrand) {
+                    list.push({id: pin.dataset.id, name: pin.dataset.name});
+                }
+            });
+
+            // unique by id, stable order by name
+            const seen = new Set();
+            const unique = list.filter(x => (seen.has(x.id) ? false : (seen.add(x.id), true)))
+                .sort((a, b) => a.name.localeCompare(b.name, 'bg'));
+
+            const current = storeSel.value;
+            storeSel.innerHTML =
+                '<option value="">Всички обекти</option>' +
+                unique.map(x => `<option value="${x.id}">${x.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</option>`).join('');
+
+            if (current && unique.some(x => x.id === current)) {
+                storeSel.value = current;
+            }
+        }
+
+        function clearFilters() {                   /* CHANGED */
+            if (citySel) citySel.value = '';
+            if (brandSel) brandSel.value = '';
+            if (storeSel) storeSel.value = '';
+            pop.classList.add('pop-hidden');
+            updateStoreOptions();
+            applyFilters();
+        }
+
+        citySel?.addEventListener('change', () => {
+            updateStoreOptions();
+            applyFilters();
+        });
+        brandSel?.addEventListener('change', () => {
+            updateStoreOptions();
+            applyFilters();
+        });
+        storeSel?.addEventListener('change', applyFilters);
+        clearBtn?.addEventListener('click', clearFilters);
+
+        // init
+        updateStoreOptions();                        /* CHANGED */
+        applyFilters();                              /* CHANGED */
+
+        /* -------- Accordion behavior -------- */            /* ADDED */
+        listRoot?.addEventListener('click', (e) => {
+            const header = e.target.closest('.city-header');
+            if (!header) return;
+            const group = header.parentElement;
+            group.classList.toggle('open');
+        });
+
+        /* -------- Drawer (side panel) -------- */           /* ADDED */
+        const drawer = document.getElementById('storeDrawer');
+        const drawerOverlay = document.getElementById('drawerOverlay');
+        const drawerBack = document.getElementById('drawerBack');
+        const dTitle = document.getElementById('drawerTitle');
+        const dAddr = document.getElementById('drawerAddress');
+        const dHours = document.getElementById('drawerHours');
+        const dLogoWrap = document.getElementById('drawerLogoWrap');
+
+        listRoot?.addEventListener('click', (e) => {         // open drawer from list row
+            const row = e.target.closest('.store-row');
+            if (!row) return;
+            openDrawerFrom(row.dataset);
+        });
+
+        function openDrawerFrom(ds) {
+            dTitle.textContent = ds.name || 'Магазин';
+            if (ds.mapUrl) {                                                                  // NEW
+                dAddr.innerHTML = `<a href="${ds.mapUrl}" target="_blank" rel="noopener">${ds.address || '—'}</a>`; // NEW
+            } else {                                                                          // NEW
+                dAddr.textContent = ds.address || '—';                                        // NEW
+            }
+            dHours.textContent = ds.hours || '—';
+            dLogoWrap.innerHTML = ds.logo ? `<img src="${ds.logo}" alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;">` : '';
+            drawer.classList.add('open');
+            drawerOverlay.classList.add('open');
+            drawer.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            drawerOverlay.classList.remove('open');
+            drawer.setAttribute('aria-hidden', 'true');
+        }
+
+        drawerBack?.addEventListener('click', closeDrawer);
+        drawerOverlay?.addEventListener('click', closeDrawer);
+
+        /* ---------- NEW: Jump helper ---------- */
+        function goToStoreById(id) {
+            const row = document.querySelector(`.store-row[data-id="${id}"]`);
+            if (!row) return;
+
+            // Close popup
+            pop.classList.add('pop-hidden');
+
+            // Ensure the city group is open
+            const group = row.closest('.city-group');
+            if (group && !group.classList.contains('open')) {
+                group.classList.add('open');
+            }
+
+            // Smooth scroll to the row
+            const y = row.getBoundingClientRect().top + window.pageYOffset - 100; // offset for comfort
+            window.scrollTo({top: y, behavior: 'smooth'});
+
+            // Flash highlight (optional)
+            row.classList.add('highlight');
+            setTimeout(() => row.classList.remove('highlight'), 1200);
+
+            // Open the drawer with this store’s data
+            openDrawerFrom(row.dataset);
+
+            // Update URL hash (optional)
+            history.replaceState(null, '', `#store-${id}`);
+        }
+    })();
+</script>
+</body>
+</html>

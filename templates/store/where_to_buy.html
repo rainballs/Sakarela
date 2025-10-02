@@ -5,15 +5,20 @@
 {% block extra_head %}{% endblock %}
 
 {% block content %}
+    <style>
+    body, .store-wrapper {
+        background: #E6EBE8 !important;
+    }
+    </style>
     <div class="recipe-hero">
         <div class="recipe-hero-content">
             <h1 class="recipe-hero-title">Обекти</h1>
         </div>
     </div>
     <!-- Breadcrumbs -->
-    <div class="breadcrumb-container">
+    <div class="breadcrumb-container" style="background: #FFF8EA !important;>
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
+            <ol class="breadcrumb"">
                 <li class="breadcrumb-item"><a href="{% url 'home' %}">Начало</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'store:store_home' %}">Онлайн магазин</a></li>
                 <li class="breadcrumb-item active" aria-current="page">Къде да купите</li>
@@ -21,13 +26,13 @@
         </nav>
     </div>
 
-    <div class="store-wrapper">
+    <div class="store-wrapper" style="background: #FFF8EA !important;">
         <section class="where-to-buy">
-            <h1 class="where-to-buy-title">Къде да купите</h1>
+{#            <h1 class="where-to-buy-title">Къде да купите</h1>#}
 
             <!-- Partners Carousel -->
             <div class="partners-carousel-section">
-                <h2>Нашите партньори</h2>
+{#                <h2>Нашите партньори</h2>#}
                 <div class="carousel-wrapper">
                     <div class="carousel-track">
                         <a href="https://www.kaufland.bg" target="_blank"><img
@@ -61,24 +66,16 @@
             </div>
 
             <!-- Store Locations Map -->
-            <div class="store-locations-section">
-                <h2>Магазини и локации</h2>
-
-                <!-- Static Map Image -->
-                <div class="map-container">
-                    <img src="/static/map/map_sakarela.png" alt="Карта на България с магазини Сакарела"
-                         class="map-image">
-                </div>
-            </div>
+            {% include "store/partials/map.html" with stores=stores brands=brands %}
         </section>
     </div>
     <!-- FEATURE ROW -->
-    <section class="feature-row">
+    <section class="feature-row" style="background: #FFF8EA">
         <div class="feature-list">
             <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
             <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
             <div class="info-logo">
-                <img src="{% static 'uploads/traditional_tech_logo.png' %}" alt="100% Българско мляко">
+                <img src="{% static 'uploads/traditional_tech_logo_clear.png' %}" alt="100% Българско мляко">
             </div>
             <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
             <div class="feature-item">Модерна и съвременна база за производство</div>

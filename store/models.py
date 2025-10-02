@@ -8,6 +8,26 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 
+class Store(models.Model):
+    name = models.CharField(max_length=150)
+    city = models.CharField(max_length=120, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    working_hours = models.CharField(max_length=255, blank=True)
+    logo = models.ImageField(upload_to="store_logos/", blank=True, null=True)
+
+    map_url = models.URLField("Линк към карта", blank=True)
+
+    # NEW: percentage coordinates (0–100)
+    map_x_pct = models.DecimalField(max_digits=5, decimal_places=2, default=50, help_text="Left offset in %")
+    map_y_pct = models.DecimalField(max_digits=5, decimal_places=2, default=50, help_text="Top offset in %")
+    show_on_map = models.BooleanField(default=True)
+
+    # you can keep your existing working_hours / lat / lng etc.
+
+    def __str__(self):
+        return self.name
+
+
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
@@ -48,8 +68,9 @@ class Product(models.Model):
         null=True, blank=True,
         related_name='products'
     )
-    
-    badge = models.CharField(max_length=100, blank=True, null=True, help_text="Label/Badge for the product (e.g., 'ОВЧЕ МЛЯКО', 'БДС', 'КОЗЕ МЛЯКО', 'КРАВЕ МЛЯКО', 'С ПОДПРАВКИ')")
+
+    badge = models.CharField(max_length=100, blank=True, null=True,
+                             help_text="Label/Badge for the product (e.g., 'ОВЧЕ МЛЯКО', 'БДС', 'КОЗЕ МЛЯКО', 'КРАВЕ МЛЯКО', 'С ПОДПРАВКИ')")
 
     def __str__(self):
         return self.name

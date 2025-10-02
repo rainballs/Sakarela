@@ -20,6 +20,7 @@
                     <img src="{{ product.image.url }}" alt="{{ product.title }}">
                 </div>
                 <div class="info-column">
+                    <div class="step-number">Натурален Продукт</div>
                     <h2>{{ product.title }}</h2>
                     <p>{{ product.description }}</p>
                     <div class="product-store-actions">
@@ -38,105 +39,126 @@
                 </div>
             </div>
 
-            <!-- PRODUCT INFO SECTIONS - SEPARATE CONTAINER -->
-            <div class="product-info-sections-container">
-                <div class="product-info-sections">
-                    <!-- INGREDIENTS SECTION -->
-                    <div class="product-ingredients">
-                        <h3>Състав</h3>
-                        <div class="ingredients-list">
-                            {% for line in product.ingredients.splitlines %}
-                                {% if line.strip %}
-                                    <div class="ingredient-item">{{ line }}</div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
+            {#            <!-- PRODUCT INFO SECTIONS - SEPARATE CONTAINER -->#}
+            {#            <div class="product-info-sections-container">#}
+            {#                <div class="product-info-sections">#}
+            {#                    <!-- INGREDIENTS SECTION -->#}
+            {#                    <div class="product-ingredients">#}
+            {#                        <h3>Състав</h3>#}
+            {#                        <div class="ingredients-list">#}
+            {#                            {% for line in product.ingredients.splitlines %}#}
+            {#                                {% if line.strip %}#}
+            {#                                    <div class="ingredient-item">{{ line }}</div>#}
+            {#                                {% endif %}#}
+            {#                            {% endfor %}#}
+            {#                        </div>#}
+            {#                    </div>#}
+            {##}
+            {#                    <!-- STORAGE SECTION -->#}
+            {#                    <div class="product-storage">#}
+            {#                        <h3>Съхранение</h3>#}
+            {#                        <div class="storage-content">#}
+            {#                            <p>{{ product.storage }}</p>#}
+            {#                        </div>#}
+            {#                    </div>#}
+            {#                </div>#}
+            {#            </div>#}
+
+            <!-- FEATURE ROW -->
+            <section class="feature-row">
+                <div class="feature-list">
+                    <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
+                    <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
+                    <div class="info-logo">
+                        <img src="{% static 'uploads/traditional_tech_logo_clear.png' %}" alt="100% Българско мляко">
                     </div>
-
-                    <!-- STORAGE SECTION -->
-                    <div class="product-storage">
-                        <h3>Съхранение</h3>
-                        <div class="storage-content">
-                            <p>{{ product.storage }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- RECIPES SECTION -->
-            <div class="recipes-section">
-                <h2 style="text-align: center; font-size: 2rem; margin: 3rem 0 2rem 0;">Вкусотии
-                    с {{ product.title }}</h2>
-                {% if recipes %}
-                    <div class="recipe-grid">
-                    {% for recipe in recipes %}
-                        <div class="recipe-card">
-                            <a href="{% url 'recipe_detail' recipe.pk %}" class="recipe-card-link">
-                                <div class="recipe-image-wrapper">
-                                    <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="recipe-image">
-                                </div>
-                                <div class="recipe-card-content">
-                                    <h3 class="recipe-title">{{ recipe.title }}</h3>
-                                    <div class="recipe-meta">
-                                        <span class="recipe-time">
-                                            <i class="fas fa-clock"></i>
-                                            {{ recipe.cook_time }} мин
-                                        </span>
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <p>Все още няма налични рецепти с този продукт</p>
-                {% endif %}
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="quality-section">
-        <div class="quality-top-bg">
-            <div class="quality-overlay">
-                <div class="quality-content">
-                    <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">
-                    <div class="quality-text">
-                        <h2 class="quality-title">Първокачествени суровини, добивани в Първокласни ферми</h2>
-                        <p class="quality-description">Гарантирано 100% натурални продукти</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    <section class="product-detail-page">
-        <div class="section-container">
-
-            <!-- “Други продукти” PREVIEW -->
-            <section class="other-products">
-                <h2>Други продукти</h2>
-                <div class="product-grid">
-                    {% for other in other_products %}
-                        <div class="product-card">
-                            <a href="{% url 'product_detail' other.pk %}" class="product-card-link">
-                                <div class="product-image-wrapper">
-                                    <img src="{{ other.image.url }}" alt="{{ other.title }}" class="product-image">
-                                    {% if other.badge %}
-                                        <img src="{{ other.badge.url }}" alt="badge" class="badge-img">
-                                    {% endif %}
-                                </div>
-                                <div class="product-card-content">
-                                    <h3 class="product-title">{{ other.title }}</h3>
-                                    {% if other.badge_text %}
-                                        <p class="product-subtitle">{{ other.badge_text }}</p>
-                                    {% endif %}
-                                </div>
-                            </a>
-                        </div>
-                    {% endfor %}
+                    <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
+                    <div class="feature-item">Модерна и съвременна база за производство</div>
                 </div>
             </section>
 
         </div>
+    </section>
+
+    <section class="recipe-bg">
+        <!-- RECIPES SECTION -->
+        <div class="recipes-section">
+            <h2 style="text-align: center; font-size: 2rem; margin: 8rem 0 8rem 0 !important; text-transform: capitalize">Рецепти
+                с {{ product.title }}</h2>
+            {% if recipes %}
+                <div class="recipe-grid">
+                {% for recipe in recipes %}
+                    <div class="recipe-card">
+                        <a href="{% url 'recipe_detail' recipe.pk %}" class="recipe-card-link">
+                            <div class="recipe-image-wrapper">
+                                <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" class="recipe-image">
+                            </div>
+                            <div class="recipe-card-content">
+                                <h3 class="recipe-title">{{ recipe.title }}</h3>
+                                <div class="recipe-meta">
+                                            <span class="recipe-time">
+                                                <i class="fas fa-clock"></i>
+                                                {{ recipe.cook_time }} мин
+                                            </span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p style="margin: 8rem 0 8rem 0 !important; text-align: center; font-size: 42px; font-weight: 550;">Все още няма налични рецепти с този продукт</p>
+            {% endif %}
+            </div>
+        </div>
+    </section>
+    <section class="quality-section">
+        <div class="quality-top-bg">
+            <div class="quality-overlay">
+                <div class="quality-content">
+                    {#                    <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">#}
+                    <div class="quality-text">
+                        <div class="align-quality-section">
+                            <h2 class="quality-title">Първокачествени суровини, </h2>
+                            <h2 class="quality-title">добивани в Първокласни ферми</h2>
+                            <p class="quality-description">Гарантирано 100% натурални продукти</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="product-detail-page">
+        <section class="background">
+            <div class="section-container">
+
+                <!-- “Други продукти” PREVIEW -->
+                <section class="other-products">
+                    <h2>Други продукти</h2>
+                    <div class="product-grid">
+                        {% for other in other_products %}
+                            <div class="product-card">
+                                <a href="{% url 'product_detail' other.pk %}" class="product-card-link">
+                                    <div class="product-image-wrapper">
+                                        <img src="{{ other.image.url }}" alt="{{ other.title }}" class="product-image">
+                                        {% if other.badge %}
+                                            <img src="{{ other.badge.url }}" alt="badge" class="badge-img">
+                                        {% endif %}
+                                    </div>
+                                    <div class="product-card-content">
+                                        <h3 class="product-title">{{ other.title }}</h3>
+                                        {% if other.badge_text %}
+                                            <p class="product-subtitle">{{ other.badge_text }}</p>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+            </div>
+        </section>
     </section>
     {#    <section class="team-banner">#}
     {#        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела">#}

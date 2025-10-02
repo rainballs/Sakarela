@@ -5,34 +5,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Магазин | Сакарела{% endblock %}</title>
-    
+
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
+
     <!-- Stylesheets -->
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={{ STATIC_VERSION }}">
     <link rel="stylesheet" href="{% static 'css/store.css' %}">
-    
+
     <!-- HTMX for dynamic content -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    
+
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    
+
     {% block extra_head %}{% endblock %}
 
     <!-- Auto-hide Django messages -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const alerts = document.querySelectorAll('.alert');
-            
+
             alerts.forEach(alert => {
                 // Auto-dismiss after 4 seconds
                 setTimeout(() => {
                     dismissAlert(alert);
                 }, 4000);
-                
+
                 // Handle close button clicks
                 const closeBtn = alert.querySelector('.close');
                 if (closeBtn) {
@@ -42,7 +42,7 @@
                     });
                 }
             });
-            
+
             function dismissAlert(alert) {
                 alert.classList.add('fade-out');
                 setTimeout(() => {

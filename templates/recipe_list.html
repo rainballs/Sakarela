@@ -30,7 +30,13 @@
                                             <i class="fas fa-clock"></i>
                                             {{ recipe.cook_time }} мин
                                         </span>
+                                        <span class="recipe-servings">
+                                            <i class="fas fa-users"></i>
+                                            {{ recipe.servings }} порции
+                                        </span>
                                     </div>
+                                    <a href="{% url 'recipe_detail' recipe.pk %}" class="recipe-card-button">Прочети
+                                        рецептата</a>
                                 </div>
                             </a>
                         </div>
@@ -49,28 +55,20 @@
             </div>
         {% endfor %}
     </div>
-
-    <!-- Quality Section -->
-    <section class="quality-section">
-        <div class="quality-top-bg">
-            <div class="quality-overlay">
-                <div class="quality-content">
-                    <img src="{% static 'uploads/1 (1).png' %}" alt="Мляко и ферма" class="quality-icon">
-                    <div class="quality-text">
-                        <h2 class="quality-title">Първокачествени суровини, добивани в Първокласни ферми</h2>
-                        <p class="quality-description">Гарантирано 100% натурални продукти</p>
-                    </div>
-                </div>
+    <!-- FEATURE ROW -->
+    <section class="feature-row">
+        <div class="feature-list">
+            <div class="feature-item">Най-високо качество суровини от доказани ферми</div>
+            <div class="feature-item">Вероятно най-големият производител на кашкавал в България</div>
+            <div class="info-logo">
+                <img src="{% static 'uploads/traditional_tech_logo_clear.png' %}" alt="100% Българско мляко">
             </div>
+            <div class="feature-item">Висококвалифицирани специалисти и технологии</div>
+            <div class="feature-item">Модерна и съвременна база за производство</div>
         </div>
-
-        <section class="yellow-bar">
-            <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
-        </section>
+    </section>
+    <section class="yellow-bar">
+        <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
 
-    <!-- Team Banner Section -->
-    <section class="team-banner">
-        <img src="{% static 'uploads/team_banner.png' %}" alt="Екипът на Сакарела" class="team-banner-image">
-    </section>
 {% endblock %}
