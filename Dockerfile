@@ -4,7 +4,7 @@ FROM python:3.12-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # Install build dependencies
 RUN apt-get update && \
@@ -31,7 +31,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # Install runtime dependencies including netcat
 RUN apt-get update && \
@@ -62,4 +62,4 @@ COPY . .
 
 EXPOSE 8000
 
-ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]

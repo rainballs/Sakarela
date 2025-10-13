@@ -422,95 +422,96 @@ def sign_params_in_post_order(ordered_params: "OrderedDict[str, str]", private_k
 def mypos_payment(request, order_id):
     """Handle myPOS payment initiation with proper signature generation"""
     order = get_object_or_404(Order, id=order_id)
+    try:
+        # --- SET & REUSE a myPOS-safe OrderID (this is what myPOS calls OrderID) ---
+        if (not order.transaction_id) or ("-" in (order.transaction_id or "")) or (len(order.transaction_id) > 30):
+            order.transaction_id = generate_mypos_order_id(order.pk)
+            order.save(update_fields=["transaction_id"])
+        # ---------------------------------------------------------------------------
 
-    # --- SET & REUSE a myPOS-safe OrderID (this is what myPOS calls OrderID) ---
-    if (not order.transaction_id) or ("-" in (order.transaction_id or "")) or (len(order.transaction_id) > 30):
-        order.transaction_id = generate_mypos_order_id(order.pk)
-        order.save(update_fields=["transaction_id"])
-    # ---------------------------------------------------------------------------
+        # Clean up URLs - remove trailing slashes for consistency
+        base_url = request.build_absolute_uri('/').rstrip('/')
+        result_url = f"{base_url}{reverse('store:payment_result')}".rstrip('/')
+        callback_url = f"{base_url}{reverse('store:payment_callback')}".rstrip('/')
 
-    # Clean up URLs - remove trailing slashes for consistency
-    base_url = request.build_absolute_uri('/').rstrip('/')
-    result_url = f"{base_url}{reverse('store:payment_result')}".rstrip('/')
-    callback_url = f"{base_url}{reverse('store:payment_callback')}".rstrip('/')
+        # Build params in insertion order
+        params = OrderedDict([
+            ("IPCmethod", "IPCPurchase"),
+            ("IPCVersion", "1.4"),
+            ("IPCLanguage", DEFAULT_LANGUAGE),  # "EN"
+            ("SID", settings.MYPOS_SID),
+            ("walletnumber", settings.MYPOS_WALLET),
+            ("Amount", f"{order.get_total():.2f}"),
+            ("Currency", DEFAULT_CURRENCY),  # "BGN"
+            ("OrderID", order.transaction_id),
+            ("URL_OK", result_url),
+            ("URL_Cancel", result_url),
+            ("URL_Notify", callback_url),
+            ("CardTokenRequest", DEFAULT_CARD_TOKEN_REQUEST),  # "0"
+            ("KeyIndex", str(settings.MYPOS_KEYINDEX)),
+            ("PaymentParametersRequired", DEFAULT_PAYMENT_PARAMS_REQUIRED),  # "1"
+            ("customeremail", order.email or ""),
+            ("customerfirstnames", order.full_name or ""),
+            ("customerfamilyname", order.last_name or ""),
+            ("customerphone", DEFAULT_PHONE),  # "0889402222"
+            ("customercountry", "BGR"),
+            ("customercity", order.city or ""),
+            ("customerzipcode", order.post_code or ""),
+            ("customeraddress", order.address1 or ""),
+            ("Note", ""),
+        ])
 
-    # Build params in insertion order
-    params = OrderedDict([
-        ("IPCmethod", "IPCPurchase"),
-        ("IPCVersion", "1.4"),
-        ("IPCLanguage", DEFAULT_LANGUAGE),  # "EN"
-        ("SID", settings.MYPOS_SID),
-        ("walletnumber", settings.MYPOS_WALLET),
-        ("Amount", f"{order.get_total():.2f}"),
-        ("Currency", DEFAULT_CURRENCY),  # "BGN"
-        ("OrderID", order.transaction_id),
-        ("URL_OK", result_url),
-        ("URL_Cancel", result_url),
-        ("URL_Notify", callback_url),
-        ("CardTokenRequest", DEFAULT_CARD_TOKEN_REQUEST),  # "0"
-        ("KeyIndex", str(settings.MYPOS_KEYINDEX)),
-        ("PaymentParametersRequired", DEFAULT_PAYMENT_PARAMS_REQUIRED),  # "1"
-        ("customeremail", order.email or ""),
-        ("customerfirstnames", order.full_name or ""),
-        ("customerfamilyname", order.last_name or ""),
-        ("customerphone", DEFAULT_PHONE),  # "0889402222"
-        ("customercountry", "BGR"),
-        ("customercity", order.city or ""),
-        ("customerzipcode", order.post_code or ""),
-        ("customeraddress", order.address1 or ""),
-        ("Note", ""),
-    ])
+        # Add cart rows BEFORE signing (and include CartItems)
+        order_items = order.order_items.select_related('product').all()
+        params["CartItems"] = str(order_items.count())
 
-    # Add cart rows BEFORE signing (and include CartItems)
-    order_items = order.order_items.select_related('product').all()
-    params["CartItems"] = str(order_items.count())
+        for idx, item in enumerate(order_items, start=1):
+            # Use the price captured in OrderItem (avoid re-calculating to prevent mismatch)
+            price = float(item.price)
+            params[f'Article_{idx}'] = (item.product.name or "")[:100]
+            params[f'Quantity_{idx}'] = str(int(item.quantity))
+            params[f'Price_{idx}'] = f"{price:.2f}"
+            params[f'Currency_{idx}'] = DEFAULT_CURRENCY  # "BGN"
+            params[f'Amount_{idx}'] = f"{item.quantity * price:.2f}"
 
-    for idx, item in enumerate(order_items, start=1):
-        # Use the price captured in OrderItem (avoid re-calculating to prevent mismatch)
-        price = float(item.price)
-        params[f'Article_{idx}'] = (item.product.name or "")[:100]
-        params[f'Quantity_{idx}'] = str(int(item.quantity))
-        params[f'Price_{idx}'] = f"{price:.2f}"
-        params[f'Currency_{idx}'] = DEFAULT_CURRENCY  # "BGN"
-        params[f'Amount_{idx}'] = f"{item.quantity * price:.2f}"
+        # Sign over the FINAL ordered params (without Signature)
+        with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as fh:
+            pk_bytes = fh.read()
+        params["Signature"] = sign_params_in_post_order(params, pk_bytes)
 
-    # Sign over the FINAL ordered params (without Signature)
-    with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as fh:
-        pk_bytes = fh.read()
-    params["Signature"] = sign_params_in_post_order(params, pk_bytes)
+        # Optional debug
+        if getattr(settings, 'DEBUG', False):
+            print("\nmyPOS payload about to POST:")
+            for k, v in params.items():
+                print(f"{k}: {v}")
 
-    # Optional debug
-    if getattr(settings, 'DEBUG', False):
-        print("\nmyPOS payload about to POST:")
-        for k, v in params.items():
-            print(f"{k}: {v}")
+        # ---- precise payment debug (paste right before the return) ----
+        paylog = logging.getLogger("payments")
 
-    # ---- precise payment debug (paste right before the return) ----
-    paylog = logging.getLogger("payments")
+        # Sanity: sum of line items
+        sum_items = 0.0
+        for idx, item in enumerate(order.order_items.select_related('product').all(), start=1):
+            sum_items += float(item.quantity) * float(item.price)
 
-    # Sanity: sum of line items
-    sum_items = 0.0
-    for idx, item in enumerate(order.order_items.select_related('product').all(), start=1):
-        sum_items += float(item.quantity) * float(item.price)
+        # The exact raw string we concatenated (BEFORE base64 + sign)
+        concat_debug = "-".join(str(v).strip() for k, v in params.items() if k != "Signature")
+        b64_debug = base64.b64encode(concat_debug.encode("utf-8")).decode("ascii")
 
-    # The exact raw string we concatenated (BEFORE base64 + sign)
-    concat_debug = "-".join(str(v).strip() for k, v in params.items() if k != "Signature")
-    b64_debug = base64.b64encode(concat_debug.encode("utf-8")).decode("ascii")
+        paylog.info(
+            "POST myPOS | endpoint=%s | OrderID=%s | Amount=%s | SumItems=%.2f | Currency=%s | KeyIndex=%s",
+            settings.MYPOS_BASE_URL, params.get("OrderID"), params.get("Amount"), sum_items,
+            params.get("Currency"), params.get("KeyIndex"),
+        )
+        paylog.info("concat=%s", concat_debug)
+        paylog.info("base64=%s", b64_debug)
+        paylog.info("signature=%s…%s", params["Signature"][:12], params["Signature"][-12:])
 
-    paylog.info(
-        "POST myPOS | endpoint=%s | OrderID=%s | Amount=%s | SumItems=%.2f | Currency=%s | KeyIndex=%s",
-        settings.MYPOS_BASE_URL, params.get("OrderID"), params.get("Amount"), sum_items,
-        params.get("Currency"), params.get("KeyIndex"),
-    )
-    paylog.info("concat=%s", concat_debug)
-    paylog.info("base64=%s", b64_debug)
-    paylog.info("signature=%s…%s", params["Signature"][:12], params["Signature"][-12:])
-
-    return render(request, "store/payment_redirect.html", {
-        "action_url": settings.MYPOS_BASE_URL,
-        "params": params,
-    })
-
+        return render(request, "store/payment_redirect.html", {
+            "action_url": settings.MYPOS_BASE_URL,
+            "params": params,
+        })
+    except Exception as error:
+        print(error)
 
 @csrf_exempt
 def payment_callback(request):
