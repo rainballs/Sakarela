@@ -1,7 +1,7 @@
 # === User uploads ===
-/media/*
-!/media/dummy_data_images
-!/media/dummy_data_images/*
+#/media/*
+#!/media/dummy_data_images
+#!/media/dummy_data_images/*
 # === Static build artifacts ===
 # We’ll collect into static_root/—keep it out of Git
 static_root/
