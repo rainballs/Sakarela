@@ -45,24 +45,19 @@ class OrderItemInline(admin.TabularInline):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'full_name', 'last_name', 'email',
-        'country', 'city', 'address1',
-        'payment_method', 'created_at', 'total',
+        "id",
+        "full_name",
+        "last_name",
+        "email",
+        "city",
+        "address1",
+        "payment_method",
+        "payment_status",  # ← show it
+        "total",
+        "created_at",
     )
-    readonly_fields = (
-        'created_at', 'updated_at', 'total',
-    )
-    inlines = [OrderItemInline]
-    list_filter = ('payment_method', 'created_at')
-    search_fields = ('full_name', 'email', 'post_code')
-    ordering = ('-created_at',)
-
-    fieldsets = (
-        ("Customer data", {'fields': ('full_name', 'last_name', 'email')}),
-        ("Address", {'fields': ('country', 'state', 'city', 'address1', 'address2', 'post_code')}),
-        ("Payment", {'fields': ('payment_method',)}),
-        ("System info", {'fields': ('created_at', 'updated_at', 'total')}),
-    )
+    list_filter = ("payment_method", "payment_status", "created_at")
+    search_fields = ("full_name", "last_name", "email", "city", "address1")
 
 
 class StoreAdminForm(forms.ModelForm):

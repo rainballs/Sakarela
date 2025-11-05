@@ -232,24 +232,6 @@ class Order(models.Model):
         return f"{self.full_name} {self.last_name} - {self.created_at.strftime('%Y-%m-%d')}"
 
 
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "full_name",
-        "last_name",
-        "email",
-        "city",
-        "address1",
-        "payment_method",
-        "payment_status",  # ← show it
-        "total",
-        "created_at",
-    )
-    list_filter = ("payment_method", "payment_status", "created_at")
-    search_fields = ("full_name", "last_name", "email", "city", "address1")
-
-
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='order_items', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
