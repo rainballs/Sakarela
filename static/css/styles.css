@@ -1205,7 +1205,7 @@ img {
     flex-wrap: wrap;
     gap: 2rem;
     align-items: flex-start;
-    margin-bottom: 3rem;
+    margin-bottom: 0;
 }
 
 .image-text img {
@@ -2640,7 +2640,7 @@ html, body {
     transition: all 0.3s ease;
     position: relative;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    border: 2px solid #8fa832;
+    border: none;
 }
 
 .cart-icon i {
@@ -2943,7 +2943,7 @@ html, body {
     display: flex;
     align-items: center;
     height: 44px;
-    min-width: 120px;
+    min-width: 65px;
     justify-content: center;
     white-space: nowrap;
 }
@@ -3075,7 +3075,7 @@ html, body {
 
 .product-card img {
     width: 100%;
-    height: 250px;
+    /*height: 250px;*/
     object-fit: fill;
     background: #f7fafd;
     border-bottom: 1px solid #e5e7eb;
@@ -3800,18 +3800,18 @@ html, body {
 
     .cart-icon {
         width: 12px;
-        height: 24px;
+        height: 32px;
         font-size: 0.9rem;
-        background-color: #ffc107;
+        background-color: #f9d923;
         color: #333;
-        border-radius: 10px;
+        border-radius: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         text-decoration: none;
         transition: all 0.3s ease;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        border: 1px solid #e0a800;
+        border: none;
     }
 
     .cart-icon:hover {
@@ -4061,7 +4061,7 @@ html, body {
     .product-detail-page .image-column img {
         width: 100% !important;
         max-width: 1000px !important;
-        height: 260px !important;
+        height: 200px !important;
         object-fit: contain !important;
         border-radius: 10px !important;
         margin: 0 auto !important;
@@ -4086,6 +4086,7 @@ html, body {
         font-size: 1rem !important;
         margin-bottom: 0.5rem !important;
         color: #64748b !important;
+        margin-left: 1rem;
     }
 
     .product-detail-page .recipe-list {
@@ -4245,6 +4246,10 @@ html, body {
         width: 100%;
         font-size: 0.95rem;
         padding: 0.65rem 1rem;
+    }
+
+    .contact-form-grid .form-field {
+        padding: 0;
     }
 }
 
@@ -5587,3 +5592,10 @@ body {
     text-align: center;
 }
 
+.product-card .old-price {
+    font-size: 1.1rem;
+}
+
+.product-card .sale-price {
+    font-size: 1.1rem;
+}

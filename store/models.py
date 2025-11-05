@@ -6,6 +6,7 @@ from django.db import models
 from django.db.models import F, Sum, ExpressionWrapper, DecimalField
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from django.core.validators import RegexValidator
 
 
 class Store(models.Model):
@@ -139,9 +140,22 @@ class Order(models.Model):
         ('failed', 'Failed'),
     ]
 
+    phone_validator = RegexValidator(  # ← NEW
+        regex=r'^(?:\+359\d{9}|0\d{9})$',  # ← NEW
+        message='Въведете валиден телефон (+359XXXXXXXXX или 0XXXXXXXXX).'  # ← NEW
+    )
+
     full_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField()
+
+    phone = models.CharField(  # ← NEW
+        max_length=16,  # ← NEW
+        validators=[phone_validator],  # ← NEW
+        blank=True, null=True,  # ← NEW
+        help_text="Телефон за контакт (пример: +359888123456 или 0888123456)."  # ← NEW
+    )
+
     country = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     city = models.CharField(max_length=100)
@@ -216,6 +230,24 @@ class Order(models.Model):
 
     def __str__(self):
         return f"{self.full_name} {self.last_name} - {self.created_at.strftime('%Y-%m-%d')}"
+
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "full_name",
+        "last_name",
+        "email",
+        "city",
+        "address1",
+        "payment_method",
+        "payment_status",  # ← show it
+        "total",
+        "created_at",
+    )
+    list_filter = ("payment_method", "payment_status", "created_at")
+    search_fields = ("full_name", "last_name", "email", "city", "address1")
 
 
 class OrderItem(models.Model):

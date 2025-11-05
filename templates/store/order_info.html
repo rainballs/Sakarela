@@ -49,6 +49,15 @@
                         {% endif %}
                     </div>
 
+                    <!-- NEW: phone field -->
+                    <div class="form-field"> <!-- NEW -->
+                        {{ form.phone }}      <!-- NEW -->
+                        {% if form.phone.errors %} <!-- NEW -->
+                            <div class="error-message">{{ form.phone.errors.0 }}</div> <!-- NEW -->
+                        {% endif %}           <!-- NEW -->
+                    </div>                    <!-- NEW -->
+
+
                     <div class="form-field">
                         {{ form.country }}
                         {% if form.country.errors %}
@@ -114,4 +123,40 @@
     <section class="yellow-bar">
         <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
+
+    <!-- NEW: simple phone input sanitizing -->
+    <script>
+        (function () {
+            const input = document.querySelector('input[name="phone"]');
+            if (!input) return;
+
+            // Keep only digits and at most one leading '+'
+            input.addEventListener('input', function () {
+                let v = input.value;
+
+                // allow a single leading '+', strip other non-digits
+                const hasPlus = v.startsWith('+');
+                v = v.replace(/[^0-9+]/g, '');
+                if (hasPlus) {
+                    // if '+' is not first, move it to the front
+                    v = '+' + v.replace(/\+/g, '');
+                } else {
+                    // remove any '+' not at the start
+                    v = v.replace(/\+/g, '');
+                }
+
+                // soft limit: max 16 chars
+                if (v.length > 16) v = v.slice(0, 16);
+                input.value = v;
+            });
+
+            // Optional UX: if user types starting with '359', auto-add '+' in front
+            input.addEventListener('blur', function () {
+                const v = input.value;
+                if (/^359\d{9}$/.test(v)) {
+                    input.value = '+' + v;
+                }
+            });
+        })();
+    </script>
 {% endblock %}

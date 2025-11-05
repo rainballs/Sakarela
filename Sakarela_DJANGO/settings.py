@@ -211,6 +211,10 @@ ECONT_PASSWORD = "1Asp-dev"
 GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='YOUR_API_KEY')
 
 # TRUSTED ORIGINS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CSRF_TRUSTED_ORIGINS = [
     "https://www.mypos.com/vmp/checkout",
+    "https://dev.sakarela.com",
 ]
+CSRF_COOKIE_SECURE = True  # if your site is HTTPS-only
+SESSION_COOKIE_SECURE = True

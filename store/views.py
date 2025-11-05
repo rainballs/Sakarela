@@ -14,8 +14,13 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, get_object_or_404
 from django.shortcuts import render
 from django.template.loader import render_to_string
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.views.decorators.csrf import csrf_exempt
+from .cart_utils import cart_items_and_total, get_session_cart, set_session_cart, cart_is_empty
+from django.db import transaction
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.template import TemplateDoesNotExist
+from django.views.decorators.http import require_GET
 import json
 
 from zeep import Client
@@ -37,6 +42,41 @@ def generate_mypos_order_id(order_pk: int) -> str:
     return f"O{order_pk:06d}{uuid.uuid4().hex[:16]}".upper()[:30]
 
 
+SUCCESS_VALUES = {"success", "ok", "approved", "appoved", "accepted"}  # include common typos
+CANCEL_VALUES = {"cancel", "cancelled", "canceled", "usercancel", "user_cancel"}
+SUCCESS_CODES = {"00", "0"}  # typical “approved” ISO codes
+
+
+def _extract_status_blob(data):
+    """
+    Normalize gateway responses: return (status_str_lower, resp_code, reason_text).
+    Looks across common field names/cases myPOS uses.
+    """
+    # common fields with case variants
+    status = (
+            data.get("Status") or data.get("status") or data.get("STATUS") or
+            data.get("Result") or data.get("RESULT") or data.get("TransStatus") or ""
+    )
+    status_lc = (status or "").strip().lower()
+
+    # response/issuer code variants
+    resp_code = (
+            data.get("ResponseCode") or data.get("responsecode") or data.get("RespCode") or
+            data.get("rc") or data.get("RC") or data.get("Code") or ""
+    )
+    resp_code = (resp_code or "").strip()
+
+    # reason/message
+    reason = (
+            data.get("Reason") or data.get("reason") or
+            data.get("Message") or data.get("message") or data.get("Error") or ""
+    )
+    reason = str(reason)
+
+    return status_lc, resp_code, reason
+
+
+@ensure_csrf_cookie
 def store_home(request):
     query = request.GET.get('q', '')
     min_price = request.GET.get('min_price')
@@ -103,26 +143,29 @@ def store_home(request):
         max_effective_price = 100
         min_effective_price = 0
 
-    # Cart logic
-    cart = request.session.get('cart', {})
-    cart_items = []
-    cart_total = 0
-    for cart_key, qty in cart.items():
-        try:
-            product_id, packaging_id = cart_key.split('_')
-            product = Product.objects.get(pk=product_id)
-            packaging = PackagingOption.objects.get(pk=packaging_id)
-            price = packaging.current_price
-            cart_items.append({
-                'product': product,
-                'packaging': packaging,
-                'quantity': qty,
-                'price': price,
-                'subtotal': price * qty
-            })
-            cart_total += price * qty
-        except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
-            continue
+        # Cart logic
+        # cart = request.session.get('cart', {})
+        # cart_items = []
+        # cart_total = 0
+        # for cart_key, qty in cart.items():
+        #     try:
+        #         product_id, packaging_id = cart_key.split('_')
+        #         product = Product.objects.get(pk=product_id)
+        #         packaging = PackagingOption.objects.get(pk=packaging_id)
+        #         price = packaging.current_price
+        #         cart_items.append({
+        #             'product': product,
+        #             'packaging': packaging,
+        #             'quantity': qty,
+        #             'price': price,
+        #             'subtotal': price * qty
+        #         })
+        #         cart_total += price * qty
+        #     except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
+        #         continue
+
+    # Cart logic (use helpers)
+    cart_items, cart_total = cart_items_and_total(request)
 
     context = {
         'products': filtered_products,
@@ -231,26 +274,41 @@ def update_cart_quantity(request, product_id, action):
     return redirect(request.META.get('HTTP_REFERER', 'store:store_home'))
 
 
-def view_cart(request):
-    cart = request.session.get('cart', {})
-    cart_items = []
-    cart_total = 0
-    for cart_key, qty in cart.items():
-        try:
-            product_id, packaging_id = cart_key.split('_')
-            product = Product.objects.get(pk=product_id)
-            packaging = PackagingOption.objects.get(pk=packaging_id)
-            price = packaging.current_price
-            cart_items.append(
-                {'product': product, 'packaging': packaging, 'quantity': qty, 'price': price, 'subtotal': price * qty})
-            cart_total += price * qty
-        except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
-            continue
+# Old view
+# def view_cart(request):
+#     cart = request.session.get('cart', {})
+#     cart_items = []
+#     cart_total = 0
+#     for cart_key, qty in cart.items():
+#         try:
+#             product_id, packaging_id = cart_key.split('_')
+#             product = Product.objects.get(pk=product_id)
+#             packaging = PackagingOption.objects.get(pk=packaging_id)
+#             price = packaging.current_price
+#             cart_items.append(
+#                 {'product': product, 'packaging': packaging, 'quantity': qty, 'price': price, 'subtotal': price * qty})
+#             cart_total += price * qty
+#         except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
+#             continue
+#
+#     # Get recommended products (random selection of products with packaging options)
+#     recommended_products = Product.objects.filter(
+#         packaging_options__isnull=False
+#     ).prefetch_related('packaging_options').distinct().order_by('?')[:6]  # Get 6 random products
+#
+#     return render(request, 'store/cart.html', {
+#         'cart_items': cart_items,
+#         'cart_total': cart_total,
+#         'recommended_products': recommended_products
+#     })
 
-    # Get recommended products (random selection of products with packaging options)
+def view_cart(request):
+    cart_items, cart_total = cart_items_and_total(request)
+
+    # Recommended products (unchanged logic)
     recommended_products = Product.objects.filter(
         packaging_options__isnull=False
-    ).prefetch_related('packaging_options').distinct().order_by('?')[:6]  # Get 6 random products
+    ).prefetch_related('packaging_options').distinct().order_by('?')[:6]
 
     return render(request, 'store/cart.html', {
         'cart_items': cart_items,
@@ -259,34 +317,95 @@ def view_cart(request):
     })
 
 
+# old view
+# def order_info(request):
+#     if request.method == 'POST':
+#         form = OrderForm(request.POST)
+#         if form.is_valid():
+#             order = form.save()
+#             cart = request.session.get('cart', {})
+#             for cart_key, qty in cart.items():
+#                 try:
+#                     product_id, packaging_id = cart_key.split('_')
+#                     product = Product.objects.get(pk=product_id)
+#                     packaging = PackagingOption.objects.get(pk=packaging_id)
+#                     price = packaging.current_price
+#                     OrderItem.objects.create(
+#                         order=order,
+#                         product=product,
+#                         quantity=qty,
+#                         price=price
+#                     )
+#                 except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
+#                     continue
+#             request.session['cart'] = {}
+#             order.update_total()
+#             if order.payment_method == 'cash':
+#                 return redirect('store:order_summary', pk=order.pk)
+#             else:
+#                 return redirect('store:mypos_payment', order_id=order.pk)
+#     else:
+#         form = OrderForm()
+#     return render(request, 'store/order_info.html', {'form': form})
+
 def order_info(request):
+    """
+    - If cart is empty -> back to cart.
+    - Save order + snapshot cart as OrderItems.
+    - Recalculate total.
+    - COD (any synonym) -> redirect to Econt create label.
+    - Otherwise -> redirect to myPOS.
+    """
     if request.method == 'POST':
+        # 1) Guard: do not create orders from empty carts
+        if cart_is_empty(request):
+            messages.error(request, "Количката е празна. Моля, добавете продукти.")
+            return redirect('store:view_cart')
+
         form = OrderForm(request.POST)
         if form.is_valid():
-            order = form.save()
-            cart = request.session.get('cart', {})
-            for cart_key, qty in cart.items():
-                try:
-                    product_id, packaging_id = cart_key.split('_')
-                    product = Product.objects.get(pk=product_id)
-                    packaging = PackagingOption.objects.get(pk=packaging_id)
-                    price = packaging.current_price
+            with transaction.atomic():
+                order = form.save()
+
+                # 2) Snapshot cart -> OrderItems (lock price at purchase time)
+                items, _total = cart_items_and_total(request)
+                for row in items:
                     OrderItem.objects.create(
                         order=order,
-                        product=product,
-                        quantity=qty,
-                        price=price
+                        product=row['product'],
+                        quantity=row['quantity'],
+                        price=row['price'],
                     )
-                except (Product.DoesNotExist, PackagingOption.DoesNotExist, ValueError):
-                    continue
-            request.session['cart'] = {}
-            order.update_total()
-            if order.payment_method == 'cash':
-                return redirect('store:order_summary', pk=order.pk)
-            else:
+
+                # 3) Recalculate order total from items
+                order.update_total()
+
+                # --- NEW: normalize payment method so all COD variants hit Econt ---
+                pm = (str(order.payment_method) or "").strip().lower()
+                COD_VALUES = {
+                    "cash", "cod", "cash_on_delivery",
+                    "наложен", "наложен платеж", "nalojen", "nalojen_plateg"
+                }
+                is_cod = pm in COD_VALUES
+                # -------------------------------------------------------------------
+
+                # 4) Clear cart ONLY for cash on delivery -> Econt
+                if is_cod:
+                    set_session_cart(request, {})
+                    return redirect('store:econt_redirect', order_id=order.pk)
+
+                # Online payment (myPOS): keep cart intact until success is confirmed
                 return redirect('store:mypos_payment', order_id=order.pk)
-    else:
-        form = OrderForm()
+
+        # invalid form -> re-render with errors
+        return render(request, 'store/order_info.html', {'form': form})
+
+    # GET
+    if cart_is_empty(request):
+        messages.info(request, "Количката е празна.")
+        return redirect('store:store_home')
+
+    form = OrderForm()
     return render(request, 'store/order_info.html', {'form': form})
 
 
@@ -329,11 +448,33 @@ SIGN_ORDER = [
 ]
 
 # Default values for myPOS integration
-DEFAULT_PHONE = "0889402222"  # Placeholder phone number
+# DEFAULT_PHONE = "0889402222"  # Placeholder phone number
 DEFAULT_CURRENCY = "BGN"
 DEFAULT_LANGUAGE = "EN"
 DEFAULT_CARD_TOKEN_REQUEST = "0"
 DEFAULT_PAYMENT_PARAMS_REQUIRED = "1"
+
+
+def bg_phone_no_prefix(phone: str) -> str:
+    """
+    Normalize a Bulgarian phone and ALWAYS return it prefixed with +359.
+    - Strips all non-digits
+    - Removes leading 359 or 0 (to get the 9-digit national number)
+    - Trims to 9 digits (safety)
+    - Returns '+359<9 digits>' or '' if nothing usable
+    """
+    if not phone:
+        return ''
+    digits = ''.join(ch for ch in phone if ch.isdigit())
+
+    # get national significant number (usually 9 digits)
+    if digits.startswith('359'):
+        digits = digits[3:]
+    elif digits.startswith('0'):
+        digits = digits[1:]
+
+    local = digits[:9]
+    return f'+359{local}' if local else ''
 
 
 def _generate_signature(params):
@@ -431,8 +572,14 @@ def mypos_payment(request, order_id):
 
         # Clean up URLs - remove trailing slashes for consistency
         base_url = request.build_absolute_uri('/').rstrip('/')
-        result_url = f"{base_url}{reverse('store:payment_result')}".rstrip('/')
-        callback_url = f"{base_url}{reverse('store:payment_callback')}".rstrip('/')
+        result_url = request.build_absolute_uri(reverse('store:payment_result'))
+        callback_url = request.build_absolute_uri(reverse('store:payment_callback'))
+
+        # Make sure OrderID is always present in the browser redirect, even if myPOS omits it
+        result_url_with_id = f"{result_url}?OrderID={order.transaction_id}"
+
+        # NEW: remember it in the session as a fallback
+        request.session['last_txn'] = order.transaction_id
 
         # Build params in insertion order
         params = OrderedDict([
@@ -444,8 +591,8 @@ def mypos_payment(request, order_id):
             ("Amount", f"{order.get_total():.2f}"),
             ("Currency", DEFAULT_CURRENCY),  # "BGN"
             ("OrderID", order.transaction_id),
-            ("URL_OK", result_url),
-            ("URL_Cancel", result_url),
+            ("URL_OK", result_url_with_id),
+            ("URL_Cancel", result_url_with_id),
             ("URL_Notify", callback_url),
             ("CardTokenRequest", DEFAULT_CARD_TOKEN_REQUEST),  # "0"
             ("KeyIndex", str(settings.MYPOS_KEYINDEX)),
@@ -453,7 +600,7 @@ def mypos_payment(request, order_id):
             ("customeremail", order.email or ""),
             ("customerfirstnames", order.full_name or ""),
             ("customerfamilyname", order.last_name or ""),
-            ("customerphone", DEFAULT_PHONE),  # "0889402222"
+            ("customerphone", bg_phone_no_prefix(order.phone)),  # "0889402222"
             ("customercountry", "BGR"),
             ("customercity", order.city or ""),
             ("customerzipcode", order.post_code or ""),
@@ -504,7 +651,7 @@ def mypos_payment(request, order_id):
         )
         paylog.info("concat=%s", concat_debug)
         paylog.info("base64=%s", b64_debug)
-        paylog.info("signature=%s…%s", params["Signature"][:12], params["Signature"][-12:])
+        paylog.info("signature=%s...%s", params["Signature"][:12], params["Signature"][-12:])
 
         return render(request, "store/payment_redirect.html", {
             "action_url": settings.MYPOS_BASE_URL,
@@ -513,54 +660,353 @@ def mypos_payment(request, order_id):
     except Exception as error:
         print(error)
 
+
+# @csrf_exempt
+# def payment_callback(request):
+#     """
+#     myPOS will POST here when the payment completes (server→server).
+#     We look up the Order by transaction_id and mark it paid.
+#     """
+#     if request.method == 'POST':
+#         data = request.POST
+#         order_id = data.get("OrderID")
+#         status = data.get("Status")
+#
+#         print(f"Payment callback received: OrderID={order_id}, Status={status}")
+#
+#         try:
+#             order = Order.objects.get(transaction_id=order_id)
+#
+#             if status == "Success":
+#                 order.payment_status = "paid"
+#             else:
+#                 order.payment_status = "failed"
+#
+#             order.save(update_fields=['payment_status'])
+#             print(f"Order {order_id} payment status updated to {order.payment_status}")
+#
+#         except Order.DoesNotExist:
+#             print(f"Order with transaction_id {order_id} not found")
+#
+#     return HttpResponse("OK")
+
 @csrf_exempt
 def payment_callback(request):
     """
-    myPOS will POST here when the payment completes (server→server).
-    We look up the Order by transaction_id and mark it paid.
+    Server→server notification from myPOS.
+    Marks order paid/failed based on common status/code variants.
     """
-    if request.method == 'POST':
-        data = request.POST
-        order_id = data.get("OrderID")
-        status = data.get("Status")
-
-        print(f"Payment callback received: OrderID={order_id}, Status={status}")
-
+    data = request.POST or request.GET  # some gateways GET this
+    if getattr(settings, "DEBUG", False):
         try:
-            order = Order.objects.get(transaction_id=order_id)
+            import json as _json
+            print("=== payment_callback payload ===")
+            print(_json.dumps((request.POST or {}).dict(), ensure_ascii=False))
+        except Exception:
+            pass
 
-            if status == "Success":
-                order.payment_status = "paid"
-            else:
-                order.payment_status = "failed"
+    order_id = (
+            data.get("OrderID") or data.get("orderid") or data.get("order_id") or ""
+    )
+    order_id = (order_id or "").strip()
 
-            order.save(update_fields=['payment_status'])
-            print(f"Order {order_id} payment status updated to {order.payment_status}")
+    status_lc, resp_code, reason = _extract_status_blob(data)
 
-        except Order.DoesNotExist:
-            print(f"Order with transaction_id {order_id} not found")
+    is_success = (
+            (status_lc in SUCCESS_VALUES) or
+            (resp_code in SUCCESS_CODES)
+    )
+
+    try:
+        order = Order.objects.get(transaction_id=order_id)
+        order.payment_status = "paid" if is_success else "failed"
+        order.save(update_fields=["payment_status"])
+        if getattr(settings, "DEBUG", False):
+            print(
+                f"[callback] tx={order_id} status='{status_lc}' code='{resp_code}' -> {order.payment_status} | reason={reason!r}")
+    except Order.DoesNotExist:
+        if getattr(settings, "DEBUG", False):
+            print(f"[callback] Order not found for transaction_id={order_id}")
 
     return HttpResponse("OK")
 
 
+# old view
+# def payment_result(request):
+#     """
+#     The customer's browser lands here after payment.
+#     Display success or failure message based on status.
+#     """
+#     status = request.GET.get("Status", "")
+#     order_id = request.GET.get("OrderID", "")
+#     error = request.GET.get("error", None)
+#
+#     context = {
+#         "status": status,
+#         "order_id": order_id,
+#         "success": status == "Success",
+#         "error": error,
+#         "debug": getattr(settings, 'DEBUG', False)
+#     }
+#
+#     return render(request, "store/payment_result.html", context)
+#
+
+
+# def payment_result(request):
+#     status = request.GET.get("Status", "")
+#     transaction_id = request.GET.get("OrderID", "")
+#     error = request.GET.get("error", None)
+#
+#     order = Order.objects.filter(transaction_id=transaction_id).first()
+#     success_by_gateway = (status == "Success")
+#     paid_by_server = bool(order and getattr(order, "payment_status", "") == "paid")
+#
+#     if success_by_gateway and paid_by_server:
+#         set_session_cart(request, {})
+#         msg = "Плащането е успешно!"
+#         success_flag = True
+#     elif success_by_gateway and not paid_by_server:
+#         msg = "Плащането се обработва. Моля, изчакайте потвърждение."
+#         success_flag = False
+#     else:
+#         msg = "Плащането е неуспешно." if status else "Връщане от плащане."
+#         success_flag = False
+#
+#     context = {
+#         "status": status,
+#         "order_id": transaction_id,
+#         "success": success_flag,
+#         "error": error,
+#         "message": msg,
+#         "debug": getattr(settings, 'DEBUG', False),
+#     }
+#     return render(request, "store/payment_result.html", context)
+
+# def payment_result(request):
+#     # Read params case-insensitively and trim
+#     raw_status = (request.GET.get("Status") or request.GET.get("status") or "").strip()
+#     transaction_id = (request.GET.get("OrderID") or request.GET.get("orderid") or "").strip()
+#     error = request.GET.get("error", None)
+#
+#     # Normalize status to lowercase for logic, keep original for display
+#     status_lc = raw_status.lower()
+#
+#     order = Order.objects.filter(transaction_id=transaction_id).first()
+#     paid_by_server = bool(order and getattr(order, "payment_status", "") == "paid")
+#     success_by_gateway = (status_lc == "success")
+#     cancelled = status_lc in ("cancel", "cancelled")
+#
+#     # Three clear states
+#     pending = success_by_gateway and not paid_by_server  # waiting for server→server callback
+#     success_flag = success_by_gateway and paid_by_server  # gateway ok + our DB says paid
+#     failed = (not success_by_gateway) and (not cancelled)  # any other non-cancel failure
+#
+#     # Clear cart only when we are 100% sure it's paid
+#     if success_flag:
+#         set_session_cart(request, {})
+#
+#     context = {
+#         "status": raw_status or "",  # keep as-is for template display
+#         "order_id": transaction_id,
+#         "success": success_flag,
+#         "pending": pending,
+#         "cancelled": cancelled,
+#         "failed": failed,
+#         "error": error,
+#         "debug": getattr(settings, 'DEBUG', False),
+#     }
+#     return render(request, "store/payment_result.html", context)
+# def payment_result(request):
+#     # Accept both GET and POST (some myPOS methods POST back to URL_OK)
+#     data = request.GET.copy()
+#     if not data:
+#         data = request.POST.copy()
+#
+#     # Dump everything when DEBUG to see what the gateway actually sent
+#     if getattr(settings, "DEBUG", False):
+#         try:
+#             import json as _json
+#             print("=== payment_result payload ===")
+#             print("GET:", _json.dumps(request.GET.dict(), ensure_ascii=False))
+#             print("POST:", _json.dumps(request.POST.dict(), ensure_ascii=False))
+#         except Exception:
+#             pass
+#
+#     # Read common variants (case-insensitive, different keys)
+#     raw_status = (data.get("Status") or data.get("status") or data.get("STATUS") or "").strip()
+#     transaction_id = (data.get("OrderID") or data.get("orderid") or data.get("order_id") or "").strip()
+#     error = data.get("error") or data.get("Reason") or data.get("Message")
+#
+#     order = Order.objects.filter(transaction_id=transaction_id).first()
+#     paid_by_server = bool(order and getattr(order, "payment_status", "") == "paid")
+#
+#     status_lc = raw_status.lower()
+#     success_by_gateway = (status_lc == "success")
+#     cancelled = status_lc in ("cancel", "cancelled")
+#
+#     pending = success_by_gateway and not paid_by_server
+#     success_flag = success_by_gateway and paid_by_server
+#     failed = (not success_by_gateway) and (not cancelled)
+#
+#     # Only clear cart when confirmed paid in DB
+#     if success_flag:
+#         set_session_cart(request, {})
+#
+#     context = {
+#         "status": raw_status or "",
+#         "order_id": transaction_id,
+#         "success": success_flag,
+#         "pending": pending,
+#         "cancelled": cancelled,
+#         "failed": failed,
+#         "error": error,
+#         "debug": getattr(settings, 'DEBUG', False),
+#     }
+#     return render(request, "store/payment_result.html", context)
+
+# --- add these constants once (top of file is fine) ---
+
+# --- Status dictionaries ---
+SUCCESS_VALUES = {"success", "ok", "approved", "paid", "completed", "authorized", "authorised"}
+CANCEL_VALUES = {"cancel", "cancelled", "canceled", "user_cancel", "usercancel"}
+
+# Codes: extend with what myPOS actually emits
+SUCCESS_CODES = {"0", "00", "000", "200"}  # OK-ish codes
+FAIL_VALUES = {"failed", "failure", "declined", "denied", "error"}
+FAIL_CODES = {"05", "51", "54", "57", "62", "65"}  # Do not honor, insufficient funds, expired, etc.
+
+
+@csrf_exempt
 def payment_result(request):
     """
-    The customer's browser lands here after payment.
-    Display success or failure message based on status.
-    """
-    status = request.GET.get("Status", "")
-    order_id = request.GET.get("OrderID", "")
-    error = request.GET.get("error", None)
+    Browser lands here from myPOS (URL_OK / URL_Cancel).
 
-    context = {
-        "status": status,
-        "order_id": order_id,
-        "success": status == "Success",
-        "error": error,
-        "debug": getattr(settings, 'DEBUG', False)
+    Rules:
+      - DB is the source of truth (payment_status='paid' => SUCCESS) — handled where you read the order.
+      - If DB not yet paid and Status/ResponseCode are missing/OK => PENDING (not FAILED).
+      - CANCEL values => CANCELLED immediately.
+      - Explicit decline values/codes => FAILED.
+    """
+    # 1) Accept both GET and POST
+    data = request.GET or request.POST
+
+    # 2) Debug dump
+    if getattr(settings, "DEBUG", False):
+        try:
+            import json as _json
+            print("=== payment_result payload ===")
+            print("GET :", _json.dumps(getattr(request.GET, "dict", lambda: {})(), ensure_ascii=False))
+            print("POST:", _json.dumps(getattr(request.POST, "dict", lambda: {})(), ensure_ascii=False))
+        except Exception:
+            pass
+
+    # 3) Extract fields (case-insensitive), trimmed
+    raw_status = (data.get("Status") or data.get("status") or data.get("STATUS") or "").strip()
+    status_lc = raw_status.lower()
+
+    # Some integrations also send result/response code fields
+    resp_code = (
+            data.get("ResponseCode") or data.get("responsecode") or
+            data.get("ResultCode") or data.get("resultcode") or
+            data.get("RespCode") or data.get("respcode") or
+            ""
+    )
+    resp_code = str(resp_code).strip()
+
+    txn_id = (data.get("OrderID") or data.get("orderid") or data.get("order_id") or "").strip()
+    if not txn_id:
+        # fallback to what we initiated (set in mypos_payment)
+        txn_id = (request.session.get("last_txn") or "").strip()
+
+    error_msg = str(
+        data.get("error") or data.get("Reason") or data.get("Message") or data.get("reason") or ""
+    )
+
+    # 4) DB-first truth
+    order = Order.objects.filter(transaction_id=txn_id).first()
+    order_pk = order.pk if order else None
+    paid_by_server = bool(order and getattr(order, "payment_status", "") == "paid")
+
+    # 5) Decide flags
+    if paid_by_server:
+        success = True
+        pending = False
+        cancelled = False
+        failed = False
+    else:
+        has_status = bool(raw_status)
+        has_code = bool(resp_code)
+
+        is_success = (status_lc in SUCCESS_VALUES) or (resp_code in SUCCESS_CODES)
+        is_cancel = (status_lc in CANCEL_VALUES)
+        is_fail = (status_lc in FAIL_VALUES) or (resp_code in FAIL_CODES)
+
+        if is_cancel:
+            success = False;
+            pending = False;
+            cancelled = True;
+            failed = False
+        elif is_fail:
+            success = False;
+            pending = False;
+            cancelled = False;
+            failed = True
+        elif is_success:
+            # Gateway indicates success but DB not yet updated by callback -> pending
+            success = False;
+            pending = True;
+            cancelled = False;
+            failed = False
+        elif not has_status and not has_code:
+            # Typical browser redirect with no data -> pending, not failed
+            success = False;
+            pending = True;
+            cancelled = False;
+            failed = False
+        else:
+            # Unknown non-success signal -> failed
+            success = False;
+            pending = False;
+            cancelled = False;
+            failed = True
+
+    # 6) Clear cart ONLY when DB says it's paid
+    if success:
+        set_session_cart(request, {})
+
+    ctx = {
+        "status": raw_status or (resp_code or ""),  # show code if that's all we have
+        "order_id": txn_id,
+        "order_pk": order_pk,
+        "success": success,
+        "pending": pending,
+        "cancelled": cancelled,
+        "failed": failed,
+        "error": error_msg,
+        "debug": bool(getattr(settings, "DEBUG", False)),
     }
 
-    return render(request, "store/payment_result.html", context)
+    if getattr(settings, "DEBUG", False):
+        print(f"[payment_result] ctx: order_id={txn_id} DBpaid={paid_by_server} "
+              f"raw_status='{raw_status}' resp_code='{resp_code}' "
+              f"-> success={success}, pending={pending}, cancelled={cancelled}, failed={failed}")
+
+    # 7) Render normally; if template fails, respond safely (never 500 here)
+    try:
+        return render(request, "store/payment_result.html", ctx)
+    except (TemplateDoesNotExist, NoReverseMatch) as e:
+        html = f"""<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Payment Result</title>
+<body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;max-width:700px;margin:40px auto">
+<h1>Payment Result</h1>
+<p><strong>Status:</strong> {raw_status or resp_code}</p>
+<p><strong>Order ID:</strong> {txn_id}</p>
+<p><strong>Error:</strong> {error_msg}</p>
+<p><em>Template problem: {e.__class__.__name__}: {e}</em></p>
+<p><a href="/store/">Back to store</a> &nbsp; <a href="/store/cart/">View cart</a></p>
+</body></html>"""
+        return HttpResponse(html, status=200)
 
 
 def confirm_order(request, order_id):
@@ -652,43 +1098,60 @@ def test_econt_label(request):
     return HttpResponse(response.text, content_type="text/xml")
 
 
-def generate_econt_label_xml(order=None):
+def generate_econt_label_xml(order):
+    """
+    Build an Econt createLabel XML from our Order model.
+    COD if order.payment_method == 'cash', otherwise no COD.
+    """
     import xml.etree.ElementTree as ET
+
+    is_cod = (getattr(order, "payment_method", "") == "cash")
+    cd_amount = f"{order.get_total():.2f}" if is_cod else "0.00"
 
     root = ET.Element("parcels")
 
     client = ET.SubElement(root, "client")
-    ET.SubElement(client, "username").text = "iasp-dev"
-    ET.SubElement(client, "password").text = "1Asp-dev"
+    ET.SubElement(client, "username").text = settings.ECONT_USER
+    ET.SubElement(client, "password").text = settings.ECONT_PASS
 
     loadings = ET.SubElement(root, "loadings")
     row = ET.SubElement(loadings, "row")
 
+    # Sender — fill with your real company data
     sender = ET.SubElement(row, "sender")
-    ET.SubElement(sender, "name").text = "Тест клиент"
-    ET.SubElement(sender, "phone_num").text = "+359888888888"
+    ET.SubElement(sender, "name").text = "Сакарела"  # TODO: from settings
+    ET.SubElement(sender, "phone_num").text = "+3590000000"  # TODO: from settings
     ET.SubElement(sender, "city").text = "София"
     ET.SubElement(sender, "post_code").text = "1000"
     ET.SubElement(sender, "street").text = "бул. България 1"
     ET.SubElement(sender, "country").text = "BGR"
 
+    # Receiver — from order form
     receiver = ET.SubElement(row, "receiver")
-    ET.SubElement(receiver, "name").text = "Иван Тестов"
-    ET.SubElement(receiver, "phone_num").text = "+359888123456"
-    ET.SubElement(receiver, "email").text = "test@econt.com"
-    ET.SubElement(receiver, "city").text = "София"
-    ET.SubElement(receiver, "post_code").text = "1404"
-    ET.SubElement(receiver, "street").text = "бул. България 1"
-    ET.SubElement(receiver, "country").text = "BGR"
+    ET.SubElement(receiver, "name").text = f"{order.full_name or ''} {order.last_name or ''}".strip()
+    ET.SubElement(receiver, "phone_num").text = (order.phone or "")
+    ET.SubElement(receiver, "email").text = (order.email or "")
+    ET.SubElement(receiver, "city").text = (order.city or "")
+    ET.SubElement(receiver, "post_code").text = (order.post_code or "")
+    ET.SubElement(receiver, "street").text = (order.address1 or "")
+    ET.SubElement(receiver, "country").text = "BGR"  # adjust if you ship abroad
+
+    # You can also pass office code instead of street if shipping to office:
+    # ET.SubElement(receiver, "office_code").text = "<ECONT_OFFICE_CODE>"
 
     shipment = ET.SubElement(row, "shipment")
     ET.SubElement(shipment, "shipment_type").text = "PACK"
-    ET.SubElement(shipment, "weight").text = "1"
+    # use total weight from items if you track it; fallback 1kg
+    ET.SubElement(shipment, "weight").text = str(getattr(order, "weight_kg", 1))
 
+    # Services — COD only for 'cash'
     services = ET.SubElement(row, "services")
-    ET.SubElement(services, "cd").text = "1"
+    ET.SubElement(services, "cd").text = "1" if is_cod else "0"
     ET.SubElement(services, "cd_currency").text = "BGN"
-    ET.SubElement(services, "cd_amount").text = "1.00"
+    ET.SubElement(services, "cd_amount").text = cd_amount
+
+    # Optional: sender/receiver instructions, fragile, etc.
+    # ET.SubElement(services, "fragile").text = "1"
 
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
@@ -699,3 +1162,42 @@ def where_to_buy(request):
     )
     brands = Store.objects.filter(show_on_map=True).order_by().values_list("name", flat=True).distinct()
     return render(request, "store/where_to_buy.html", {"stores": stores, "brands": brands})
+
+
+@require_GET
+def econt_redirect(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+
+    try:
+        # If you already have a helper: response = send_econt_label_request(order)
+        # Otherwise, do it inline:
+        xml_data = generate_econt_label_xml(order)
+
+        headers = {"Content-Type": "application/xml"}
+        auth = HTTPBasicAuth(settings.ECONT_USER, settings.ECONT_PASS)
+
+        resp = requests.post(
+            settings.ECONT_CREATE_LABEL_URL,
+            data=xml_data,
+            headers=headers,
+            auth=auth,
+            timeout=30
+        )
+
+        # Parse with your helper or do minimal parsing here
+        shipment_num, label_url = handle_econt_response(resp)
+
+        order.econt_shipment_num = shipment_num
+        order.label_url = label_url
+        order.save(update_fields=["econt_shipment_num", "label_url"])
+
+        # If Econt returned a label URL, take the user there
+        if label_url:
+            return redirect(label_url)
+
+        messages.success(request, "Еконт товарителница беше създадена.")
+        return redirect('store:order_summary', pk=order.pk)
+
+    except Exception as e:
+        messages.error(request, f"Възникна грешка при Еконт: {e}")
+        return redirect('store:order_summary', pk=order.pk)

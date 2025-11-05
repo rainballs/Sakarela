@@ -6,48 +6,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Магазин | Сакарела{% endblock %}</title>
 
+    <!-- Favicon (prevents 404s) -->
+    <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={{ STATIC_VERSION }}">
-    <link rel="stylesheet" href="{% static 'css/store.css' %}">
+    <link rel="stylesheet" href="{% static 'css/store.css' %}?v={{ STATIC_VERSION }}">
 
-    <!-- HTMX for dynamic content -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    {# Ensure a CSRF token exists & expose it to JS safely #}
+    {% csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
 
     {% block extra_head %}{% endblock %}
 
     <!-- Auto-hide Django messages -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        // Expose a robust CSRF getter for any JS (fetch, etc.)
+        window.getCsrfToken = function () {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && meta.content) return meta.content;
+            // fallback to cookie if needed
+            const m = document.cookie.match(/(^|;)\s*csrftoken=([^;]+)/);
+            return m ? decodeURIComponent(m[2]) : '';
+        };
+
+        // Tell HTMX to include CSRF automatically on all requests
+        document.addEventListener('htmx:configRequest', function (evt) {
+            const token = window.getCsrfToken();
+            if (token) evt.detail.headers['X-CSRFToken'] = token;
+        });
+
+        // Auto-hide server messages after 4s (matches comment now)
+        document.addEventListener('DOMContentLoaded', function () {
             const alerts = document.querySelectorAll('.alert');
-
             alerts.forEach(alert => {
-                // Auto-dismiss after 4 seconds
-                setTimeout(() => {
+                setTimeout(() => dismissAlert(alert), 4000);
+                const closeBtn = alert.querySelector('.close, [data-dismiss="alert"]');
+                if (closeBtn) closeBtn.addEventListener('click', e => {
+                    e.preventDefault();
                     dismissAlert(alert);
-                }, 4000);
-
-                // Handle close button clicks
-                const closeBtn = alert.querySelector('.close');
-                if (closeBtn) {
-                    closeBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        dismissAlert(alert);
-                    });
-                }
+                });
             });
 
-            function dismissAlert(alert) {
-                alert.classList.add('fade-out');
-                setTimeout(() => {
-                    alert.remove();
-                }, 300);
+            function dismissAlert(el) {
+                el.classList.add('fade-out');
+                setTimeout(() => el.remove(), 300);
             }
         });
     </script>
@@ -62,13 +75,17 @@
     </main>
 </div>
 
-<!-- jQuery, Popper.js, Bootstrap JS -->
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" crossorigin="anonymous"></script>
+<!-- jQuery, Popper.js, Bootstrap JS (defer to avoid blocking) -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" crossorigin="anonymous" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" crossorigin="anonymous"
+        defer></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" crossorigin="anonymous"
+        defer></script>
 
 <!-- Glider.js for carousels -->
-<script src="https://cdn.jsdelivr.net/npm/glider-js@1/glider.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/glider-js@1/glider.min.js" defer></script>
+
+{% block extra_scripts %}{% endblock %}
 
 {% include 'partials/footer.html' %}
 </body>
