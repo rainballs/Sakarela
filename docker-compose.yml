@@ -9,10 +9,10 @@ services:
       - 8000:8000
     network_mode: "host"
     volumes:
-      - ./:/app
+        - ./:/app
         #- static_volume:/usr/src/app/staticfiles
         - /srv/sakarela/media:app/media
-      - ./mypos/private_key.pem:/usr/src/app/keys/private_key.pem:ro
+        - ./mypos/private_key.pem:/usr/src/app/keys/private_key.pem:ro
         #depends_on:
         #db:
         #condition: service_healthy
