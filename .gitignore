@@ -43,8 +43,13 @@ Thumbs.db
 # === Private keys ===
 mypos/private_key.pem
 <<<<<<< HEAD
+<<<<<<< HEAD
 media/
 =======
 media/
 staticfiles/
 >>>>>>> 0094831 (clean repo)
+=======
+media/
+staticfiles/
+>>>>>>> 666a5ba2ed057e5158a5a71c53cfc2bf9c7422ee
