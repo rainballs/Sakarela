@@ -11,7 +11,7 @@ services:
     volumes:
         - ./:/app
         #- static_volume:/usr/src/app/staticfiles
-        - /srv/sakarela/media:app/media
+        - /srv/sakarela/media:/app/media
         - ./mypos/private_key.pem:/usr/src/app/keys/private_key.pem:ro
         #depends_on:
         #db:
