@@ -42,3 +42,4 @@ Thumbs.db
 
 # === Private keys ===
 mypos/private_key.pem
+media/
