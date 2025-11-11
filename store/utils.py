@@ -4,6 +4,7 @@ import subprocess
 import requests
 import xml.etree.ElementTree as ET
 from django.conf import settings
+from requests.auth import HTTPBasicAuth
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,6 @@ def generate_econt_label_xml(order=None):
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
 
-
 def send_econt_label_request(order):
     xml_data = generate_econt_label_xml(order)
 
@@ -113,7 +113,7 @@ def send_econt_label_request(order):
         getattr(settings, "ECONT_USERNAME", "iasp-dev"),
         getattr(settings, "ECONT_PASSWORD", "1Asp-dev")
     )
-    
+
     headers = {
         "Content-Type": "application/xml",
         "Accept": "application/xml",
@@ -137,3 +137,140 @@ def handle_econt_response(response):
         return shipment_num, pdf_url
     else:
         raise Exception(f"Празен или грешен отговор от Econt:\n{response.status_code}\n{response.text}")
+
+
+def build_econt_label_payload(order):
+    """
+    Build the JSON payload for Econt's LabelService.createLabel.json
+    using the order fields you already store.
+    Adjust sender data to your real company data.
+    """
+    is_cod = (str(order.payment_method or "").strip().lower() in {
+        "cash", "cod", "cash_on_delivery", "наложен", "наложен платеж"
+    })
+
+    # You can pull these from settings to avoid hardcoding
+    sender_name = getattr(settings, "ECONT_SENDER_NAME", "Сакарела")
+    sender_phone = getattr(settings, "ECONT_SENDER_PHONE", "+359878630943")
+    sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
+    sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8000")
+
+    payload = {
+        "mode": "create",
+        "label": {
+            "shipmentType": "PACK",
+            # toDoor / toOffice etc. – you can make this dynamic
+            "service": "toDoor",
+            "packCount": 1,
+            "weight": 0.8,
+            "shipmentDescription": "Поръчка №{}".format(order.pk),
+            # who pays shipping – if COD often RECEIVER, but leave SENDER if that's your business rule
+            "payer": "SENDER",
+            # label format is optional
+            "label": {"format": "10x9"},
+
+            # --- sender ---
+            "senderClient": {
+                "name": sender_name,
+                "phones": [sender_phone],
+            },
+            "senderAgent": {
+                "name": sender_name,
+                "phones": [sender_phone],
+            },
+            "senderAddress": {
+                "city": {
+                    "country": {"code3": "BGR"},
+                    "name": sender_city_name,
+                    "postCode": sender_city_postcode,
+                }
+            },
+
+            # --- receiver from order ---
+            "receiverClient": {
+                "name": f"{order.full_name or ''} {order.last_name or ''}".strip(),
+                "phones": [order.phone] if order.phone else [],
+            },
+            "receiverAddress": {
+                "city": {
+                    "country": {"code3": "BGR"},
+                    "name": order.city or "",
+                    "postCode": order.post_code or "",
+                },
+                # Econt expects street-like string here
+                "street": order.address1 or "",
+            },
+        },
+    }
+
+    # COD block – Econt JSON needs this if you're taking cash
+    if is_cod:
+        payload["label"]["paymentReceiverMethod"] = "CASH"
+        payload["label"]["paymentReceiverAmount"] = float(order.get_total())
+        # sometimes also label["paymentReceiverCurrency"]="BGN" but they infer it
+
+    return payload
+
+
+def ensure_econt_label_json(order):
+    """
+    Create Econt label via JSON endpoint if the order doesn't have one yet.
+    Uses creds from settings (loaded from .env).
+    Safe to call multiple times.
+    """
+    # 1) don't recreate if we already have one
+    if getattr(order, "econt_shipment_num", None):
+        return
+
+    # 2) URL: prefer explicit JSON endpoint, otherwise build from your base
+    url = getattr(settings, "ECONT_CREATE_LABEL_URL", None)
+    if not url:
+        # you said you have this in settings:
+        # ECONT_LABEL_URL = "https://demo.econt.com/ee/services/LabelService"
+        base = getattr(settings, "ECONT_LABEL_URL", "https://demo.econt.com/ee/services")
+        url = base.rstrip("/") + "/Shipments/LabelService.createLabel.json"
+
+    # 3) creds from .env / settings
+    username = getattr(settings, "ECONT_USERNAME", None) or getattr(settings, "ECONT_USER", None)
+    password = getattr(settings, "ECONT_PASSWORD", None) or getattr(settings, "ECONT_PASS", None)
+    if not username or not password:
+        raise Exception("Econt credentials are missing in settings (.env).")
+
+    payload = build_econt_label_payload(order)
+
+    resp = requests.post(
+        url,
+        json=payload,
+        auth=HTTPBasicAuth(username, password),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        timeout=30,
+    )
+    # surface HTTP errors right away
+    resp.raise_for_status()
+    data = resp.json()
+
+    # 4) extract label info
+    labels = data.get("labels") or data.get("label") or []
+    if isinstance(labels, dict):
+        labels = [labels]
+
+    if not labels:
+        # log whole response so you can see Econt's error structure
+        raise Exception(f"Econt did not return labels: {data}")
+
+    first = labels[0]
+    shipment_num = (
+            first.get("shipmentNumber")
+            or first.get("shipmentNum")
+            or first.get("num")
+            or ""
+    )
+    label_url = first.get("labelURL") or first.get("pdfURL") or ""
+
+    if not shipment_num:
+        raise Exception(f"Econt returned no shipment number: {data}")
+
+    # 5) save to order
+    order.econt_shipment_num = shipment_num
+    order.label_url = label_url
+    order.save(update_fields=["econt_shipment_num", "label_url"])

@@ -30,7 +30,7 @@ import requests
 
 from store.models import Product, Order, OrderItem, Category, Brand, PackagingOption, Store
 from .forms import OrderForm
-from .utils import send_econt_label_request, handle_econt_response, generate_econt_label_xml
+from .utils import send_econt_label_request, handle_econt_response, generate_econt_label_xml, ensure_econt_label_json
 
 logger = logging.getLogger(__name__)
 
@@ -353,8 +353,8 @@ def order_info(request):
     - If cart is empty -> back to cart.
     - Save order + snapshot cart as OrderItems.
     - Recalculate total.
-    - COD (any synonym) -> redirect to Econt create label.
-    - Otherwise -> redirect to myPOS.
+    - COD -> create Econt label NOW and go to order summary.
+    - Card/other -> go to myPOS.
     """
     if request.method == 'POST':
         # 1) Guard: do not create orders from empty carts
@@ -367,7 +367,7 @@ def order_info(request):
             with transaction.atomic():
                 order = form.save()
 
-                # 2) Snapshot cart -> OrderItems (lock price at purchase time)
+                # 2) Snapshot cart -> OrderItems
                 items, _total = cart_items_and_total(request)
                 for row in items:
                     OrderItem.objects.create(
@@ -380,21 +380,29 @@ def order_info(request):
                 # 3) Recalculate order total from items
                 order.update_total()
 
-                # --- NEW: normalize payment method so all COD variants hit Econt ---
+                # 4) Detect COD-like payment methods
                 pm = (str(order.payment_method) or "").strip().lower()
                 COD_VALUES = {
-                    "cash", "cod", "cash_on_delivery",
-                    "наложен", "наложен платеж", "nalojen", "nalojen_plateg"
+                    "cash", "cod", "cash_on_delivery", "cash on delivery",
+                    "наложен", "наложен платеж", "наложен-платеж",
                 }
                 is_cod = pm in COD_VALUES
-                # -------------------------------------------------------------------
 
-                # 4) Clear cart ONLY for cash on delivery -> Econt
                 if is_cod:
-                    set_session_cart(request, {})
-                    return redirect('store:econt_redirect', order_id=order.pk)
+                    # create label right now via JSON
+                    try:
+                        ensure_econt_label_json(order)
+                        messages.success(request, "Еконт товарителница беше създадена.")
+                    except Exception as e:
+                        # don’t break checkout – just show error
+                        messages.error(request, f"Грешка при създаване на Еконт товарителница: {e}")
 
-                # Online payment (myPOS): keep cart intact until success is confirmed
+                    # COD: cart can be cleared now
+                    set_session_cart(request, {})
+                    # show order summary as before
+                    return redirect('store:order_summary', pk=order.pk)
+
+                # non-COD → go to myPOS as before
                 return redirect('store:mypos_payment', order_id=order.pk)
 
         # invalid form -> re-render with errors

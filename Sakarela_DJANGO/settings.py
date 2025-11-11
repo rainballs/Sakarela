@@ -207,6 +207,11 @@ ECONT_LABEL_URL = "https://demo.econt.com/ee/services/LabelService"
 ECONT_USERNAME = "iasp-dev"
 ECONT_PASSWORD = "1Asp-dev"
 
+ECONT_SENDER_NAME = "Сакарела"
+ECONT_SENDER_PHONE = "+359878630943"
+ECONT_SENDER_CITY = "Ямбол"
+ECONT_SENDER_POSTCODE = "8600"
+
 # Google Maps API settings
 GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='YOUR_API_KEY')
 
