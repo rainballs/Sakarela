@@ -202,15 +202,26 @@ MYPOS_RESPONSE_URL = config('MYPOS_RESPONSE_URL')
 MYPOS_CALLBACK_URL = config('MYPOS_CALLBACK_URL')
 MYPOS_BASE_URL = config('MYPOS_BASE_URL')
 
-# Econt API settings
-ECONT_LABEL_URL = "https://demo.econt.com/ee/services/LabelService"
-ECONT_USERNAME = "iasp-dev"
-ECONT_PASSWORD = "1Asp-dev"
+# Econt (from .env)
+ECONT_USER = os.getenv("ECONT_USER")
+ECONT_PASS = os.getenv("ECONT_PASS")
 
-ECONT_SENDER_NAME = "Сакарела"
-ECONT_SENDER_PHONE = "+359878630943"
-ECONT_SENDER_CITY = "Ямбол"
-ECONT_SENDER_POSTCODE = "8600"
+# Prefer the explicit JSON endpoint; fall back to demo if missing
+ECONT_CREATE_LABEL_URL = os.getenv(
+    "ECONT_CREATE_LABEL_URL",
+    "https://ee.econt.com/services/Shipments/LabelService.createLabel.json",
+)
+
+# Optional sender defaults used by build_econt_label_payload()
+ECONT_SENDER_NAME = os.getenv("ECONT_SENDER_NAME", "Сакарела")
+ECONT_SENDER_PHONE = os.getenv("ECONT_SENDER_PHONE", "+359878630943")
+ECONT_SENDER_CITY = os.getenv("ECONT_SENDER_CITY", "Бургас")
+ECONT_SENDER_POSTCODE = os.getenv("ECONT_SENDER_POSTCODE", "8000")
+
+# --- Backward-compat aliases (safe no-ops if you referenced old names) ---
+ECONT_USERNAME = os.getenv("ECONT_USERNAME", ECONT_USER or "")
+ECONT_PASSWORD = os.getenv("ECONT_PASSWORD", ECONT_PASS or "")
+ECONT_LABEL_URL = os.getenv("ECONT_LABEL_URL", "https://demo.econt.com/ee/services")
 
 # Google Maps API settings
 GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='YOUR_API_KEY')

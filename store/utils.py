@@ -64,67 +64,6 @@ def convert_key_to_pkcs8(input_path, output_path):
         return False, f"Error during conversion: {str(e)}"
 
 
-def generate_econt_label_xml(order=None):
-    import xml.etree.ElementTree as ET
-
-    root = ET.Element("parcels")
-
-    client = ET.SubElement(root, "client")
-    ET.SubElement(client, "username").text = "iasp-dev"
-    ET.SubElement(client, "password").text = "1Asp-dev"
-
-    loadings = ET.SubElement(root, "loadings")
-    row = ET.SubElement(loadings, "row")
-
-    sender = ET.SubElement(row, "sender")
-    ET.SubElement(sender, "name").text = "Тест клиент"
-    ET.SubElement(sender, "phone_num").text = "+359888888888"
-    ET.SubElement(sender, "city").text = "София"
-    ET.SubElement(sender, "post_code").text = "1000"
-
-    receiver = ET.SubElement(row, "receiver")
-    ET.SubElement(receiver, "name").text = "Иван Тестов"
-    ET.SubElement(receiver, "phone_num").text = "+359888123456"
-    ET.SubElement(receiver, "email").text = "test@econt.com"
-    ET.SubElement(receiver, "city").text = "София"
-    ET.SubElement(receiver, "post_code").text = "1404"
-    ET.SubElement(receiver, "street").text = "бул. България 1"
-
-    shipment = ET.SubElement(row, "shipment")
-    ET.SubElement(shipment, "shipment_type").text = "PACK"
-    ET.SubElement(shipment, "weight").text = "1"
-
-    services = ET.SubElement(row, "services")
-    ET.SubElement(services, "cd").text = "1"
-    ET.SubElement(services, "cd_currency").text = "BGN"
-    ET.SubElement(services, "cd_amount").text = "1.00"
-
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
-
-
-def send_econt_label_request(order):
-    xml_data = generate_econt_label_xml(order)
-
-    print("=== Outgoing XML to Econt ===")
-    print(xml_data.decode("utf-8"))
-
-    url = getattr(settings, "ECONT_LABEL_URL", "https://demo.econt.com/ee/services/LabelService")
-    auth = (
-        getattr(settings, "ECONT_USERNAME", "iasp-dev"),
-        getattr(settings, "ECONT_PASSWORD", "1Asp-dev")
-    )
-
-    headers = {
-        "Content-Type": "application/xml",
-        "Accept": "application/xml",
-    }
-    logger.info(f"Sending Econt label request for order {order.id}")
-    response = requests.post(url, data=xml_data, auth=auth, headers=headers)
-    logger.info(f"Econt response status: {response.status_code}")
-    logger.debug(f"Econt response content: {response.content}")
-    return response
-
-
 def handle_econt_response(response):
     print("=== Econt raw response ===")
     print(response.status_code)
@@ -213,64 +152,39 @@ def build_econt_label_payload(order):
 
 
 def ensure_econt_label_json(order):
-    """
-    Create Econt label via JSON endpoint if the order doesn't have one yet.
-    Uses creds from settings (loaded from .env).
-    Safe to call multiple times.
-    """
-    # 1) don't recreate if we already have one
     if getattr(order, "econt_shipment_num", None):
         return
 
-    # 2) URL: prefer explicit JSON endpoint, otherwise build from your base
-    url = getattr(settings, "ECONT_CREATE_LABEL_URL", None)
-    if not url:
-        # you said you have this in settings:
-        # ECONT_LABEL_URL = "https://demo.econt.com/ee/services/LabelService"
-        base = getattr(settings, "ECONT_LABEL_URL", "https://demo.econt.com/ee/services")
-        url = base.rstrip("/") + "/Shipments/LabelService.createLabel.json"
-
-    # 3) creds from .env / settings
-    username = getattr(settings, "ECONT_USERNAME", None) or getattr(settings, "ECONT_USER", None)
-    password = getattr(settings, "ECONT_PASSWORD", None) or getattr(settings, "ECONT_PASS", None)
-    if not username or not password:
-        raise Exception("Econt credentials are missing in settings (.env).")
-
+    url = getattr(
+        settings,
+        "ECONT_CREATE_LABEL_URL",
+        "https://ee.econt.com/services/Shipments/LabelService.createLabel.json",
+    )
     payload = build_econt_label_payload(order)
 
     resp = requests.post(
         url,
         json=payload,
-        auth=HTTPBasicAuth(username, password),
+        auth=HTTPBasicAuth(settings.ECONT_USER, settings.ECONT_PASS),
         headers={"Content-Type": "application/json; charset=utf-8"},
         timeout=30,
     )
-    # surface HTTP errors right away
-    resp.raise_for_status()
+    resp.raise_for_status()  # ← add this
     data = resp.json()
 
-    # 4) extract label info
     labels = data.get("labels") or data.get("label") or []
     if isinstance(labels, dict):
         labels = [labels]
-
     if not labels:
-        # log whole response so you can see Econt's error structure
         raise Exception(f"Econt did not return labels: {data}")
 
     first = labels[0]
-    shipment_num = (
-            first.get("shipmentNumber")
-            or first.get("shipmentNum")
-            or first.get("num")
-            or ""
-    )
+    shipment_num = first.get("shipmentNumber") or first.get("shipmentNum") or ""
     label_url = first.get("labelURL") or first.get("pdfURL") or ""
 
     if not shipment_num:
         raise Exception(f"Econt returned no shipment number: {data}")
 
-    # 5) save to order
     order.econt_shipment_num = shipment_num
     order.label_url = label_url
     order.save(update_fields=["econt_shipment_num", "label_url"])

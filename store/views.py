@@ -30,7 +30,7 @@ import requests
 
 from store.models import Product, Order, OrderItem, Category, Brand, PackagingOption, Store
 from .forms import OrderForm
-from .utils import send_econt_label_request, handle_econt_response, generate_econt_label_xml, ensure_econt_label_json
+from .utils import handle_econt_response, ensure_econt_label_json
 
 logger = logging.getLogger(__name__)
 
@@ -571,25 +571,31 @@ def sign_params_in_post_order(ordered_params: "OrderedDict[str, str]", private_k
 def mypos_payment(request, order_id):
     """Handle myPOS payment initiation with proper signature generation"""
     order = get_object_or_404(Order, id=order_id)
+
+    # 1) Create Econt label UPFRONT for card payments (safe to call repeatedly)
     try:
-        # --- SET & REUSE a myPOS-safe OrderID (this is what myPOS calls OrderID) ---
+        ensure_econt_label_json(order)
+    except Exception as e:
+        # Do NOT block payment if Econt is down; just log and proceed.
+        logger.error("Econt upfront label failed for order %s: %s", order.id, e)
+
+    try:
+        # 2) Ensure we have a myPOS-safe OrderID (<=30 chars, no dashes)
         if (not order.transaction_id) or ("-" in (order.transaction_id or "")) or (len(order.transaction_id) > 30):
             order.transaction_id = generate_mypos_order_id(order.pk)
             order.save(update_fields=["transaction_id"])
-        # ---------------------------------------------------------------------------
 
-        # Clean up URLs - remove trailing slashes for consistency
-        base_url = request.build_absolute_uri('/').rstrip('/')
+        # 3) Build return/callback URLs
         result_url = request.build_absolute_uri(reverse('store:payment_result'))
         callback_url = request.build_absolute_uri(reverse('store:payment_callback'))
 
-        # Make sure OrderID is always present in the browser redirect, even if myPOS omits it
+        # Always include OrderID in the browser redirect URL
         result_url_with_id = f"{result_url}?OrderID={order.transaction_id}"
 
-        # NEW: remember it in the session as a fallback
+        # Remember as a fallback in case gateway omits it
         request.session['last_txn'] = order.transaction_id
 
-        # Build params in insertion order
+        # 4) Build params in insertion order (exactly as posted)
         params = OrderedDict([
             ("IPCmethod", "IPCPurchase"),
             ("IPCVersion", "1.4"),
@@ -608,7 +614,7 @@ def mypos_payment(request, order_id):
             ("customeremail", order.email or ""),
             ("customerfirstnames", order.full_name or ""),
             ("customerfamilyname", order.last_name or ""),
-            ("customerphone", bg_phone_no_prefix(order.phone)),  # "0889402222"
+            ("customerphone", bg_phone_no_prefix(order.phone)),
             ("customercountry", "BGR"),
             ("customercity", order.city or ""),
             ("customerzipcode", order.post_code or ""),
@@ -616,57 +622,46 @@ def mypos_payment(request, order_id):
             ("Note", ""),
         ])
 
-        # Add cart rows BEFORE signing (and include CartItems)
+        # 5) Line items (BEFORE signing)
         order_items = order.order_items.select_related('product').all()
         params["CartItems"] = str(order_items.count())
-
         for idx, item in enumerate(order_items, start=1):
-            # Use the price captured in OrderItem (avoid re-calculating to prevent mismatch)
-            price = float(item.price)
+            price = float(item.price)  # use captured OrderItem price
             params[f'Article_{idx}'] = (item.product.name or "")[:100]
             params[f'Quantity_{idx}'] = str(int(item.quantity))
             params[f'Price_{idx}'] = f"{price:.2f}"
-            params[f'Currency_{idx}'] = DEFAULT_CURRENCY  # "BGN"
+            params[f'Currency_{idx}'] = DEFAULT_CURRENCY
             params[f'Amount_{idx}'] = f"{item.quantity * price:.2f}"
 
-        # Sign over the FINAL ordered params (without Signature)
+        # 6) Sign (exclude Signature from the string to sign)
         with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as fh:
             pk_bytes = fh.read()
         params["Signature"] = sign_params_in_post_order(params, pk_bytes)
 
-        # Optional debug
-        if getattr(settings, 'DEBUG', False):
-            print("\nmyPOS payload about to POST:")
-            for k, v in params.items():
-                print(f"{k}: {v}")
-
-        # ---- precise payment debug (paste right before the return) ----
+        # 7) (Optional) precise debug/audit logging
         paylog = logging.getLogger("payments")
-
-        # Sanity: sum of line items
-        sum_items = 0.0
-        for idx, item in enumerate(order.order_items.select_related('product').all(), start=1):
-            sum_items += float(item.quantity) * float(item.price)
-
-        # The exact raw string we concatenated (BEFORE base64 + sign)
+        sum_items = sum(float(i.quantity) * float(i.price) for i in order_items)
         concat_debug = "-".join(str(v).strip() for k, v in params.items() if k != "Signature")
         b64_debug = base64.b64encode(concat_debug.encode("utf-8")).decode("ascii")
-
         paylog.info(
             "POST myPOS | endpoint=%s | OrderID=%s | Amount=%s | SumItems=%.2f | Currency=%s | KeyIndex=%s",
-            settings.MYPOS_BASE_URL, params.get("OrderID"), params.get("Amount"), sum_items,
-            params.get("Currency"), params.get("KeyIndex"),
+            settings.MYPOS_BASE_URL, params.get("OrderID"), params.get("Amount"),
+            sum_items, params.get("Currency"), params.get("KeyIndex"),
         )
         paylog.info("concat=%s", concat_debug)
         paylog.info("base64=%s", b64_debug)
         paylog.info("signature=%s...%s", params["Signature"][:12], params["Signature"][-12:])
 
+        # 8) Auto-post form to myPOS
         return render(request, "store/payment_redirect.html", {
             "action_url": settings.MYPOS_BASE_URL,
             "params": params,
         })
-    except Exception as error:
-        print(error)
+
+    except Exception:
+        logger.exception("myPOS initiation failed for order %s", order.id)
+        messages.error(request, "Възникна грешка при иницииране на плащането. Опитайте отново.")
+        return redirect('store:order_summary', pk=order.pk)
 
 
 # @csrf_exempt
@@ -1017,20 +1012,6 @@ def payment_result(request):
         return HttpResponse(html, status=200)
 
 
-def confirm_order(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    try:
-        response = send_econt_label_request(order)
-        shipment_num, label_url = handle_econt_response(response)
-        order.econt_shipment_num = shipment_num
-        order.label_url = label_url
-        order.save()
-        return redirect("order_detail", order_id=order.id)
-    except Exception as e:
-        messages.error(request, f"Econt error: {e}")
-        return redirect("store:order_summary", pk=order.id)
-
-
 # def where_to_buy(request):
 #     # Store locations data - you can move this to a database model later
 #     store_locations = [
@@ -1080,132 +1061,9 @@ def confirm_order(request, order_id):
 #     return render(request, 'store/where_to_buy.html', context)
 
 
-def test_econt_label(request):
-    xml_data = generate_econt_label_xml(order=None)  # or pass an actual order
-
-    url = "https://demo.econt.com/ee/services/createLabel"
-    headers = {"Content-Type": "application/xml"}
-    auth = HTTPBasicAuth("iasp-dev", "1Asp-dev")
-
-    response = requests.post(url, data=xml_data, headers=headers, auth=auth)
-
-    print("=== Outgoing XML ===")
-    print(xml_data.decode("utf-8"))
-    print("=== Response Status ===")
-    print(response.status_code)
-    print("=== Response Content (text) ===")
-    print(response.text)
-    print("=== Response Content (raw) ===")
-    print(response.content)
-
-    if not response.content.strip():
-        return HttpResponse(
-            "Econt API returned an empty response. Please check your XML and credentials, or try again later.",
-            content_type="text/plain")
-
-    return HttpResponse(response.text, content_type="text/xml")
-
-
-def generate_econt_label_xml(order):
-    """
-    Build an Econt createLabel XML from our Order model.
-    COD if order.payment_method == 'cash', otherwise no COD.
-    """
-    import xml.etree.ElementTree as ET
-
-    is_cod = (getattr(order, "payment_method", "") == "cash")
-    cd_amount = f"{order.get_total():.2f}" if is_cod else "0.00"
-
-    root = ET.Element("parcels")
-
-    client = ET.SubElement(root, "client")
-    ET.SubElement(client, "username").text = settings.ECONT_USER
-    ET.SubElement(client, "password").text = settings.ECONT_PASS
-
-    loadings = ET.SubElement(root, "loadings")
-    row = ET.SubElement(loadings, "row")
-
-    # Sender — fill with your real company data
-    sender = ET.SubElement(row, "sender")
-    ET.SubElement(sender, "name").text = "Сакарела"  # TODO: from settings
-    ET.SubElement(sender, "phone_num").text = "+3590000000"  # TODO: from settings
-    ET.SubElement(sender, "city").text = "София"
-    ET.SubElement(sender, "post_code").text = "1000"
-    ET.SubElement(sender, "street").text = "бул. България 1"
-    ET.SubElement(sender, "country").text = "BGR"
-
-    # Receiver — from order form
-    receiver = ET.SubElement(row, "receiver")
-    ET.SubElement(receiver, "name").text = f"{order.full_name or ''} {order.last_name or ''}".strip()
-    ET.SubElement(receiver, "phone_num").text = (order.phone or "")
-    ET.SubElement(receiver, "email").text = (order.email or "")
-    ET.SubElement(receiver, "city").text = (order.city or "")
-    ET.SubElement(receiver, "post_code").text = (order.post_code or "")
-    ET.SubElement(receiver, "street").text = (order.address1 or "")
-    ET.SubElement(receiver, "country").text = "BGR"  # adjust if you ship abroad
-
-    # You can also pass office code instead of street if shipping to office:
-    # ET.SubElement(receiver, "office_code").text = "<ECONT_OFFICE_CODE>"
-
-    shipment = ET.SubElement(row, "shipment")
-    ET.SubElement(shipment, "shipment_type").text = "PACK"
-    # use total weight from items if you track it; fallback 1kg
-    ET.SubElement(shipment, "weight").text = str(getattr(order, "weight_kg", 1))
-
-    # Services — COD only for 'cash'
-    services = ET.SubElement(row, "services")
-    ET.SubElement(services, "cd").text = "1" if is_cod else "0"
-    ET.SubElement(services, "cd_currency").text = "BGN"
-    ET.SubElement(services, "cd_amount").text = cd_amount
-
-    # Optional: sender/receiver instructions, fragile, etc.
-    # ET.SubElement(services, "fragile").text = "1"
-
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
-
-
 def where_to_buy(request):
     stores = Store.objects.filter(show_on_map=True).only(
         "id", "name", "city", "address", "logo", "map_x_pct", "map_y_pct",
     )
     brands = Store.objects.filter(show_on_map=True).order_by().values_list("name", flat=True).distinct()
     return render(request, "store/where_to_buy.html", {"stores": stores, "brands": brands})
-
-
-@require_GET
-def econt_redirect(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-
-    try:
-        # If you already have a helper: response = send_econt_label_request(order)
-        # Otherwise, do it inline:
-        xml_data = generate_econt_label_xml(order)
-
-        headers = {"Content-Type": "application/xml"}
-        auth = HTTPBasicAuth(settings.ECONT_USER, settings.ECONT_PASS)
-
-        resp = requests.post(
-            settings.ECONT_CREATE_LABEL_URL,
-            data=xml_data,
-            headers=headers,
-            auth=auth,
-            timeout=30
-        )
-
-        # Parse with your helper or do minimal parsing here
-        shipment_num, label_url = handle_econt_response(resp)
-
-        order.econt_shipment_num = shipment_num
-        order.label_url = label_url
-        order.save(update_fields=["econt_shipment_num", "label_url"])
-
-        # If Econt returned a label URL, take the user there
-        if label_url:
-            return redirect(label_url)
-
-        messages.success(request, "Еконт товарителница беше създадена.")
-        return redirect('store:order_summary', pk=order.pk)
-
-    except Exception as e:
-        messages.error(request, f"Възникна грешка при Еконт: {e}")
-        return redirect('store:order_summary', pk=order.pk)
