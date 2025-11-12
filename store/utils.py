@@ -1,10 +1,10 @@
-import logging
 import subprocess
 
 import requests
 import xml.etree.ElementTree as ET
 from django.conf import settings
 from requests.auth import HTTPBasicAuth
+import logging, json as _json
 
 logger = logging.getLogger(__name__)
 
@@ -151,16 +151,18 @@ def build_econt_label_payload(order):
     return payload
 
 
+econtlog = logging.getLogger("econt")
+
+
 def ensure_econt_label_json(order):
     if getattr(order, "econt_shipment_num", None):
-        return
+        econtlog.info("Order %s already has shipment_num=%s", order.pk, order.econt_shipment_num)
+        return order.econt_shipment_num, order.label_url, None
 
-    url = getattr(
-        settings,
-        "ECONT_CREATE_LABEL_URL",
-        "https://ee.econt.com/services/Shipments/LabelService.createLabel.json",
-    )
+    url = getattr(settings, "ECONT_CREATE_LABEL_URL",
+                  "https://ee.econt.com/services/Shipments/LabelService.createLabel.json")
     payload = build_econt_label_payload(order)
+    econtlog.info("POST %s | order=%s payload=%s", url, order.pk, _json.dumps(payload, ensure_ascii=False))
 
     resp = requests.post(
         url,
@@ -169,6 +171,9 @@ def ensure_econt_label_json(order):
         headers={"Content-Type": "application/json; charset=utf-8"},
         timeout=30,
     )
+
+    econtlog.info("RESP %s | status=%s text=%s", url, resp.status_code, (resp.text or "")[:4000])
+
     resp.raise_for_status()  # ← add this
     data = resp.json()
 
@@ -188,3 +193,6 @@ def ensure_econt_label_json(order):
     order.econt_shipment_num = shipment_num
     order.label_url = label_url
     order.save(update_fields=["econt_shipment_num", "label_url"])
+
+    econtlog.info("Order %s -> shipment=%s label=%s", order.pk, shipment_num, label_url)
+    return shipment_num, label_url, data

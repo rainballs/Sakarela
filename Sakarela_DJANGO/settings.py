@@ -117,26 +117,29 @@ os.makedirs(LOG_DIR, exist_ok=True)  # ensure it exists at startup
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {
-        "plain": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
-    },
     "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+        "econt_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOG_DIR, "econt.log"),
+            "maxBytes": 2_000_000,
+            "backupCount": 5,
+            "formatter": "simple",
+        },
         "payments_file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(LOG_DIR / "payments.log"),
-            "maxBytes": 5 * 1024 * 1024,  # 5 MB
+            "filename": os.path.join(LOG_DIR, "payments.log"),
+            "maxBytes": 2_000_000,
             "backupCount": 5,
-            "formatter": "plain",
+            "formatter": "simple",
         },
-        "console": {"class": "logging.StreamHandler", "formatter": "plain"},
+    },
+    "formatters": {
+        "simple": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"}
     },
     "loggers": {
-        # our custom logger name used in views.py
-        "payments": {
-            "handlers": ["payments_file", "console"],
-            "level": "INFO",
-            "propagate": False,
-        },
+        "econt": {"handlers": ["econt_file", "console"], "level": "INFO"},
+        "payments": {"handlers": ["payments_file", "console"], "level": "INFO"},
     },
 }
 

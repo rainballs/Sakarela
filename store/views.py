@@ -391,11 +391,12 @@ def order_info(request):
                 if is_cod:
                     # create label right now via JSON
                     try:
-                        ensure_econt_label_json(order)
-                        messages.success(request, "Еконт товарителница беше създадена.")
+                        sn, url, _ = ensure_econt_label_json(order)
+                        messages.success(request, f"Еконт товарителница създадена: № {sn}")
                     except Exception as e:
-                        # don’t break checkout – just show error
                         messages.error(request, f"Грешка при създаване на Еконт товарителница: {e}")
+                    set_session_cart(request, {})
+                    return redirect('store:order_summary', pk=order.pk)
 
                     # COD: cart can be cleared now
                     set_session_cart(request, {})
