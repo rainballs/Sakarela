@@ -93,6 +93,10 @@ def build_econt_label_payload(order):
     sender_phone = getattr(settings, "ECONT_SENDER_PHONE", "+359878630943")
     sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
     sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8000")
+    sender_street = "{} {}".format(
+        getattr(settings, "ECONT_SENDER_STREET", "").strip(),
+        getattr(settings, "ECONT_SENDER_STREET_NO", "").strip(),
+    ).strip()
 
     payload = {
         "mode": "create",
@@ -122,7 +126,8 @@ def build_econt_label_payload(order):
                     "country": {"code3": "BGR"},
                     "name": sender_city_name,
                     "postCode": sender_city_postcode,
-                }
+                },
+                "street": sender_street,
             },
 
             # --- receiver from order ---
