@@ -380,6 +380,16 @@ def order_info(request):
                 # 3) Recalculate order total from items
                 order.update_total()
 
+                # --- ALWAYS create the Econt label on submit (idempotent) ---
+                try:
+                    sn, url, _raw = ensure_econt_label_json(order)
+                    if sn:
+                        messages.success(request, f"Еконт товарителница създадена: № {sn}")
+                except Exception as e:
+                    # Never block checkout because of Econt
+                    messages.error(request, f"Грешка при създаване на Еконт товарителница: {e}")
+                # ----------------------------------------------------------------
+
                 # 4) Detect COD-like payment methods
                 pm = (str(order.payment_method) or "").strip().lower()
                 COD_VALUES = {
@@ -389,33 +399,20 @@ def order_info(request):
                 is_cod = pm in COD_VALUES
 
                 if is_cod:
-                    # create label right now via JSON
-                    try:
-                        sn, url, _ = ensure_econt_label_json(order)
-                        messages.success(request, f"Еконт товарителница създадена: № {sn}")
-                    except Exception as e:
-                        messages.error(request, f"Грешка при създаване на Еконт товарителница: {e}")
+                    # COD → cart can be cleared immediately
                     set_session_cart(request, {})
                     return redirect('store:order_summary', pk=order.pk)
 
-                    # COD: cart can be cleared now
-                    set_session_cart(request, {})
-                    # show order summary as before
-                    return redirect('store:order_summary', pk=order.pk)
-
-                # non-COD → go to myPOS as before
+                    # Card/other → go to myPOS (payment status updates in callback)
                 return redirect('store:mypos_payment', order_id=order.pk)
 
-        # invalid form -> re-render with errors
         return render(request, 'store/order_info.html', {'form': form})
 
-    # GET
     if cart_is_empty(request):
         messages.info(request, "Количката е празна.")
         return redirect('store:store_home')
 
-    form = OrderForm()
-    return render(request, 'store/order_info.html', {'form': form})
+    return render(request, 'store/order_info.html', {'form': OrderForm()})
 
 
 def order_summary(request, pk):

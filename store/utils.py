@@ -149,9 +149,16 @@ def build_econt_label_payload(order):
 
     # COD block – Econt JSON needs this if you're taking cash
     if is_cod:
+        # Prefer persisted total; fallback to computed
+        try:
+            cod_amount = float(getattr(order, "total", None) or order.get_total())
+        except Exception:
+            cod_amount = float(order.get_total())
+
         payload["label"]["paymentReceiverMethod"] = "CASH"
-        payload["label"]["paymentReceiverAmount"] = float(order.get_total())
-        # sometimes also label["paymentReceiverCurrency"]="BGN" but they infer it
+        payload["label"]["paymentReceiverAmount"] = round(cod_amount, 2)
+        # Optional but harmless; some tenants like it explicit:
+        # payload["label"]["paymentReceiverCurrency"] = "BGN"
 
     return payload
 
