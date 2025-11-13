@@ -202,6 +202,14 @@ class Order(models.Model):
         default=Decimal('0.00'),
         help_text="Computed sum of all order items."
     )
+    # NEW: total order weight in kg
+    total_weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=Decimal('0.000'),
+        help_text="Общо тегло на поръчката в килограми."
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     PAYMENT_STATUS_CHOICES = [
@@ -223,12 +231,22 @@ class Order(models.Model):
                     F('price') * F('quantity'),
                     output_field=DecimalField(max_digits=12, decimal_places=2)
                 )
+            ),
+            weight_g=Sum(
+                ExpressionWrapper(
+                    F('unit_weight_g') * F('quantity'),
+                    output_field=DecimalField(max_digits=12, decimal_places=1)
+                )
             )
         )
-        # if there are no items, Sum returns None
+
         self.total = agg['total'] or Decimal('0.00')
-        # only update the total column
-        super().save(update_fields=['total'])
+
+        grams = agg['weight_g'] or Decimal('0.0')
+        self.total_weight_kg = (grams / Decimal('1000')).quantize(Decimal('0.001'))
+
+        # update both fields
+        super().save(update_fields=['total', 'total_weight_kg'])
 
     def get_total(self):
         """Return the current total ensuring it's up to date."""
@@ -266,8 +284,25 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)  # snapshot of price at time of order
 
+    unit_weight_g = models.DecimalField(
+        max_digits=8,
+        decimal_places=1,
+        default=Decimal('0.0'),
+        help_text="Тегло на единица (грамове) за този артикул в поръчката."
+    )
+
     def subtotal(self):
         return self.quantity * self.price
+
+    @property
+    def line_weight_g(self):
+        """Общо тегло на този ред в грамове."""
+        return self.unit_weight_g * self.quantity
+
+    @property
+    def line_weight_kg(self):
+        """Общо тегло на този ред в килограми."""
+        return self.line_weight_g / Decimal('1000')
 
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
