@@ -352,12 +352,11 @@ def order_info(request):
     """
     - If cart is empty -> back to cart.
     - Save order + snapshot cart as OrderItems.
-    - Recalculate total.
+    - Recalculate total (including weight).
     - COD -> create Econt label NOW and go to order summary.
     - Card/other -> go to myPOS.
     """
     if request.method == 'POST':
-        # 1) Guard: do not create orders from empty carts
         if cart_is_empty(request):
             messages.error(request, "Количката е празна. Моля, добавете продукти.")
             return redirect('store:view_cart')
@@ -367,49 +366,52 @@ def order_info(request):
             with transaction.atomic():
                 order = form.save()
 
-                # 2) Snapshot cart -> OrderItems
                 items, _total = cart_items_and_total(request)
                 for row in items:
-                    # ---- NEW: determine unit weight in grams for this cart row ----
-                    # Try to read it directly from the row dict if you already store it there
-                    unit_weight_g = row.get("unit_weight_g")
+                    # ---------- DETERMINE UNIT WEIGHT (grams) ----------
+                    unit_weight_g = Decimal("0.0")
 
-                    if unit_weight_g is None:
-                        # Fallback: if your cart stores a packaging_id, use that
-                        packaging_id = row.get("packaging_id")
-                        if packaging_id:
-                            try:
-                                pack = PackagingOption.objects.get(pk=packaging_id)
-                                unit_weight_g = Decimal(str(pack.weight))
-                            except PackagingOption.DoesNotExist:
-                                unit_weight_g = Decimal("0.0")
-                        else:
-                            # Last resort: no info → 0
+                    # 1) If cart row already has weight in kg
+                    if "weight_kg" in row:
+                        unit_weight_g = Decimal(str(row["weight_kg"])) * Decimal("1000")
+
+                    # 2) Or if it uses just 'weight' (and it’s in kg)
+                    elif "weight" in row:
+                        unit_weight_g = Decimal(str(row["weight"])) * Decimal("1000")
+
+                    # 3) Or if the row stores the PackagingOption object
+                    elif "packaging" in row and isinstance(row["packaging"], PackagingOption):
+                        unit_weight_g = Decimal(str(row["packaging"].weight))
+
+                    # 4) Or if the row stores a packaging_id
+                    elif "packaging_id" in row:
+                        try:
+                            pack = PackagingOption.objects.get(pk=row["packaging_id"])
+                            unit_weight_g = Decimal(str(pack.weight))
+                        except PackagingOption.DoesNotExist:
                             unit_weight_g = Decimal("0.0")
-                    # ----------------------------------------------------------------
+                    # --------------------------------------------------#
 
                     OrderItem.objects.create(
                         order=order,
-                        product=row['product'],
-                        quantity=row['quantity'],
-                        price=row['price'],
+                        product=row["product"],
+                        quantity=row["quantity"],
+                        price=row["price"],
                         unit_weight_g=unit_weight_g,
                     )
 
                 # 3) Recalculate order total from items (also sets total_weight_kg)
                 order.update_total()
 
-                # --- ALWAYS create the Econt label on submit (idempotent) ---
+                # create Econt label etc... (rest of your function unchanged)
+                # --------------------------------------------------------------
                 try:
                     sn, url, _raw = ensure_econt_label_json(order)
                     if sn:
                         messages.success(request, f"Еконт товарителница създадена: № {sn}")
                 except Exception as e:
-                    # Never block checkout because of Econt
                     messages.error(request, f"Грешка при създаване на Еконт товарителница: {e}")
-                # ----------------------------------------------------------------
 
-                # 4) Detect COD-like payment methods
                 pm = (str(order.payment_method) or "").strip().lower()
                 COD_VALUES = {
                     "cash", "cod", "cash_on_delivery", "cash on delivery",
@@ -418,22 +420,19 @@ def order_info(request):
                 is_cod = pm in COD_VALUES
 
                 if is_cod:
-                    # COD → cart can be cleared immediately
                     set_session_cart(request, {})
                     return redirect('store:order_summary', pk=order.pk)
 
-                # Card/other → go to myPOS (payment status updates in callback)
                 return redirect('store:mypos_payment', order_id=order.pk)
+        # invalid form:
+        return render(request, "store/order_info.html", {"form": form})
 
-        # form invalid → redisplay page with errors
-        return render(request, 'store/order_info.html', {'form': form})
-
-    # GET: initial page
+    # GET:
     if cart_is_empty(request):
         messages.info(request, "Количката е празна.")
         return redirect('store:store_home')
 
-    return render(request, 'store/order_info.html', {'form': OrderForm()})
+    return render(request, "store/order_info.html", {"form": OrderForm()})
 
 
 def order_summary(request, pk):

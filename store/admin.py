@@ -121,13 +121,77 @@ class ProductAdmin(admin.ModelAdmin):
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    # no custom fields, no readonly_fields – keep it barebones
+    # Show weight, but don’t enforce read-only yet (you can make it readonly later)
+    # If you want readonly, uncomment the next line:
+    # readonly_fields = ("unit_weight_g",)
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "full_name",
+        "last_name",
+        "email",
+        "city",
+        "address1",
+        "payment_method",
+        "payment_status",
+        "total",
+        "total_weight_kg",
+        "created_at",
+    )
+    list_filter = ("payment_method", "payment_status", "created_at")
+    search_fields = (
+        "full_name",
+        "last_name",
+        "email",
+        "city",
+        "address1",
+        "company_name",
+        "company_bulstat",
+    )
+
     inlines = [OrderItemInline]
-    # nothing else – no list_display, no fieldsets, no readonly_fields
+
+    fieldsets = (
+        ("Клиент", {
+            "fields": ("full_name", "last_name", "email", "phone")
+        }),
+        ("Адрес за доставка", {
+            "fields": ("country", "state", "city", "address1", "address2", "post_code")
+        }),
+        ("Фактура към фирма", {
+            "fields": (
+                "is_company",
+                "company_name",
+                "company_mol",
+                "company_bulstat",
+                "company_vat_number",
+                "company_address",
+            )
+        }),
+        ("Поръчка и тегло", {
+            "fields": ("total", "total_weight_kg")
+        }),
+        ("Плащане и доставка", {
+            "fields": (
+                "payment_method",
+                "payment_status",
+                "shipping_cost",
+                "delivery_status",
+                "delivery_tracking_number",
+                "econt_shipment_num",
+                "label_url",
+                "transaction_id",
+            )
+        }),
+        ("Системни", {
+            "fields": ("created_at", "updated_at"),
+        }),
+    )
+
+    readonly_fields = ("total", "total_weight_kg", "created_at", "updated_at")
 
 
 class StoreAdminForm(forms.ModelForm):
