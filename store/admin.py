@@ -40,10 +40,8 @@ class ProductAdmin(admin.ModelAdmin):
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    # show these columns in the inline table
-    fields = ("product", "quantity", "price", "unit_weight_g", "line_weight_kg")
 
-    # weight fields are calculated / copied, so read-only
+    # just mark them readonly; Django will auto-include them in the form
     readonly_fields = ("unit_weight_g", "line_weight_kg")
 
 
