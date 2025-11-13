@@ -81,7 +81,7 @@ class OrderAdmin(admin.ModelAdmin):
             "fields": ("total", "total_weight_kg")
         }),
         ("Плащане и доставка", {
-            "fields": ("payment_method", "payment_status", "total", "shipping_cost",
+            "fields": ("payment_method", "payment_status", "shipping_cost",
                        "delivery_status", "delivery_tracking_number",
                        "econt_shipment_num", "label_url", "transaction_id")
         }),
