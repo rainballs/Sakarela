@@ -5599,3 +5599,29 @@ body {
 .product-card .sale-price {
     font-size: 1.1rem;
 }
+
+/* Container for the checkbox + text */
+.invoice-toggle-row {
+    display: flex;
+    justify-content: center; /* centered under the title */
+    margin-top: 1rem;
+}
+
+/* The label that wraps the checkbox and text */
+.invoice-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem; /* space between box and text */
+    font-size: 18px;
+    font-weight: 500;
+    color: #2e3b42; /* tweak to your palette */
+}
+
+/* Make the checkbox slightly bigger and prettier */
+.invoice-checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    /* modern browsers: tint the check color */
+    accent-color: #a2c116; /* same green as your underline if you like */
+}
