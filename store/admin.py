@@ -40,6 +40,11 @@ class ProductAdmin(admin.ModelAdmin):
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
+    # show these columns in the inline table
+    fields = ("product", "quantity", "price", "unit_weight_g", "line_weight_kg")
+
+    # weight fields are calculated / copied, so read-only
+    readonly_fields = ("unit_weight_g", "line_weight_kg")
 
 
 @admin.register(Order)
@@ -54,10 +59,14 @@ class OrderAdmin(admin.ModelAdmin):
         "payment_method",
         "payment_status",  # ← show it
         "total",
+        "total_weight_kg",
         "created_at",
     )
     list_filter = ("payment_method", "payment_status", "created_at")
     search_fields = ("full_name", "last_name", "email", "city", "address1", "company_name", "company_bulstat")
+
+    inlines = [OrderItemInline]
+
     fieldsets = (
         ("Клиент", {
             "fields": ("full_name", "last_name", "email", "phone")
@@ -68,6 +77,9 @@ class OrderAdmin(admin.ModelAdmin):
         ("Фактура към фирма", {
             "fields": ("is_company", "company_name", "company_mol", "company_bulstat", "company_address")
         }),
+        ("Поръчка и тегло", {
+            "fields": ("total", "total_weight_kg")
+        }),
         ("Плащане и доставка", {
             "fields": ("payment_method", "payment_status", "total", "shipping_cost",
                        "delivery_status", "delivery_tracking_number",
@@ -77,7 +89,8 @@ class OrderAdmin(admin.ModelAdmin):
             "fields": ("created_at", "updated_at"),
         }),
     )
-    readonly_fields = ("created_at", "updated_at")
+    # make these read-only in the admin form
+    readonly_fields = ("total", "total_weight_kg", "created_at", "updated_at")
 
 
 class StoreAdminForm(forms.ModelForm):
