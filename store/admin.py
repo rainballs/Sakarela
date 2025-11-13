@@ -37,85 +37,97 @@ class ProductAdmin(admin.ModelAdmin):
     inlines = [NutritionInline, PackagingInline]
 
 
+# class OrderItemInline(admin.TabularInline):
+#     model = OrderItem
+#     extra = 0
+# 
+#     # Don’t specify `fields` at all – let Django choose
+#     # just make the weight fields read-only so we can see them
+#     readonly_fields = ("unit_weight_g", "line_weight_kg")
+# 
+# 
+# @admin.register(Order)
+# class OrderAdmin(admin.ModelAdmin):
+#     # what you see in the list page
+#     list_display = (
+#         "id",
+#         "full_name",
+#         "last_name",
+#         "email",
+#         "city",
+#         "address1",
+#         "payment_method",
+#         "payment_status",
+#         "total",
+#         "total_weight_kg",  # show total weight here
+#         "created_at",
+#     )
+# 
+#     list_filter = ("payment_method", "payment_status", "created_at")
+#     search_fields = (
+#         "full_name",
+#         "last_name",
+#         "email",
+#         "city",
+#         "address1",
+#         "company_name",
+#         "company_bulstat",
+#     )
+# 
+#     inlines = [OrderItemInline]
+# 
+#     # keep fieldsets *simple* and with no duplicates
+#     fieldsets = (
+#         ("Клиент", {
+#             "fields": ("full_name", "last_name", "email", "phone")
+#         }),
+#         ("Адрес за доставка", {
+#             "fields": ("country", "state", "city", "address1", "address2", "post_code")
+#         }),
+#         ("Фактура към фирма", {
+#             "fields": (
+#                 "is_company",
+#                 "company_name",
+#                 "company_mol",
+#                 "company_bulstat",
+#                 "company_vat_number",
+#                 "company_address",
+#             )
+#         }),
+#         ("Поръчка и тегло", {
+#             "fields": ("total", "total_weight_kg")
+#         }),
+#         ("Плащане и доставка", {
+#             "fields": (
+#                 "payment_method",
+#                 "payment_status",
+#                 "shipping_cost",
+#                 "delivery_status",
+#                 "delivery_tracking_number",
+#                 "econt_shipment_num",
+#                 "label_url",
+#                 "transaction_id",
+#             )
+#         }),
+#         ("Системни", {
+#             "fields": ("created_at", "updated_at"),
+#         }),
+#     )
+# 
+#     # these fields are calculated / system-managed
+#     readonly_fields = ("total", "total_weight_kg", "created_at", "updated_at")
+
+
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-
-    # Don’t specify `fields` at all – let Django choose
-    # just make the weight fields read-only so we can see them
-    readonly_fields = ("unit_weight_g", "line_weight_kg")
+    # no custom fields, no readonly_fields – keep it barebones
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    # what you see in the list page
-    list_display = (
-        "id",
-        "full_name",
-        "last_name",
-        "email",
-        "city",
-        "address1",
-        "payment_method",
-        "payment_status",
-        "total",
-        "total_weight_kg",  # show total weight here
-        "created_at",
-    )
-
-    list_filter = ("payment_method", "payment_status", "created_at")
-    search_fields = (
-        "full_name",
-        "last_name",
-        "email",
-        "city",
-        "address1",
-        "company_name",
-        "company_bulstat",
-    )
-
     inlines = [OrderItemInline]
-
-    # keep fieldsets *simple* and with no duplicates
-    fieldsets = (
-        ("Клиент", {
-            "fields": ("full_name", "last_name", "email", "phone")
-        }),
-        ("Адрес за доставка", {
-            "fields": ("country", "state", "city", "address1", "address2", "post_code")
-        }),
-        ("Фактура към фирма", {
-            "fields": (
-                "is_company",
-                "company_name",
-                "company_mol",
-                "company_bulstat",
-                "company_vat_number",
-                "company_address",
-            )
-        }),
-        ("Поръчка и тегло", {
-            "fields": ("total", "total_weight_kg")
-        }),
-        ("Плащане и доставка", {
-            "fields": (
-                "payment_method",
-                "payment_status",
-                "shipping_cost",
-                "delivery_status",
-                "delivery_tracking_number",
-                "econt_shipment_num",
-                "label_url",
-                "transaction_id",
-            )
-        }),
-        ("Системни", {
-            "fields": ("created_at", "updated_at"),
-        }),
-    )
-
-    # these fields are calculated / system-managed
-    readonly_fields = ("total", "total_weight_kg", "created_at", "updated_at")
+    # nothing else – no list_display, no fieldsets, no readonly_fields
 
 
 class StoreAdminForm(forms.ModelForm):
