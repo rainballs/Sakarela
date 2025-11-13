@@ -3,6 +3,7 @@ import base64
 import uuid
 import logging
 from collections import OrderedDict
+from decimal import Decimal
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
@@ -347,7 +348,6 @@ def view_cart(request):
 #     else:
 #         form = OrderForm()
 #     return render(request, 'store/order_info.html', {'form': form})
-
 def order_info(request):
     """
     - If cart is empty -> back to cart.
@@ -370,14 +370,33 @@ def order_info(request):
                 # 2) Snapshot cart -> OrderItems
                 items, _total = cart_items_and_total(request)
                 for row in items:
+                    # ---- NEW: determine unit weight in grams for this cart row ----
+                    # Try to read it directly from the row dict if you already store it there
+                    unit_weight_g = row.get("unit_weight_g")
+
+                    if unit_weight_g is None:
+                        # Fallback: if your cart stores a packaging_id, use that
+                        packaging_id = row.get("packaging_id")
+                        if packaging_id:
+                            try:
+                                pack = PackagingOption.objects.get(pk=packaging_id)
+                                unit_weight_g = Decimal(str(pack.weight))
+                            except PackagingOption.DoesNotExist:
+                                unit_weight_g = Decimal("0.0")
+                        else:
+                            # Last resort: no info → 0
+                            unit_weight_g = Decimal("0.0")
+                    # ----------------------------------------------------------------
+
                     OrderItem.objects.create(
                         order=order,
                         product=row['product'],
                         quantity=row['quantity'],
                         price=row['price'],
+                        unit_weight_g=unit_weight_g,
                     )
 
-                # 3) Recalculate order total from items
+                # 3) Recalculate order total from items (also sets total_weight_kg)
                 order.update_total()
 
                 # --- ALWAYS create the Econt label on submit (idempotent) ---
@@ -403,11 +422,13 @@ def order_info(request):
                     set_session_cart(request, {})
                     return redirect('store:order_summary', pk=order.pk)
 
-                    # Card/other → go to myPOS (payment status updates in callback)
+                # Card/other → go to myPOS (payment status updates in callback)
                 return redirect('store:mypos_payment', order_id=order.pk)
 
+        # form invalid → redisplay page with errors
         return render(request, 'store/order_info.html', {'form': form})
 
+    # GET: initial page
     if cart_is_empty(request):
         messages.info(request, "Количката е празна.")
         return redirect('store:store_home')
