@@ -82,83 +82,83 @@ def build_econt_label_payload(order):
     """
     Build the JSON payload for Econt's LabelService.createLabel.json
     using the order fields you already store.
-    Adjust sender data to your real company data.
     """
-    is_cod = (str(order.payment_method or "").strip().lower() in {
-        "cash", "cod", "cash_on_delivery", "наложен", "наложен платеж"
-    })
 
-    # You can pull these from settings to avoid hardcoding
+    # --- detect COD from the order payment method ---
+    pm = str(order.payment_method or "").strip().lower()
+    COD_VALUES = {
+        "cash", "cod", "cash_on_delivery", "cash on delivery",
+        "наложен", "наложен платеж", "наложен-платеж",
+    }
+    is_cod = pm in COD_VALUES
+
+    # sender data from settings
     sender_name = getattr(settings, "ECONT_SENDER_NAME", "Сакарела")
     sender_phone = getattr(settings, "ECONT_SENDER_PHONE", "+359878630943")
     sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
-    sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8000")
-    sender_street = "{} {}".format(
-        getattr(settings, "ECONT_SENDER_STREET", "").strip(),
-        getattr(settings, "ECONT_SENDER_STREET_NO", "").strip(),
-    ).strip()
+    sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8600")
+    sender_street = getattr(settings, "ECONT_SENDER_STREET", "")
+    sender_street_no = getattr(settings, "ECONT_SENDER_STREET_NO", "")
 
-    payload = {
-        "mode": "create",
-        "label": {
-            "shipmentType": "PACK",
-            # toDoor / toOffice etc. – you can make this dynamic
-            "service": "toDoor",
-            "packCount": 1,
-            "weight": 0.8,
-            "shipmentDescription": "Поръчка №{}".format(order.pk),
-            # who pays shipping – if COD often RECEIVER, but leave SENDER if that's your business rule
-            "payer": "SENDER",
-            # label format is optional
-            "label": {"format": "10x9"},
+    label = {
+        "shipmentType": "PACK",
+        "service": "toDoor",
+        "packCount": 1,
+        "weight": 0.8,
+        "shipmentDescription": f"Поръчка №{order.pk}",
+        "payer": "SENDER",
+        "label": {"format": "10x9"},
 
-            # --- sender ---
-            "senderClient": {
-                "name": sender_name,
-                "phones": [sender_phone],
+        # --- sender ---
+        "senderClient": {
+            "name": sender_name,
+            "phones": [sender_phone],
+        },
+        "senderAgent": {
+            "name": sender_name,
+            "phones": [sender_phone],
+        },
+        "senderAddress": {
+            "city": {
+                "country": {"code3": "BGR"},
+                "name": sender_city_name,
+                "postCode": sender_city_postcode,
             },
-            "senderAgent": {
-                "name": sender_name,
-                "phones": [sender_phone],
-            },
-            "senderAddress": {
-                "city": {
-                    "country": {"code3": "BGR"},
-                    "name": sender_city_name,
-                    "postCode": sender_city_postcode,
-                },
-                "street": sender_street,
-            },
+            # street + number in one string is OK per docs
+            "street": f"{sender_street} {sender_street_no}".strip(),
+        },
 
-            # --- receiver from order ---
-            "receiverClient": {
-                "name": f"{order.full_name or ''} {order.last_name or ''}".strip(),
-                "phones": [order.phone] if order.phone else [],
+        # --- receiver from order ---
+        "receiverClient": {
+            "name": f"{order.full_name or ''} {order.last_name or ''}".strip(),
+            "phones": [order.phone] if order.phone else [],
+        },
+        "receiverAddress": {
+            "city": {
+                "country": {"code3": "BGR"},
+                "name": order.city or "",
+                "postCode": order.post_code or "",
             },
-            "receiverAddress": {
-                "city": {
-                    "country": {"code3": "BGR"},
-                    "name": order.city or "",
-                    "postCode": order.post_code or "",
-                },
-                # Econt expects street-like string here
-                "street": order.address1 or "",
-            },
+            "street": order.address1 or "",
         },
     }
 
-    # COD block – Econt JSON needs this if you're taking cash
-    if is_cod:
-        # Prefer persisted total; fallback to computed
-        try:
-            cod_amount = float(getattr(order, "total", None) or order.get_total())
-        except Exception:
-            cod_amount = float(order.get_total())
+    # --- COD settings go into services.cdAmount / cdCurrency / cdType ---
+    services = {}
 
-        payload["label"]["paymentReceiverMethod"] = "CASH"
-        payload["label"]["paymentReceiverAmount"] = round(cod_amount, 2)
-        # Optional but harmless; some tenants like it explicit:
-        # payload["label"]["paymentReceiverCurrency"] = "BGN"
+    if is_cod:
+        cod_amount = float(order.get_total())  # uses your Order.update_total logic
+        services["cdAmount"] = cod_amount
+        services["cdCurrency"] = "BGN"  # Наложен платеж в лева
+        services["cdType"] = "get"  # courier GETs money from receiver for you
+
+    if services:
+        label["services"] = services
+
+    payload = {
+        "mode": "create",
+        "label": label,
+    }
 
     return payload
 
