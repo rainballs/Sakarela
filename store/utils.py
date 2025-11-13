@@ -80,9 +80,11 @@ def handle_econt_response(response):
 
 def build_econt_label_payload(order):
     """
-    Build the JSON payload for Econt's LabelService.createLabel.json
-    using the order fields you already store.
+    Build the JSON payload for Econt's LabelService.createLabel.json.
+    - COD (= Наложен платеж) uses order.total in BGN.
+    - For COD, receiver is the payer (shipping + COD collected at door).
     """
+
     # normalize payment method
     pm = (str(order.payment_method) or "").strip().lower()
     COD_VALUES = {
@@ -91,7 +93,7 @@ def build_econt_label_payload(order):
     }
     is_cod = pm in COD_VALUES
 
-    # Ensure we have the latest total from items
+    # Make sure total is up-to-date
     total_bgn = float(order.get_total())  # Decimal -> float for JSON
 
     # Sender data from settings
@@ -99,20 +101,17 @@ def build_econt_label_payload(order):
     sender_phone = getattr(settings, "ECONT_SENDER_PHONE", "+359878630943")
     sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
     sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8600")
-
     sender_street = getattr(settings, "ECONT_SENDER_STREET", "")
     sender_street_no = getattr(settings, "ECONT_SENDER_STREET_NO", "")
 
+    # Base label (we override payer for COD below)
     label = {
         "shipmentType": "PACK",
         "service": "toDoor",
         "packCount": 1,
         "weight": 0.8,
         "shipmentDescription": f"Поръчка №{order.pk}",
-
-        # who pays shipping (we override below for COD)
-        "payer": "SENDER",
-
+        "payer": "SENDER",  # default – will be changed to RECEIVER for COD
         "label": {"format": "10x9"},
 
         # --- sender ---
@@ -148,21 +147,23 @@ def build_econt_label_payload(order):
         },
     }
 
-    # --- services / COD logic ---
+    # --- services / COD + declared value ---
     services = {
-        # declared value = order total
         "declaredValueAmount": total_bgn,
         "declaredValueCurrency": "BGN",
     }
 
     if is_cod:
-        # COD equal to order total, in BGN
+        # COD = full order total
         services["cdAmount"] = total_bgn
         services["cdCurrency"] = "BGN"
 
-        # When it's COD, make the RECEIVER pay the courier service as well
-        # so "Услуги" are due from receiver.
+        # Receiver is the payer – both for courier service & COD fees
         label["payer"] = "RECEIVER"
+
+        # This pair tells Econt who *pays* the amount at the door
+        label["paymentReceiverMethod"] = "CASH"
+        label["paymentReceiverAmount"] = total_bgn
 
     label["services"] = services
 
