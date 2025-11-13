@@ -83,20 +83,23 @@ def build_econt_label_payload(order):
     Build the JSON payload for Econt's LabelService.createLabel.json
     using the order fields you already store.
     """
-
-    # --- detect COD from the order payment method ---
-    pm = str(order.payment_method or "").strip().lower()
+    # normalize payment method
+    pm = (str(order.payment_method) or "").strip().lower()
     COD_VALUES = {
         "cash", "cod", "cash_on_delivery", "cash on delivery",
         "наложен", "наложен платеж", "наложен-платеж",
     }
     is_cod = pm in COD_VALUES
 
-    # sender data from settings
+    # Ensure we have the latest total from items
+    total_bgn = float(order.get_total())  # Decimal -> float for JSON
+
+    # Sender data from settings
     sender_name = getattr(settings, "ECONT_SENDER_NAME", "Сакарела")
     sender_phone = getattr(settings, "ECONT_SENDER_PHONE", "+359878630943")
     sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
     sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8600")
+
     sender_street = getattr(settings, "ECONT_SENDER_STREET", "")
     sender_street_no = getattr(settings, "ECONT_SENDER_STREET_NO", "")
 
@@ -106,7 +109,10 @@ def build_econt_label_payload(order):
         "packCount": 1,
         "weight": 0.8,
         "shipmentDescription": f"Поръчка №{order.pk}",
+
+        # who pays shipping (we override below for COD)
         "payer": "SENDER",
+
         "label": {"format": "10x9"},
 
         # --- sender ---
@@ -124,7 +130,6 @@ def build_econt_label_payload(order):
                 "name": sender_city_name,
                 "postCode": sender_city_postcode,
             },
-            # street + number in one string is OK per docs
             "street": f"{sender_street} {sender_street_no}".strip(),
         },
 
@@ -143,23 +148,28 @@ def build_econt_label_payload(order):
         },
     }
 
-    # --- COD settings go into services.cdAmount / cdCurrency / cdType ---
-    services = {}
+    # --- services / COD logic ---
+    services = {
+        # declared value = order total
+        "declaredValueAmount": total_bgn,
+        "declaredValueCurrency": "BGN",
+    }
 
     if is_cod:
-        cod_amount = float(order.get_total())  # uses your Order.update_total logic
-        services["cdAmount"] = cod_amount
-        services["cdCurrency"] = "BGN"  # Наложен платеж в лева
-        services["cdType"] = "get"  # courier GETs money from receiver for you
+        # COD equal to order total, in BGN
+        services["cdAmount"] = total_bgn
+        services["cdCurrency"] = "BGN"
 
-    if services:
-        label["services"] = services
+        # When it's COD, make the RECEIVER pay the courier service as well
+        # so "Услуги" are due from receiver.
+        label["payer"] = "RECEIVER"
+
+    label["services"] = services
 
     payload = {
         "mode": "create",
         "label": label,
     }
-
     return payload
 
 
