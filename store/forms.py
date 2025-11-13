@@ -138,6 +138,14 @@ class OrderForm(forms.ModelForm):
             'class': 'form-control'
         })
     )
+    company_vat_number = forms.CharField(
+        label="ДДС номер",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'ДДС НОМЕР....',
+            'class': 'form-control'
+        })
+    )
 
     company_address = forms.CharField(
         label="Адрес за фактуриране",

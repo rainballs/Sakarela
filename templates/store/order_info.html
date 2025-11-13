@@ -106,8 +106,6 @@
                     </div>
                 </div>
                 <div class="form-section">
-                    <h2 class="section-title">ФАКТУРА КЪМ ФИРМА</h2>
-
                     <div class="invoice-toggle-row">
                         <label class="invoice-checkbox-label">
                             {{ form.is_company }}
@@ -139,6 +137,13 @@
                             {{ form.company_bulstat }}
                             {% if form.company_bulstat.errors %}
                                 <div class="error-message">{{ form.company_bulstat.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field">
+                            {{ form.company_vat_number }}
+                            {% if form.company_vat_number.errors %}
+                                <div class="error-message">{{ form.company_vat_number.errors.0 }}</div>
                             {% endif %}
                         </div>
 

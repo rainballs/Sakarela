@@ -189,6 +189,11 @@ class Order(models.Model):
         blank=True, null=True,
         verbose_name="БУЛСТАТ / ЕИК"
     )
+    company_vat_number = models.CharField(
+        max_length=50,
+        blank=True, null=True,
+        verbose_name="ДДС номер"
+    )
     company_address = models.CharField(
         max_length=255,
         blank=True, null=True,
