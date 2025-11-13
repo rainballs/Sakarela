@@ -57,7 +57,27 @@ class OrderAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("payment_method", "payment_status", "created_at")
-    search_fields = ("full_name", "last_name", "email", "city", "address1")
+    search_fields = ("full_name", "last_name", "email", "city", "address1", "company_name", "company_bulstat")
+    fieldsets = (
+        ("Клиент", {
+            "fields": ("full_name", "last_name", "email", "phone")
+        }),
+        ("Адрес за доставка", {
+            "fields": ("country", "state", "city", "address1", "address2", "post_code")
+        }),
+        ("Фактура към фирма", {
+            "fields": ("is_company", "company_name", "company_mol", "company_bulstat", "company_address")
+        }),
+        ("Плащане и доставка", {
+            "fields": ("payment_method", "payment_status", "total", "shipping_cost",
+                       "delivery_status", "delivery_tracking_number",
+                       "econt_shipment_num", "label_url", "transaction_id")
+        }),
+        ("Системни", {
+            "fields": ("created_at", "updated_at"),
+        }),
+    )
+    readonly_fields = ("created_at", "updated_at")
 
 
 class StoreAdminForm(forms.ModelForm):

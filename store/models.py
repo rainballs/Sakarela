@@ -168,6 +168,34 @@ class Order(models.Model):
         choices=PAYMENT_STATUS_CHOICES,
         default='pending'
     )
+    # 👇 NEW: фирма / фактура данни
+    is_company = models.BooleanField(
+        default=False,
+        verbose_name="Фактура към фирма?",
+        help_text="Отбележете, ако желаете фактура към фирма."
+    )
+    company_name = models.CharField(
+        max_length=255,
+        blank=True, null=True,
+        verbose_name="Фирма"
+    )
+    company_mol = models.CharField(
+        max_length=255,
+        blank=True, null=True,
+        verbose_name="МОЛ"
+    )
+    company_bulstat = models.CharField(
+        max_length=50,
+        blank=True, null=True,
+        verbose_name="БУЛСТАТ / ЕИК"
+    )
+    company_address = models.CharField(
+        max_length=255,
+        blank=True, null=True,
+        verbose_name="Адрес за фактуриране"
+    )
+    # ☝ END NEW FIELDS
+
     total = models.DecimalField(
         max_digits=12,
         decimal_places=2,

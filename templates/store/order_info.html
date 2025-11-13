@@ -105,7 +105,51 @@
                         </div>
                     </div>
                 </div>
+                <div class="form-section">
+                    <h2 class="section-title">ФАКТУРА КЪМ ФИРМА</h2>
 
+                    <div class="form-field">
+                        <label class="checkbox-label">
+                            {{ form.is_company }}
+                            <span>Желая фактура към фирма</span>
+                        </label>
+                        {% if form.is_company.errors %}
+                            <div class="error-message">{{ form.is_company.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div id="company-fields"
+                         class="form-grid"
+                         style="display: {% if form.is_company.value %}grid{% else %}none{% endif %}; margin-top: 1rem;">
+                        <div class="form-field full-width">
+                            {{ form.company_name }}
+                            {% if form.company_name.errors %}
+                                <div class="error-message">{{ form.company_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field">
+                            {{ form.company_mol }}
+                            {% if form.company_mol.errors %}
+                                <div class="error-message">{{ form.company_mol.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field">
+                            {{ form.company_bulstat }}
+                            {% if form.company_bulstat.errors %}
+                                <div class="error-message">{{ form.company_bulstat.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-field full-width">
+                            {{ form.company_address }}
+                            {% if form.company_address.errors %}
+                                <div class="error-message">{{ form.company_address.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
                 <div class="form-section">
                     <h2 class="section-title">НАЧИН НА ПЛАЩАНЕ</h2>
                     <div class="payment-methods">
@@ -126,6 +170,23 @@
 
     <!-- NEW: simple phone input sanitizing -->
     <script>
+        (function () {
+            const checkbox = document.querySelector('input[name="is_company"]');
+            const companyFields = document.getElementById('company-fields');
+            if (!checkbox || !companyFields) return;
+
+            function toggleCompanyFields() {
+                if (checkbox.checked) {
+                    companyFields.style.display = 'grid';
+                } else {
+                    companyFields.style.display = 'none';
+                }
+            }
+
+            checkbox.addEventListener('change', toggleCompanyFields);
+            // Initialize on load (in case of validation errors, etc.)
+            toggleCompanyFields();
+        })();
         (function () {
             const input = document.querySelector('input[name="phone"]');
             if (!input) return;

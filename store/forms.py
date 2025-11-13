@@ -102,12 +102,83 @@ class OrderForm(forms.ModelForm):
         }),
         required=True
     )
+    # ---------- NEW: фирма / фактура полета ----------
+
+    is_company = forms.BooleanField(
+        label="Желая фактура към фирма",
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'company-toggle'
+        })
+    )
+
+    company_name = forms.CharField(
+        label="Фирма",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'ФИРМА....',
+            'class': 'form-control'
+        })
+    )
+
+    company_mol = forms.CharField(
+        label="МОЛ",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'МОЛ....',
+            'class': 'form-control'
+        })
+    )
+
+    company_bulstat = forms.CharField(
+        label="БУЛСТАТ / ЕИК",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'БУЛСТАТ / ЕИК....',
+            'class': 'form-control'
+        })
+    )
+
+    company_address = forms.CharField(
+        label="Адрес за фактуриране",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'АДРЕС ЗА ФАКТУРИРАНЕ....',
+            'class': 'form-control'
+        })
+    )
 
     class Meta:
         model = Order
         fields = [
-            'full_name', 'last_name', 'email','phone',
+            'full_name', 'last_name', 'email', 'phone',
             'country', 'state', 'city',
             'address1', 'address2', 'post_code',
-            'payment_method'
+            'payment_method',
+
+            # 👇 NEW FIELDS MUST BE HERE
+            'is_company',
+            'company_name',
+            'company_mol',
+            'company_bulstat',
+            'company_address',
         ]
+
+    def clean(self):
+        """
+        Make company fields required only when 'is_company' is checked.
+        """
+        cleaned_data = super().clean()
+        is_company = cleaned_data.get("is_company")
+
+        if is_company:
+            required_fields = {
+                "company_name": "Фирма",
+                "company_mol": "МОЛ",
+                "company_bulstat": "БУЛСТАТ / ЕИК",
+                "company_address": "Адрес за фактуриране",
+            }
+            for field_name, label in required_fields.items():
+                if not cleaned_data.get(field_name):
+                    self.add_error(field_name, f"{label} е задължително поле.")
+        return cleaned_data
