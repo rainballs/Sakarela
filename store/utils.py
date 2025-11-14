@@ -106,10 +106,10 @@ def build_econt_label_payload(order):
 
     # Base label (we override payer for COD below)
     label = {
-        "shipmentType": "PACK",
+        "shipmentType": order.econt_shipment_type(),
         "service": "toDoor",
         "packCount": 1,
-        "weight": 0.8,
+        "weight": order.econt_shipment_weight_kg(),
         "shipmentDescription": f"Поръчка №{order.pk}",
         "payer": "SENDER",  # default – will be changed to RECEIVER for COD
         "label": {"format": "10x9"},

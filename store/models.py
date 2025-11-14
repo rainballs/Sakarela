@@ -237,18 +237,18 @@ class Order(models.Model):
                     output_field=DecimalField(max_digits=12, decimal_places=2)
                 )
             ),
-            weight_g=Sum(
+            weight_kg=Sum(
                 ExpressionWrapper(
                     F('unit_weight_g') * F('quantity'),
-                    output_field=DecimalField(max_digits=12, decimal_places=1)
+                    output_field=DecimalField(max_digits=12, decimal_places=3)
                 )
             )
         )
 
         self.total = agg['total'] or Decimal('0.00')
 
-        grams = agg['weight_g'] or Decimal('0.0')
-        self.total_weight_kg = (grams / Decimal('1000')).quantize(Decimal('0.001'))
+        kg = agg['weight_kg'] or Decimal('0.000')
+        self.total_weight_kg = kg.quantize(Decimal('0.001'))
 
         # update both fields
         super().save(update_fields=['total', 'total_weight_kg'])
@@ -279,6 +279,28 @@ class Order(models.Model):
         """Helper property to check if order is paid"""
         return self.payment_status == 'paid'
 
+    def econt_shipment_weight_kg(self) -> float:
+        """
+        Weight to send to Econt, in kg.
+        Fallback to 0.8 kg if for some reason total_weight_kg is 0 / None.
+        """
+        w = self.total_weight_kg or Decimal("0.0")
+        if w <= 0:
+            w = Decimal("0.8")
+        return float(w)
+
+    def econt_shipment_type(self) -> str:
+        """
+        Choose shipmentType based on total weight.
+
+        <= 40 kg  -> 'pack'
+        >  40 kg  -> 'cargo'
+        """
+        w = self.total_weight_kg or Decimal("0.0")
+        if w > Decimal("40"):
+            return "cargo"
+        return "pack"
+
     def __str__(self):
         return f"{self.full_name} {self.last_name} - {self.created_at.strftime('%Y-%m-%d')}"
 
@@ -291,9 +313,10 @@ class OrderItem(models.Model):
 
     unit_weight_g = models.DecimalField(
         max_digits=8,
-        decimal_places=1,
+        decimal_places=3,
         default=Decimal('0.0'),
-        help_text="Тегло на единица (грамове) за този артикул в поръчката."
+        verbose_name="Unit weight (kg)",
+        help_text="Тегло на единица (килограми) за този артикул в поръчката."
     )
 
     def subtotal(self):

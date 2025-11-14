@@ -368,19 +368,27 @@ def order_info(request):
 
                 items, _total = cart_items_and_total(request)
                 for row in items:
-                    unit_weight_g = Decimal("0.0")
+                    unit_weight_kg = Decimal("0.0")
 
-                    # 1) explicit kg coming from cart:
+                    # 1) If cart row already has weight in kg
                     if "weight_kg" in row:
-                        unit_weight_g = Decimal(str(row["weight_kg"])) * Decimal("1000")
+                        unit_weight_kg = Decimal(str(row["weight_kg"]))
 
-                    # 2) generic 'weight' in kg:
+                    # 2) Or generic 'weight' in kg
                     elif "weight" in row:
-                        unit_weight_g = Decimal(str(row["weight"])) * Decimal("1000")
+                        unit_weight_kg = Decimal(str(row["weight"]))
 
                     # 3) cart stores the PackagingOption object (weight in kg)
                     elif "packaging" in row and isinstance(row["packaging"], PackagingOption):
-                        unit_weight_g = Decimal(str(row["packaging"].weight)) * Decimal("1000")
+                        unit_weight_kg = Decimal(str(row["packaging"].weight))
+
+                    # 4) cart stores only packaging_id (again weight in kg)
+                    elif "packaging_id" in row:
+                        try:
+                            pack = PackagingOption.objects.get(pk=row["packaging_id"])
+                            unit_weight_kg = Decimal(str(pack.weight))
+                        except PackagingOption.DoesNotExist:
+                            unit_weight_kg = Decimal("0.0")
 
                     # 4) cart stores only packaging_id (again weight in kg)
                     elif "packaging_id" in row:
@@ -395,7 +403,7 @@ def order_info(request):
                         product=row["product"],
                         quantity=row["quantity"],
                         price=row["price"],
-                        unit_weight_g=unit_weight_g,
+                        unit_weight_g=unit_weight_kg,
                     )
 
                 # 3) Recalculate order total from items (also sets total_weight_kg)
