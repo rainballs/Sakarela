@@ -368,29 +368,27 @@ def order_info(request):
 
                 items, _total = cart_items_and_total(request)
                 for row in items:
-                    # ---------- DETERMINE UNIT WEIGHT (grams) ----------
                     unit_weight_g = Decimal("0.0")
 
-                    # 1) If cart row already has weight in kg
+                    # 1) explicit kg coming from cart:
                     if "weight_kg" in row:
                         unit_weight_g = Decimal(str(row["weight_kg"])) * Decimal("1000")
 
-                    # 2) Or if it uses just 'weight' (and it’s in kg)
+                    # 2) generic 'weight' in kg:
                     elif "weight" in row:
                         unit_weight_g = Decimal(str(row["weight"])) * Decimal("1000")
 
-                    # 3) Or if the row stores the PackagingOption object
+                    # 3) cart stores the PackagingOption object (weight in kg)
                     elif "packaging" in row and isinstance(row["packaging"], PackagingOption):
-                        unit_weight_g = Decimal(str(row["packaging"].weight))
+                        unit_weight_g = Decimal(str(row["packaging"].weight)) * Decimal("1000")
 
-                    # 4) Or if the row stores a packaging_id
+                    # 4) cart stores only packaging_id (again weight in kg)
                     elif "packaging_id" in row:
                         try:
                             pack = PackagingOption.objects.get(pk=row["packaging_id"])
-                            unit_weight_g = Decimal(str(pack.weight))
+                            unit_weight_g = Decimal(str(pack.weight)) * Decimal("1000")
                         except PackagingOption.DoesNotExist:
                             unit_weight_g = Decimal("0.0")
-                    # --------------------------------------------------#
 
                     OrderItem.objects.create(
                         order=order,
