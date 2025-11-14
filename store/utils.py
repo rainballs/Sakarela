@@ -5,8 +5,25 @@ import xml.etree.ElementTree as ET
 from django.conf import settings
 from requests.auth import HTTPBasicAuth
 import logging, json as _json
+from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
+
+
+def next_workday(d: date | None = None) -> date:
+    """
+    Returns the next working day (Mon–Fri).
+
+    - Mon–Thu -> next calendar day
+    - Fri, Sat, Sun -> Monday
+    """
+    if d is None:
+        d = date.today()
+
+    wd = d.weekday()  # 0=Mon ... 6=Sun
+    if wd >= 4:  # Fri(4), Sat(5), Sun(6) -> Monday
+        return d + timedelta(days=7 - wd)
+    return d + timedelta(days=1)
 
 
 def check_key_format(key_path):
@@ -104,6 +121,8 @@ def build_econt_label_payload(order):
     sender_street = getattr(settings, "ECONT_SENDER_STREET", "")
     sender_street_no = getattr(settings, "ECONT_SENDER_STREET_NO", "")
 
+    delivery_day = next_workday(date.today()).strftime("%Y-%m-%d")
+
     # Base label (we override payer for COD below)
     label = {
         "shipmentType": order.econt_shipment_type(),
@@ -113,6 +132,7 @@ def build_econt_label_payload(order):
         "shipmentDescription": f"Поръчка №{order.pk}",
         "payer": "SENDER",  # default – will be changed to RECEIVER for COD
         "label": {"format": "10x9"},
+        "deliveryDate": delivery_day,
 
         # --- sender ---
         "senderClient": {
