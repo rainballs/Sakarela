@@ -31,7 +31,12 @@ import requests
 
 from store.models import Product, Order, OrderItem, Category, Brand, PackagingOption, Store
 from .forms import OrderForm
-from .utils import handle_econt_response, ensure_econt_label_json
+from .utils import (
+    handle_econt_response,
+    ensure_econt_label_json,
+    econtlog,
+    get_econt_delivery_price_for_order,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -390,25 +395,24 @@ def order_info(request):
                         except PackagingOption.DoesNotExist:
                             unit_weight_kg = Decimal("0.0")
 
-                    # 4) cart stores only packaging_id (again weight in kg)
-                    elif "packaging_id" in row:
-                        try:
-                            pack = PackagingOption.objects.get(pk=row["packaging_id"])
-                            unit_weight_g = Decimal(str(pack.weight)) * Decimal("1000")
-                        except PackagingOption.DoesNotExist:
-                            unit_weight_g = Decimal("0.0")
-
                     OrderItem.objects.create(
                         order=order,
                         product=row["product"],
                         quantity=row["quantity"],
                         price=row["price"],
+                        # NOTE: field name is unit_weight_g, but we now store kg there:
                         unit_weight_g=unit_weight_kg,
                     )
 
                 # 3) Recalculate order total from items (also sets total_weight_kg)
                 order.update_total()
-
+                # 1) Calculate delivery price from Econt and save it
+                try:
+                    shipping_price = get_econt_delivery_price_for_order(order)
+                    order.shipping_cost = shipping_price
+                    order.save(update_fields=["shipping_cost"])
+                except Exception as e:
+                    econtlog.error("Failed to get Econt delivery price for order %s: %s", order.pk, e)
                 # create Econt label etc... (rest of your function unchanged)
                 # --------------------------------------------------------------
                 try:
@@ -596,6 +600,11 @@ def mypos_payment(request, order_id):
     """Handle myPOS payment initiation with proper signature generation"""
     order = get_object_or_404(Order, id=order_id)
 
+    # 💰 Products + shipping (for card payments)
+    total = order.total or Decimal("0.00")
+    shipping = order.shipping_cost or Decimal("0.00")
+    gross_amount = (total + shipping).quantize(Decimal("0.01"))
+
     # 1) Create Econt label UPFRONT for card payments (safe to call repeatedly)
     try:
         ensure_econt_label_json(order)
@@ -626,7 +635,7 @@ def mypos_payment(request, order_id):
             ("IPCLanguage", DEFAULT_LANGUAGE),  # "EN"
             ("SID", settings.MYPOS_SID),
             ("walletnumber", settings.MYPOS_WALLET),
-            ("Amount", f"{order.get_total():.2f}"),
+            ("Amount", f"{gross_amount:.2f}"),
             ("Currency", DEFAULT_CURRENCY),  # "BGN"
             ("OrderID", order.transaction_id),
             ("URL_OK", result_url_with_id),

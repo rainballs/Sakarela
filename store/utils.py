@@ -1,4 +1,5 @@
 import subprocess
+from decimal import Decimal
 
 import requests
 import xml.etree.ElementTree as ET
@@ -8,6 +9,129 @@ import logging, json as _json
 from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
+
+
+# ---------- HIGH LEVEL: PRICE FOR A GIVEN ORDER ----------
+
+def get_econt_delivery_price_for_order(order) -> Decimal:
+    """
+    High-level helper: compute delivery price for *this* Order
+    using Econt's CalculatorService.
+
+    Returns a Decimal rounded to 0.01 (BGN).
+    """
+    # normalize payment method
+    pm = (str(order.payment_method) or "").strip().lower()
+    COD_VALUES = {
+        "cash", "cod", "cash_on_delivery", "cash on delivery",
+        "наложен", "наложен платеж", "наложен-платеж",
+    }
+    is_cod = pm in COD_VALUES
+
+    # make sure total is up-to-date
+    total_bgn = float(order.get_total())
+    weight_kg = float(order.econt_shipment_weight_kg() or 0)
+    city = order.city or ""
+    postcode = order.post_code or ""
+
+    price = econt_calculate_price(
+        weight_kg=weight_kg,
+        receiver_city=city,
+        receiver_postcode=postcode,
+        total_bgn=total_bgn,
+        is_cod=is_cod,
+    )
+    # wrap as Decimal for storing in model
+    return Decimal(str(price)).quantize(Decimal("0.01"))
+
+
+# ---------- LOW LEVEL: RAW CALCULATOR CALL ----------
+
+def econt_calculate_price(*,
+                          weight_kg: float,
+                          receiver_city: str,
+                          receiver_postcode: str,
+                          total_bgn: float,
+                          is_cod: bool) -> float:
+    """
+    Low-level helper that calls Econt's CalculatorService
+    and returns the total delivery price in BGN for given params.
+    """
+
+    url = getattr(
+        settings,
+        "ECONT_PRICE_URL",
+        "https://ee.econt.com/services/Shipments/CalculatorService.getShipmentPrice.json",
+    )
+
+    sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
+    sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8600")
+
+    shipment_type = "cargo" if Decimal(str(weight_kg)) > Decimal("40") else "pack"
+
+    payload = {
+        "mode": "calculate",
+        "shipment": {
+            "shipmentType": shipment_type,
+            "service": "toDoor",
+            "packCount": 1,
+            "weight": weight_kg,
+            "payer": "RECEIVER" if is_cod else "SENDER",
+            "senderAddress": {
+                "city": {
+                    "country": {"code3": "BGR"},
+                    "name": sender_city_name,
+                    "postCode": sender_city_postcode,
+                }
+            },
+            "receiverAddress": {
+                "city": {
+                    "country": {"code3": "BGR"},
+                    "name": receiver_city,
+                    "postCode": receiver_postcode,
+                }
+            },
+            "services": {
+                "declaredValueAmount": total_bgn,
+                "declaredValueCurrency": "BGN",
+                **(
+                    {
+                        "cdAmount": total_bgn,
+                        "cdCurrency": "BGN",
+                    } if is_cod else {}
+                ),
+            },
+        },
+    }
+
+    econtlog.info(
+        "ECONT PRICE ▶ POST %s | payload=%s",
+        url, _json.dumps(payload, ensure_ascii=False)
+    )
+
+    resp = requests.post(
+        url,
+        json=payload,
+        auth=HTTPBasicAuth(settings.ECONT_USER, settings.ECONT_PASS),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        timeout=30,
+    )
+
+    econtlog.info(
+        "ECONT PRICE ◀ %s | status=%s text=%s",
+        url, resp.status_code, (resp.text or "")[:4000]
+    )
+
+    resp.raise_for_status()
+    data = resp.json()
+
+    total_price = data.get("totalPrice") or {}
+    amount = total_price.get("amount")
+
+    if amount is None:
+        raise Exception(f"Econt did not return totalPrice.amount: {data}")
+
+    return float(amount)
 
 
 def next_workday(d: date | None = None) -> date:
