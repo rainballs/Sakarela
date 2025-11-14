@@ -121,7 +121,8 @@ def build_econt_label_payload(order):
     sender_street = getattr(settings, "ECONT_SENDER_STREET", "")
     sender_street_no = getattr(settings, "ECONT_SENDER_STREET_NO", "")
 
-    delivery_day = next_workday(date.today()).strftime("%Y-%m-%d")
+    # delivery_day = next_workday(date.today()).strftime("%Y-%m-%d")
+    holiday_delivery_day = "workday"  # could also be "halfday" or specific "YYYY-MM-DD"
 
     # Base label (we override payer for COD below)
     label = {
@@ -132,7 +133,7 @@ def build_econt_label_payload(order):
         "shipmentDescription": f"Поръчка №{order.pk}",
         "payer": "SENDER",  # default – will be changed to RECEIVER for COD
         "label": {"format": "10x9"},
-        "deliveryDate": delivery_day,
+        "holidayDeliveryDay": holiday_delivery_day,
 
         # --- sender ---
         "senderClient": {
