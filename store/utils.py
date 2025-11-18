@@ -74,8 +74,9 @@ def get_econt_delivery_price_for_order(order) -> Decimal:
     using Econt's CalculatorService.
 
     Returns a Decimal rounded to 0.01 (BGN).
+    On ANY error from Econt, logs and returns Decimal('0.00')
+    so the checkout never crashes.
     """
-    # normalize payment method
     pm = (str(order.payment_method) or "").strip().lower()
     COD_VALUES = {
         "cash", "cod", "cash_on_delivery", "cash on delivery",
@@ -83,20 +84,28 @@ def get_econt_delivery_price_for_order(order) -> Decimal:
     }
     is_cod = pm in COD_VALUES
 
-    # make sure total is up-to-date
-    total_bgn = float(order.get_total())
+    total_bgn = float(order.get_total() or 0)
     weight_kg = float(order.econt_shipment_weight_kg() or 0)
     city = order.city or ""
     postcode = order.post_code or ""
 
-    price = econt_calculate_price(
-        weight_kg=weight_kg,
-        receiver_city=city,
-        receiver_postcode=postcode,
-        total_bgn=total_bgn,
-        is_cod=is_cod,
-    )
-    # wrap as Decimal for storing in model
+    try:
+        price = econt_calculate_price(
+            weight_kg=weight_kg,
+            receiver_city=city,
+            receiver_postcode=postcode,
+            total_bgn=total_bgn,
+            is_cod=is_cod,
+        )
+    except Exception as exc:
+        # 🔴 THIS is where your 500 from Econt is caught
+        econtlog.error(
+            "Failed to get Econt delivery price for order %s: %s",
+            getattr(order, "pk", "?"),
+            exc,
+        )
+        return Decimal("0.00")
+
     return Decimal(str(price)).quantize(Decimal("0.01"))
 
 
@@ -122,7 +131,7 @@ def econt_calculate_price(*,
     sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
     sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8600")
 
-    shipment_type = "cargo" if Decimal(str(weight_kg)) > Decimal("40") else "pack"
+    shipment_type = "cargo" if Decimal(str(weight_kg)) > Decimal("50") else "pack"
 
     payload = {
         "mode": "calculate",

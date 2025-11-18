@@ -796,9 +796,30 @@ def payment_callback(request):
         order = Order.objects.get(transaction_id=order_id)
         order.payment_status = "paid" if is_success else "failed"
         order.save(update_fields=["payment_status"])
+
         if getattr(settings, "DEBUG", False):
             print(
-                f"[callback] tx={order_id} status='{status_lc}' code='{resp_code}' -> {order.payment_status} | reason={reason!r}")
+                f"[callback] tx={order_id} status='{status_lc}' code='{resp_code}' "
+                f"-> {order.payment_status} | reason={reason!r}"
+            )
+
+        # 🔵 NEW/RESTORED: create Econt label only AFTER successful card payment
+        try:
+            pm = (str(order.payment_method) or "").strip().lower()
+            COD_VALUES = {
+                "cash", "cod", "cash_on_delivery", "cash on delivery",
+                "наложен", "наложен платеж", "наложен-платеж",
+            }
+            is_cod = pm in COD_VALUES
+
+            if order.payment_status == "paid" and not is_cod and not order.econt_shipment_num:
+                ensure_econt_label_json(order)
+        except Exception as e:
+            logger.error(
+                "Failed to create Econt label after card payment for order %s: %s",
+                order.pk, e
+            )
+
     except Order.DoesNotExist:
         if getattr(settings, "DEBUG", False):
             print(f"[callback] Order not found for transaction_id={order_id}")
