@@ -443,23 +443,27 @@ def order_info(request):
                         unit_weight_g=unit_weight_kg,
                     )
 
-                # 3) Recalculate order total from items (also sets total_weight_kg)
-                order.update_total()
-                # 1) Calculate delivery price from Econt and save it
-                try:
-                    shipping_price = get_econt_delivery_price_for_order(order)
-                    order.shipping_cost = shipping_price
-                    order.save(update_fields=["shipping_cost"])
-                except Exception as e:
-                    econtlog.error("Failed to get Econt delivery price for order %s: %s", order.pk, e)
-                # create Econt label etc... (rest of your function unchanged)
-                # --------------------------------------------------------------
-                try:
-                    sn, url, _raw = ensure_econt_label_json(order)
-                    if sn:
-                        messages.success(request, f"Еконт товарителница създадена: № {sn}")
-                except Exception as e:
-                    messages.error(request, f"Грешка при създаване на Еконт товарителница: {e}")
+                    # 3) Recalculate order total from items (also sets total_weight_kg)
+                    order.update_total()
+
+                    # 4) Create Econt label; this will also set shipping_cost
+                    #    from the response (see ensure_econt_label_json).
+                    try:
+                        sn, url, _raw = ensure_econt_label_json(order)
+                        if sn:
+                            messages.success(
+                                request,
+                                f"Еконт товарителница създадена: № {sn}"
+                            )
+                    except Exception as e:
+                        econtlog.error(
+                            "Failed to create Econt label for order %s: %s",
+                            order.pk, e
+                        )
+                        messages.error(
+                            request,
+                            f"Грешка при създаване на Еконт товарителница: {e}"
+                        )
 
                 pm = (str(order.payment_method) or "").strip().lower()
                 COD_VALUES = {
@@ -696,7 +700,12 @@ def mypos_payment(request, order_id):
 
         # 5) Line items (BEFORE signing)
         order_items = order.order_items.select_related('product').all()
-        params["CartItems"] = str(order_items.count())
+
+        shipping = order.shipping_cost or Decimal("0.00")
+        has_shipping = shipping > 0
+
+        params["CartItems"] = str(order_items.count() + (1 if has_shipping else 0))
+
         for idx, item in enumerate(order_items, start=1):
             price = float(item.price)  # use captured OrderItem price
             params[f'Article_{idx}'] = (item.product.name or "")[:100]
@@ -704,6 +713,16 @@ def mypos_payment(request, order_id):
             params[f'Price_{idx}'] = f"{price:.2f}"
             params[f'Currency_{idx}'] = DEFAULT_CURRENCY
             params[f'Amount_{idx}'] = f"{item.quantity * price:.2f}"
+
+        # 5b) Extra cart line: shipping
+        if has_shipping:
+            idx = order_items.count() + 1
+            shipping_float = float(shipping)
+            params[f'Article_{idx}'] = "Доставка"
+            params[f'Quantity_{idx}'] = "1"
+            params[f'Price_{idx}'] = f"{shipping_float:.2f}"
+            params[f'Currency_{idx}'] = DEFAULT_CURRENCY
+            params[f'Amount_{idx}'] = f"{shipping_float:.2f}"
 
         # 6) Sign (exclude Signature from the string to sign)
         with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as fh:
@@ -713,12 +732,14 @@ def mypos_payment(request, order_id):
         # 7) (Optional) precise debug/audit logging
         paylog = logging.getLogger("payments")
         sum_items = sum(float(i.quantity) * float(i.price) for i in order_items)
+        if has_shipping:
+            sum_items += float(shipping)
         concat_debug = "-".join(str(v).strip() for k, v in params.items() if k != "Signature")
         b64_debug = base64.b64encode(concat_debug.encode("utf-8")).decode("ascii")
         paylog.info(
-            "POST myPOS | endpoint=%s | OrderID=%s | Amount=%s | SumItems=%.2f | Currency=%s | KeyIndex=%s",
+            "POST myPOS | endpoint=%s | OrderID=%s | Amount=%s | SumItems=%.2f | Shipping=%.2f | Currency=%s | KeyIndex=%s",
             settings.MYPOS_BASE_URL, params.get("OrderID"), params.get("Amount"),
-            sum_items, params.get("Currency"), params.get("KeyIndex"),
+            sum_items, float(shipping), params.get("Currency"), params.get("KeyIndex"),
         )
         paylog.info("concat=%s", concat_debug)
         paylog.info("base64=%s", b64_debug)
