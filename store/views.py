@@ -492,9 +492,14 @@ def order_summary(request, pk):
     order = get_object_or_404(Order, pk=pk)
     items = order.order_items.select_related('product').all()
 
+    shipping = order.shipping_cost or Decimal("0.00")
+    grand_total = (order.total or Decimal("0.00")) + shipping
+
     return render(request, 'store/order_summary.html', {
         'order': order,
         'cart_items': items,
+        'shipping': shipping,
+        'grand_total': grand_total,
     })
 
 

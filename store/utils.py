@@ -299,7 +299,18 @@ def build_econt_label_payload(order):
     is_cod = pm in COD_VALUES
 
     # Make sure total is up-to-date
-    total_bgn = float(order.get_total())  # Decimal -> float for JSON
+    total_bgn_dec = order.total or Decimal("0.00")
+    if not total_bgn_dec:
+        try:
+            total_bgn_dec = sum(
+                (item.price or Decimal("0.00")) * (item.quantity or 0)
+                for item in order.order_items.all()
+            )
+        except Exception:
+            # last resort – original get_total()
+            total_bgn_dec = order.get_total()
+
+    total_bgn = float(total_bgn_dec)
 
     # Sender data from settings
     sender_name = getattr(settings, "ECONT_SENDER_NAME", "Сакарела")
@@ -387,14 +398,33 @@ econtlog = logging.getLogger("econt")
 
 
 def ensure_econt_label_json(order):
+    """
+    Create an Econt label if the order doesn't have one yet.
+
+    - Always returns (shipment_num, label_url, raw_json).
+    - Also tries to populate order.shipping_cost from label["totalPrice"]
+      if it isn't set yet.
+    """
     if getattr(order, "econt_shipment_num", None):
-        econtlog.info("Order %s already has shipment_num=%s", order.pk, order.econt_shipment_num)
+        econtlog.info(
+            "Order %s already has shipment_num=%s",
+            order.pk,
+            order.econt_shipment_num,
+        )
         return order.econt_shipment_num, order.label_url, None
 
-    url = getattr(settings, "ECONT_CREATE_LABEL_URL",
-                  "https://ee.econt.com/services/Shipments/LabelService.createLabel.json")
+    url = getattr(
+        settings,
+        "ECONT_CREATE_LABEL_URL",
+        "https://ee.econt.com/services/Shipments/LabelService.createLabel.json",
+    )
     payload = build_econt_label_payload(order)
-    econtlog.info("POST %s | order=%s payload=%s", url, order.pk, _json.dumps(payload, ensure_ascii=False))
+    econtlog.info(
+        "POST %s | order=%s payload=%s",
+        url,
+        order.pk,
+        _json.dumps(payload, ensure_ascii=False),
+    )
 
     resp = requests.post(
         url,
@@ -404,55 +434,77 @@ def ensure_econt_label_json(order):
         timeout=30,
     )
 
-    econtlog.info("RESP %s | status=%s text=%s", url, resp.status_code, (resp.text or "")[:4000])
+    econtlog.info(
+        "RESP %s | status=%s text=%s",
+        url,
+        resp.status_code,
+        (resp.text or "")[:4000],
+    )
 
-    resp.raise_for_status()  # ← add this
+    resp.raise_for_status()
     data = resp.json()
 
-    labels = data.get("labels") or data.get("label") or []
-    if isinstance(labels, dict):
-        labels = [labels]
-    if not labels:
-        raise Exception(f"Econt did not return labels: {data}")
+    # ---- extract main label object ----
+    label = data.get("label") or data.get("labels") or {}
+    if isinstance(label, list) and label:
+        label = label[0]
 
-    first = labels[0]
-    shipment_num = first.get("shipmentNumber") or first.get("shipmentNum") or ""
-    label_url = first.get("labelURL") or first.get("pdfURL") or ""
+    # ---- SHIPPING PRICE (totalPrice) ----
+    total_price_obj = label.get("totalPrice")
+    shipping_amount = None
+
+    if isinstance(total_price_obj, dict):
+        shipping_amount = total_price_obj.get("amount")
+    elif isinstance(total_price_obj, (int, float, str)):
+        try:
+            shipping_amount = float(total_price_obj)
+        except (TypeError, ValueError):
+            shipping_amount = None
+
+    if shipping_amount is not None and not order.shipping_cost:
+        try:
+            from decimal import Decimal
+            order.shipping_cost = Decimal(str(shipping_amount)).quantize(
+                Decimal("0.01")
+            )
+            order.save(update_fields=["shipping_cost"])
+            econtlog.info(
+                "Order %s shipping_cost set from label.totalPrice = %s",
+                order.pk,
+                order.shipping_cost,
+            )
+        except Exception as exc:
+            econtlog.error(
+                "Failed to save shipping_cost from totalPrice for order %s: %s",
+                order.pk,
+                exc,
+            )
+    elif shipping_amount is None:
+        econtlog.warning(
+            "Could not parse Econt totalPrice for order %s: %r",
+            order.pk,
+            total_price_obj,
+        )
+
+    # ---- SHIPMENT NUMBER + LABEL URL ----
+    shipment_num = (
+            label.get("shipmentNumber")
+            or label.get("shipmentNum")
+            or ""
+    )
+    label_url = label.get("labelURL") or label.get("pdfURL") or ""
 
     if not shipment_num:
         raise Exception(f"Econt returned no shipment number: {data}")
 
-    # --- NEW: try to read total price from label response ---
-    shipping_decimal = None
-    try:
-        total_price = first.get("totalPrice") or first.get("total_price") or {}
-        amount = total_price.get("amount")
-        if amount is not None:
-            shipping_decimal = Decimal(str(amount)).quantize(Decimal("0.01"))
-    except Exception as exc:
-        econtlog.warning(
-            "Could not parse Econt totalPrice for order %s: %r (%s)",
-            order.pk, first.get("totalPrice"), exc
-        )
-
-    update_fields = ["econt_shipment_num", "label_url"]
     order.econt_shipment_num = shipment_num
     order.label_url = label_url
     order.save(update_fields=["econt_shipment_num", "label_url"])
 
-    if shipping_decimal is not None:
-        order.shipping_cost = shipping_decimal
-        update_fields.append("shipping_cost")
-        econtlog.info(
-            "Order %s: shipping_cost set from label to %s BGN",
-            order.pk, shipping_decimal
-        )
-
-    order.save(update_fields=update_fields)
     econtlog.info(
         "Order %s -> shipment=%s label=%s",
-        order.pk, shipment_num, label_url
+        order.pk,
+        shipment_num,
+        label_url,
     )
-
-    econtlog.info("Order %s -> shipment=%s label=%s", order.pk, shipment_num, label_url)
     return shipment_num, label_url, data

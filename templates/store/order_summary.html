@@ -83,8 +83,22 @@
                             </tbody>
                             <tfoot>
                             <tr class="total-row">
-                                <td colspan="2" class="total-label">ОБЩО:</td>
-                                <td class="total-amount">{{ order.total|floatformat:2 }} лв.</td>
+                                <td colspan="2" class="total-label">Общо продукти:</td>
+                                <td class="total-amount">
+                                    {{ order.total|floatformat:2 }} лв.
+                                </td>
+                            </tr>
+                            <tr class="total-row shipping-row">
+                                <td colspan="2" class="total-label">Доставка (Еконт):</td>
+                                <td class="total-amount">
+                                    {{ shipping|default_if_none:"0.00"|floatformat:2 }} лв.
+                                </td>
+                            </tr>
+                            <tr class="total-row grand-total-row">
+                                <td colspan="2" class="total-label"><strong>Крайна сума:</strong></td>
+                                <td class="total-amount">
+                                    <strong>{{ grand_total|floatformat:2 }} лв.</strong>
+                                </td>
                             </tr>
                             </tfoot>
                         </table>
