@@ -24,7 +24,7 @@ urlpatterns = [
     path('order-summary/<int:pk>/', views.order_summary, name='order_summary'),
     path('card-payment/', TemplateView.as_view(template_name="store/card_payment.html"), name='card_payment'),
     # path('order/<int:order_id>/confirm/', views.confirm_order, name='confirm_order'),
-
+    path("econt-cities/", views.econt_city_suggestions, name="econt_cities"),
     # path("shipping/econt/<int:order_id>/", views.econt_redirect, name="econt_redirect"),
     # Test
     # path("test-econt/", views.test_econt_label, name="test_econt"),

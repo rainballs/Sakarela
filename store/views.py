@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
 from django.contrib import messages
 from django.db.models import Prefetch
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, get_object_or_404
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -36,9 +36,48 @@ from .utils import (
     ensure_econt_label_json,
     econtlog,
     get_econt_delivery_price_for_order,
+    econt_get_cities
 )
 
 logger = logging.getLogger(__name__)
+
+
+def econt_city_suggestions(request):
+    """
+    Return small list of cities for autocomplete.
+    GET /store/econt-cities/?q=burg
+    Response: {"results": [{"name": "Burgas", "post_code": "8000"}, ...]}
+    """
+    term = (request.GET.get("q") or "").strip().lower()
+
+    try:
+        all_cities = econt_get_cities("BGR")
+    except Exception as exc:
+        logger.error("Econt getCities failed: %s", exc)
+        return JsonResponse({"error": "econt_failed"}, status=500)
+
+    results = []
+    for c in all_cities:
+        name_bg = (c.get("name") or "").strip()
+        name_en = (c.get("nameEn") or "").strip()
+        pc = (c.get("postCode") or "").strip()
+
+        # Build a display label like: "[8000] Burgas"
+        # Prefer Latin name if present, otherwise BG
+        display_name = name_en or name_bg
+
+        haystack = f"{name_bg} {name_en} {pc}".lower()
+        if term and term not in haystack:
+            continue
+
+        results.append({
+            "name": display_name,
+            "post_code": pc,
+        })
+        if len(results) >= 15:
+            break
+
+    return JsonResponse({"results": results})
 
 
 # ---- myPOS-safe OrderID generator (≤30 chars, ASCII, no dashes) ----

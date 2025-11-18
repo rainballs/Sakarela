@@ -76,11 +76,18 @@
                             {% endif %}
                         </div>
 
-                        <div class="form-field">
+                        <div class="form-field" style="position: relative;">
                             {{ form.city }}
                             {% if form.city.errors %}
                                 <div class="error-message">{{ form.city.errors.0 }}</div>
                             {% endif %}
+
+                            {# dropdown for suggestions #}
+                            <div id="city-suggestions"
+                                 class="city-suggestions"
+                                 style="display:none; position:absolute; left:0; right:0; top:100%; z-index:9999;
+                background:white; border:1px solid #ccc; max-height:220px; overflow-y:auto;">
+                            </div>
                         </div>
 
                         <div class="form-field full-width">
@@ -97,8 +104,10 @@
                             {% endif %}
                         </div>
 
-                        <div class="form-field">
+                        {# POST CODE – HIDDEN, VALUE IS SET BY JS WHEN CITY IS CHOSEN #}
+                        <div class="form-field" style="display:none;">
                             {{ form.post_code }}
+                            {# you can add errors here if you ever show the field again #}
                             {% if form.post_code.errors %}
                                 <div class="error-message">{{ form.post_code.errors.0 }}</div>
                             {% endif %}
@@ -175,6 +184,98 @@
 
     <!-- NEW: simple phone input sanitizing -->
     <script>
+        (function () {
+            const cityInput = document.getElementById("id_city");
+            const postCodeInput = document.getElementById("id_post_code");
+            const suggestionsBox = document.getElementById("city-suggestions");
+            if (!cityInput || !postCodeInput || !suggestionsBox) return;
+
+            let abortController = null;
+            let lastTerm = "";
+
+            function clearSuggestions() {
+                suggestionsBox.innerHTML = "";
+                suggestionsBox.style.display = "none";
+            }
+
+            function createSuggestionItem(city) {
+                const div = document.createElement("div");
+                div.className = "city-suggestion-item";
+                div.textContent = `[${city.post_code}] ${city.name}`;
+                div.style.padding = "6px 10px";
+                div.style.cursor = "pointer";
+
+                div.addEventListener("mouseenter", () => {
+                    div.style.background = "#f0f0f0";
+                });
+                div.addEventListener("mouseleave", () => {
+                    div.style.background = "white";
+                });
+
+                div.addEventListener("click", () => {
+                    cityInput.value = city.name;
+                    postCodeInput.value = city.post_code;
+                    clearSuggestions();
+                });
+
+                return div;
+            }
+
+            function fetchCities(term) {
+                if (abortController) {
+                    abortController.abort();
+                }
+                abortController = new AbortController();
+
+                fetch(`{% url 'store:econt_cities' %}?q=` + encodeURIComponent(term), {
+                    signal: abortController.signal
+                })
+                    .then(resp => {
+                        if (!resp.ok) throw new Error("HTTP " + resp.status);
+                        return resp.json();
+                    })
+                    .then(data => {
+                        suggestionsBox.innerHTML = "";
+                        const results = data.results || [];
+                        if (!results.length) {
+                            clearSuggestions();
+                            return;
+                        }
+                        results.forEach(c => suggestionsBox.appendChild(createSuggestionItem(c)));
+                        suggestionsBox.style.display = "block";
+                    })
+                    .catch(err => {
+                        if (err.name === "AbortError") return;
+                        console.error("Econt city fetch failed:", err);
+                        clearSuggestions();
+                    });
+            }
+
+            // Simple debounce
+            let debounceTimer = null;
+            cityInput.addEventListener("input", function () {
+                const term = cityInput.value.trim();
+                postCodeInput.value = "";  // clear until valid city selected
+
+                if (term === "") {
+                    clearSuggestions();
+                    return;
+                }
+                if (term === lastTerm) return;
+                lastTerm = term;
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => fetchCities(term), 250);
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener("click", function (ev) {
+                if (!suggestionsBox.contains(ev.target) && ev.target !== cityInput) {
+                    clearSuggestions();
+                }
+            });
+        })();
+
         (function () {
             const checkbox = document.querySelector('input[name="is_company"]');
             const companyFields = document.getElementById('company-fields');

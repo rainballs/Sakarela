@@ -1,6 +1,7 @@
 import subprocess
 from decimal import Decimal
 
+import time
 import requests
 import xml.etree.ElementTree as ET
 from django.conf import settings
@@ -9,6 +10,60 @@ import logging, json as _json
 from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
+
+econtlog = logging.getLogger("econt")
+
+# --- SIMPLE IN-MEMORY CACHE FOR CITIES (optional but nice) ---
+_ECONT_CITIES_CACHE = {
+    "timestamp": 0,
+    "cities": [],
+}
+
+
+def econt_get_cities(country_code: str = "BGR"):
+    """
+    Load list of cities from Econt NomenclaturesService.getCities.json.
+
+    Returns a list of dicts like:
+      {"name": "...", "nameEn": "...", "postCode": "...", ...}
+
+    Results are cached for 6 hours in-process.
+    """
+    global _ECONT_CITIES_CACHE
+
+    now = time.time()
+    # 6h cache
+    if _ECONT_CITIES_CACHE["cities"] and (now - _ECONT_CITIES_CACHE["timestamp"] < 6 * 3600):
+        return _ECONT_CITIES_CACHE["cities"]
+
+    url = getattr(
+        settings,
+        "ECONT_CITIES_URL",
+        "https://ee.econt.com/services/Nomenclatures/NomenclaturesService.getCities.json",
+    )
+
+    payload = {"countryCode": country_code}
+
+    econtlog.info("ECONT CITIES ▶ POST %s | payload=%s", url, payload)
+
+    resp = requests.post(
+        url,
+        json=payload,
+        auth=HTTPBasicAuth(settings.ECONT_USER, settings.ECONT_PASS),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        timeout=30,
+    )
+    econtlog.info("ECONT CITIES ◀ %s | status=%s text=%s", url, resp.status_code, (resp.text or "")[:2000])
+
+    resp.raise_for_status()
+    data = resp.json()
+
+    cities = data.get("cities") or []
+    _ECONT_CITIES_CACHE = {
+        "timestamp": now,
+        "cities": cities,
+    }
+    return cities
 
 
 # ---------- HIGH LEVEL: PRICE FOR A GIVEN ORDER ----------
