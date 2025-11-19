@@ -194,10 +194,6 @@
                                 <i class="fas fa-arrow-left"></i>
                                 Продължи пазаруването
                             </a>
-                            <a href="{% url 'store:order_info' %}" class="btn-checkout">
-                                <i class="fas fa-shopping-cart"></i>
-                                Продължи към поръчка
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -484,5 +480,146 @@
                 });
             }
         });
+    </script>
+
+    <script>
+        // --- Econt city autocomplete on cart page ---
+        (function () {
+            const cityInput = document.getElementById("id_city");
+            const postCodeInput = document.getElementById("id_post_code");
+            const suggestionsBox = document.getElementById("city-suggestions-cart");
+            if (!cityInput || !postCodeInput || !suggestionsBox) return;
+
+            let abortController = null;
+            let lastTerm = "";
+
+            function clearSuggestions() {
+                suggestionsBox.innerHTML = "";
+                suggestionsBox.style.display = "none";
+            }
+
+            function createSuggestionItem(city) {
+                const div = document.createElement("div");
+                div.className = "city-suggestion-item";
+                div.textContent = `[${city.post_code}] ${city.name}`;
+                div.style.padding = "6px 10px";
+                div.style.cursor = "pointer";
+
+                div.addEventListener("mouseenter", () => {
+                    div.style.background = "#f0f0f0";
+                });
+                div.addEventListener("mouseleave", () => {
+                    div.style.background = "white";
+                });
+
+                div.addEventListener("click", () => {
+                    cityInput.value = city.name;
+                    postCodeInput.value = city.post_code;
+                    clearSuggestions();
+                });
+
+                return div;
+            }
+
+            function fetchCities(term) {
+                if (abortController) {
+                    abortController.abort();
+                }
+                abortController = new AbortController();
+
+                fetch(`{% url 'store:econt_cities' %}?q=` + encodeURIComponent(term), {
+                    signal: abortController.signal
+                })
+                    .then(resp => {
+                        if (!resp.ok) throw new Error("HTTP " + resp.status);
+                        return resp.json();
+                    })
+                    .then(data => {
+                        suggestionsBox.innerHTML = "";
+                        const results = data.results || [];
+                        if (!results.length) {
+                            clearSuggestions();
+                            return;
+                        }
+                        results.forEach(c => suggestionsBox.appendChild(createSuggestionItem(c)));
+                        suggestionsBox.style.display = "block";
+                    })
+                    .catch(err => {
+                        if (err.name === "AbortError") return;
+                        console.error("Econt city fetch failed:", err);
+                        clearSuggestions();
+                    });
+            }
+
+            // debounce typing
+            let debounceTimer = null;
+            cityInput.addEventListener("input", function () {
+                const term = cityInput.value.trim();
+                postCodeInput.value = "";  // clear until valid city is chosen
+
+                if (term === "") {
+                    clearSuggestions();
+                    return;
+                }
+                if (term === lastTerm) return;
+                lastTerm = term;
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => fetchCities(term), 250);
+            });
+
+            // hide dropdown when clicking outside
+            document.addEventListener("click", function (ev) {
+                if (!suggestionsBox.contains(ev.target) && ev.target !== cityInput) {
+                    clearSuggestions();
+                }
+            });
+        })();
+
+        // --- Toggle company invoice fields on cart page ---
+        (function () {
+            const checkbox = document.querySelector('input[name="is_company"]');
+            const companyFields = document.getElementById('company-fields-cart');
+            if (!checkbox || !companyFields) return;
+
+            function toggleCompanyFields() {
+                if (checkbox.checked) {
+                    companyFields.style.display = 'grid';
+                } else {
+                    companyFields.style.display = 'none';
+                }
+            }
+
+            checkbox.addEventListener('change', toggleCompanyFields);
+            toggleCompanyFields();  // init on load
+        })();
+
+        // --- Phone sanitizing (same behaviour as order_info) ---
+        (function () {
+            const input = document.querySelector('input[name="phone"]');
+            if (!input) return;
+
+            input.addEventListener('input', function () {
+                let v = input.value;
+
+                const hasPlus = v.startsWith('+');
+                v = v.replace(/[^0-9+]/g, '');
+                if (hasPlus) {
+                    v = '+' + v.replace(/\+/g, '');
+                } else {
+                    v = v.replace(/\+/g, '');
+                }
+
+                if (v.length > 16) v = v.slice(0, 16);
+                input.value = v;
+            });
+
+            input.addEventListener('blur', function () {
+                const v = input.value;
+                if (/^359\d{9}$/.test(v)) {
+                    input.value = '+' + v;
+                }
+            });
+        })();
     </script>
 {% endblock %}
