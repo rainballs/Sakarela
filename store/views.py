@@ -803,57 +803,62 @@ def payment_callback(request):
     Marks order paid/failed based on common status/code variants.
     """
     data = request.POST or request.GET  # some gateways GET this
-    if getattr(settings, "DEBUG", False):
-        try:
-            import json as _json
-            print("=== payment_callback payload ===")
-            print(_json.dumps((request.POST or {}).dict(), ensure_ascii=False))
-        except Exception:
-            pass
+    paylog = logging.getLogger("payments")
+
+    # 🔍 1) Log raw payload
+    try:
+        paylog.info("myPOS CALLBACK POST=%s", getattr(request.POST, "dict", lambda: {})())
+        paylog.info("myPOS CALLBACK GET =%s", getattr(request.GET, "dict", lambda: {})())
+    except Exception:
+        pass
+    status_lc, resp_code, reason = _extract_status_blob(data)
 
     order_id = (
             data.get("OrderID") or data.get("orderid") or data.get("order_id") or ""
     )
     order_id = (order_id or "").strip()
 
-    status_lc, resp_code, reason = _extract_status_blob(data)
-
     is_success = (
             (status_lc in SUCCESS_VALUES) or
             (resp_code in SUCCESS_CODES)
     )
 
+    paylog.info(
+        "myPOS CALLBACK normalized: OrderID=%s status_lc=%r resp_code=%r is_success=%s reason=%r",
+        order_id, status_lc, resp_code, is_success, reason
+    )
+
     try:
         order = Order.objects.get(transaction_id=order_id)
-        order.payment_status = "paid" if is_success else "failed"
-        order.save(update_fields=["payment_status"])
-
-        if getattr(settings, "DEBUG", False):
-            print(
-                f"[callback] tx={order_id} status='{status_lc}' code='{resp_code}' "
-                f"-> {order.payment_status} | reason={reason!r}"
-            )
-
-        # 🔵 NEW/RESTORED: create Econt label only AFTER successful card payment
-        try:
-            pm = (str(order.payment_method) or "").strip().lower()
-            COD_VALUES = {
-                "cash", "cod", "cash_on_delivery", "cash on delivery",
-                "наложен", "наложен платеж", "наложен-платеж",
-            }
-            is_cod = pm in COD_VALUES
-
-            if order.payment_status == "paid" and not is_cod and not order.econt_shipment_num:
-                ensure_econt_label_json(order)
-        except Exception as e:
-            logger.error(
-                "Failed to create Econt label after card payment for order %s: %s",
-                order.pk, e
-            )
-
     except Order.DoesNotExist:
-        if getattr(settings, "DEBUG", False):
-            print(f"[callback] Order not found for transaction_id={order_id}")
+        paylog.error("myPOS CALLBACK: no Order with transaction_id=%r", order_id)
+        return HttpResponse("NO_ORDER", status=200)
+
+        # 3) Update DB
+    order.payment_status = "paid" if is_success else "failed"
+    order.save(update_fields=["payment_status"])
+
+    paylog.info(
+        "myPOS CALLBACK: set order %s payment_status=%s",
+        order.pk, order.payment_status
+    )
+
+    # 4) (optional) create Econt label for card payments
+    try:
+        pm = (str(order.payment_method) or "").strip().lower()
+        COD_VALUES = {
+            "cash", "cod", "cash_on_delivery", "cash on delivery",
+            "наложен", "наложен платеж", "наложен-платеж",
+        }
+        is_cod = pm in COD_VALUES
+
+        if order.payment_status == "paid" and not is_cod and not order.econt_shipment_num:
+            ensure_econt_label_json(order)
+    except Exception as e:
+        paylog.error(
+            "Failed to create Econt label after card payment for order %s: %s",
+            order.pk, e
+        )
 
     return HttpResponse("OK")
 
