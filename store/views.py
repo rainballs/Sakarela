@@ -645,6 +645,15 @@ def mypos_payment(request, order_id):
     """Handle myPOS payment initiation with proper signature generation"""
     order = get_object_or_404(Order, id=order_id)
 
+    # 1) Ensure Econt label & shipping_cost are present first
+    try:
+        ensure_econt_label_json(order)
+        # keep our instance in sync if ensure_econt_label_json saved changes
+        order.refresh_from_db(fields=["total", "shipping_cost"])
+    except Exception as e:
+        # Do NOT block payment if Econt is down; just log and proceed.
+        logger.error("Econt upfront label failed for order %s: %s", order.id, e)
+
     # 💰 Products + shipping (for card payments)
     total = order.total or Decimal("0.00")
     shipping = order.shipping_cost or Decimal("0.00")
@@ -703,7 +712,6 @@ def mypos_payment(request, order_id):
         # 5) Line items (BEFORE signing)
         order_items = order.order_items.select_related('product').all()
 
-        shipping = order.shipping_cost or Decimal("0.00")
         has_shipping = shipping > 0
 
         params["CartItems"] = str(order_items.count() + (1 if has_shipping else 0))
