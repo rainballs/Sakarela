@@ -410,23 +410,17 @@ def order_info(request):
             with transaction.atomic():
                 order = form.save()
 
+                # 1) Create all OrderItem rows
                 items, _total = cart_items_and_total(request)
                 for row in items:
                     unit_weight_kg = Decimal("0.0")
 
-                    # 1) If cart row already has weight in kg
                     if "weight_kg" in row:
                         unit_weight_kg = Decimal(str(row["weight_kg"]))
-
-                    # 2) Or generic 'weight' in kg
                     elif "weight" in row:
                         unit_weight_kg = Decimal(str(row["weight"]))
-
-                    # 3) cart stores the PackagingOption object (weight in kg)
                     elif "packaging" in row and isinstance(row["packaging"], PackagingOption):
                         unit_weight_kg = Decimal(str(row["packaging"].weight))
-
-                    # 4) cart stores only packaging_id (again weight in kg)
                     elif "packaging_id" in row:
                         try:
                             pack = PackagingOption.objects.get(pk=row["packaging_id"])
@@ -443,11 +437,19 @@ def order_info(request):
                         unit_weight_g=unit_weight_kg,
                     )
 
-                    # 3) Recalculate order total from items (also sets total_weight_kg)
-                    order.update_total()
+                # 2) Recalculate order total AFTER all items are created
+                order.update_total()
 
-                    # 4) Create Econt label; this will also set shipping_cost
-                    #    from the response (see ensure_econt_label_json).
+                # 3) Decide payment type
+                pm = (str(order.payment_method) or "").strip().lower()
+                COD_VALUES = {
+                    "cash", "cod", "cash_on_delivery", "cash on delivery",
+                    "наложен", "наложен платеж", "наложен-платеж",
+                }
+                is_cod = pm in COD_VALUES
+
+                # 4) For cash/COD -> create Econt label now (includes full total & weight)
+                if is_cod:
                     try:
                         sn, url, _raw = ensure_econt_label_json(order)
                         if sn:
@@ -465,18 +467,13 @@ def order_info(request):
                             f"Грешка при създаване на Еконт товарителница: {e}"
                         )
 
-                pm = (str(order.payment_method) or "").strip().lower()
-                COD_VALUES = {
-                    "cash", "cod", "cash_on_delivery", "cash on delivery",
-                    "наложен", "наложен платеж", "наложен-платеж",
-                }
-                is_cod = pm in COD_VALUES
-
-                if is_cod:
+                    # clear cart and show summary
                     set_session_cart(request, {})
                     return redirect('store:order_summary', pk=order.pk)
 
+                # 5) For card payments -> straight to myPOS
                 return redirect('store:mypos_payment', order_id=order.pk)
+
         # invalid form:
         return render(request, "store/order_info.html", {"form": form})
 
