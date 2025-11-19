@@ -355,10 +355,13 @@ def view_cart(request):
         packaging_options__isnull=False
     ).prefetch_related('packaging_options').distinct().order_by('?')[:6]
 
+    order_form = OrderForm()
+
     return render(request, 'store/cart.html', {
         'cart_items': cart_items,
         'cart_total': cart_total,
-        'recommended_products': recommended_products
+        'recommended_products': recommended_products,
+        'form': order_form,
     })
 
 
@@ -397,6 +400,7 @@ def order_info(request):
     - If cart is empty -> back to cart.
     - Save order + snapshot cart as OrderItems.
     - Recalculate total (including weight).
+    - Calculate Econt delivery price and store it in shipping_cost.
     - COD -> create Econt label NOW and go to order summary.
     - Card/other -> go to myPOS.
     """
@@ -407,10 +411,11 @@ def order_info(request):
 
         form = OrderForm(request.POST)
         if form.is_valid():
+            # 1) DB work only (inside transaction)
             with transaction.atomic():
                 order = form.save()
 
-                # 1) Create all OrderItem rows
+                # 1a) Create all OrderItem rows
                 items, _total = cart_items_and_total(request)
                 for row in items:
                     unit_weight_kg = Decimal("0.0")
@@ -437,42 +442,55 @@ def order_info(request):
                         unit_weight_g=unit_weight_kg,
                     )
 
-                # 2) Recalculate order total AFTER all items are created
+                # 1b) Recalculate order total AFTER all items are created
                 order.update_total()
 
-                # 3) Decide payment type
-                pm = (str(order.payment_method) or "").strip().lower()
-                COD_VALUES = {
-                    "cash", "cod", "cash_on_delivery", "cash on delivery",
-                    "наложен", "наложен платеж", "наложен-платеж",
-                }
-                is_cod = pm in COD_VALUES
+            # 2) OUTSIDE the transaction: call Econt to CALCULATE delivery price
+            try:
+                shipping = get_econt_delivery_price_for_order(order)
+                if shipping is not None:
+                    order.shipping_cost = shipping
+                    order.save(update_fields=["shipping_cost"])
+            except Exception as exc:
+                econtlog.error(
+                    "Failed to calculate Econt delivery price for order %s: %s",
+                    order.pk, exc
+                )
+                # we just continue; shipping_cost will stay 0 or be filled later by label
 
-                # 4) For cash/COD -> create Econt label now (includes full total & weight)
-                if is_cod:
-                    try:
-                        sn, url, _raw = ensure_econt_label_json(order)
-                        if sn:
-                            messages.success(
-                                request,
-                                f"Еконт товарителница създадена: № {sn}"
-                            )
-                    except Exception as e:
-                        econtlog.error(
-                            "Failed to create Econt label for order %s: %s",
-                            order.pk, e
-                        )
-                        messages.error(
+            # 3) Decide payment type (COD vs card)
+            pm = (str(order.payment_method) or "").strip().lower()
+            COD_VALUES = {
+                "cash", "cod", "cash_on_delivery", "cash on delivery",
+                "наложен", "наложен платеж", "наложен-платеж",
+            }
+            is_cod = pm in COD_VALUES
+
+            # 4) For cash/COD -> create Econt label now (includes full total & weight)
+            if is_cod:
+                try:
+                    sn, url, _raw = ensure_econt_label_json(order)
+                    if sn:
+                        messages.success(
                             request,
-                            f"Грешка при създаване на Еконт товарителница: {e}"
+                            f"Еконт товарителница създадена: № {sn}"
                         )
+                except Exception as e:
+                    econtlog.error(
+                        "Failed to create Econt label for order %s: %s",
+                        order.pk, e
+                    )
+                    messages.error(
+                        request,
+                        f"Грешка при създаване на Еконт товарителница: {e}"
+                    )
 
-                    # clear cart and show summary
-                    set_session_cart(request, {})
-                    return redirect('store:order_summary', pk=order.pk)
+                # clear cart and show summary
+                set_session_cart(request, {})
+                return redirect('store:order_summary', pk=order.pk)
 
-                # 5) For card payments -> straight to myPOS
-                return redirect('store:mypos_payment', order_id=order.pk)
+            # 5) For card payments -> (we'll fine-tune later, leave as is for now)
+            return redirect('store:mypos_payment', order_id=order.pk)
 
         # invalid form:
         return render(request, "store/order_info.html", {"form": form})

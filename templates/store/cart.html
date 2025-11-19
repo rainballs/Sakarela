@@ -100,6 +100,95 @@
                             </div>
                         </div>
 
+                        <div class="cart-checkout-info">
+                            <h2 class="cart-section-title">Данни за доставка</h2>
+
+                            <form method="post" action="{% url 'store:order_info' %}" class="order-form">
+                                {% csrf_token %}
+                                {{ form.non_field_errors }}
+
+                                <div class="form-grid">
+                                    <div class="form-field">
+                                        {{ form.full_name }}
+                                    </div>
+                                    <div class="form-field">
+                                        {{ form.last_name }}
+                                    </div>
+                                    <div class="form-field">
+                                        {{ form.email }}
+                                    </div>
+                                    <div class="form-field">
+                                        {{ form.phone }}
+                                    </div>
+                                    <div class="form-field">
+                                        {{ form.country }}
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h2 class="section-title">АДРЕС ЗА ДОСТАВКА</h2>
+                                    <div class="form-grid">
+                                        <div class="form-field">
+                                            {{ form.state }}
+                                        </div>
+                                        <div class="form-field" style="position: relative;">
+                                            {{ form.city }}
+                                            <div id="city-suggestions-cart"
+                                                 class="city-suggestions"
+                                                 style="display:none; position:absolute; left:0; right:0; top:100%; z-index:9999;
+                                background:white; border:1px solid #ccc; max-height:220px; overflow-y:auto;">
+                                            </div>
+                                        </div>
+                                        <div class="form-field full-width">
+                                            {{ form.address1 }}
+                                        </div>
+                                        <div class="form-field full-width">
+                                            {{ form.address2 }}
+                                        </div>
+                                        <div class="form-field" style="display:none;">
+                                            {{ form.post_code }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <div class="invoice-toggle-row">
+                                        <label class="invoice-checkbox-label">
+                                            {{ form.is_company }}
+                                            <span>Желая фактура към фирма</span>
+                                        </label>
+                                    </div>
+
+                                    <div id="company-fields-cart"
+                                         class="form-grid"
+                                         style="display: none; margin-top: 1rem;">
+                                        <div class="form-field full-width">
+                                            {{ form.company_name }}
+                                        </div>
+                                        <div class="form-field">
+                                            {{ form.company_mol }}
+                                        </div>
+                                        <div class="form-field">
+                                            {{ form.company_bulstat }}
+                                        </div>
+                                        <div class="form-field">
+                                            {{ form.company_vat_number }}
+                                        </div>
+                                        <div class="form-field full-width">
+                                            {{ form.company_address }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="cart-actions cart-actions-bottom">
+                                    <button type="submit" class="btn-checkout">
+                                        <i class="fas fa-shopping-cart"></i>
+                                        Продължи към поръчка
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
                         <div class="cart-actions">
                             <a href="{% url 'store:store_home' %}" class="btn-continue-shopping">
                                 <i class="fas fa-arrow-left"></i>
@@ -240,10 +329,10 @@
         <p>ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
 
-{#    <!-- Quality Bar -->#}
-{#    <section class="yellow-bar">#}
-{#        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>#}
-{#    </section>#}
+    {#    <!-- Quality Bar -->#}
+    {#    <section class="yellow-bar">#}
+    {#        <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>#}
+    {#    </section>#}
 {% endblock %}
 
 {% block extra_head %}
