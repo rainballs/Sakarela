@@ -226,16 +226,15 @@
                             <span>{{ cart_total|default:"0.00"|floatformat:2 }} лв.</span>
                         </div>
 
-                        {% if shipping_cost %}
-                            <div class="order-summary-row">
-                                <span>Доставка:</span>
-                                <span>{{ shipping_cost|floatformat:2 }} лв.</span>
-                            </div>
-                            <div class="order-summary-row summary-total">
-                                <span>Общо:</span>
-                                <span>{{ grand_total|floatformat:2 }} лв.</span>
-                            </div>
-                        {% endif %}
+                        <div class="order-summary-row">
+                            <span>Доставка:</span>
+                            <span>{{ shipping_cost|default:"0.00"|floatformat:2 }} лв.</span>
+                        </div>
+
+                        <div class="order-summary-row summary-total">
+                            <span>Общо:</span>
+                            <span>{{ grand_total|default:cart_total|floatformat:2 }} лв.</span>
+                        </div>
                     </div>
                 </div>
                 <button type="submit" class="btn-submit">ЗАВЪРШИ ПОРЪЧКАТА</button>

@@ -460,16 +460,25 @@ def order_info(request):
 
         form = OrderForm(request.POST)
         if not form.is_valid():
-            # validation error on the final step – re-show form
             items, cart_total = cart_items_and_total(request)
+
+            shipping_cost = econt_shipping_preview_for_cart(
+                items=items,
+                cart_total=cart_total,
+                city=request.POST.get("city", ""),
+                post_code=request.POST.get("post_code", ""),
+                payment_method=request.POST.get("payment_method", ""),
+            )
+            grand_total = cart_total + shipping_cost
+
             return render(
                 request,
                 "store/order_info.html",
                 {
                     "form": form,
                     "cart_total": cart_total,
-                    "shipping_cost": Decimal("0.00"),
-                    "grand_total": cart_total,
+                    "shipping_cost": shipping_cost,
+                    "grand_total": grand_total,
                 },
             )
 
