@@ -31,6 +31,21 @@
             margin-top: .8rem;
             padding-top: .8rem;
         }
+
+        /* Base look for the invoice checkbox (used on the cart page) */
+        .invoice-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 18px;
+            font-weight: 500;
+            color: #2e3b42;
+        }
+
+        /* Hide the invoice checkbox+text only on the ORDER INFO (preview) page */
+        .order-info-container .invoice-checkbox-label {
+            display: none;
+        }
     </style>
     <div class="recipe-hero">
         <div class="recipe-hero-content">

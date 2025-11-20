@@ -398,16 +398,23 @@ def view_cart(request):
 def order_info(request):
     """
     - If cart is empty -> back to cart.
-    - Save order + snapshot cart as OrderItems.
-    - Recalculate total (including weight).
-    - Calculate Econt delivery price and store it in shipping_cost.
-    - COD -> create Econt label NOW and go to order summary.
-    - Card/other -> go to myPOS.
+    - POST:
+        * Save order + snapshot cart as OrderItems.
+        * Recalculate total (including weight).
+        * Calculate Econt delivery price and store it in shipping_cost.
+        * COD  -> create Econt label NOW and go to order summary.
+        * Card -> go to myPOS.
+    - GET:
+        * Show read-only preview of address/info, allow choosing payment method.
+        * Show products_total, shipping_preview, grand_total_preview.
     """
-    if request.method == 'POST':
+    # -------------------------
+    # POST: create the order
+    # -------------------------
+    if request.method == "POST":
         if cart_is_empty(request):
             messages.error(request, "Количката е празна. Моля, добавете продукти.")
-            return redirect('store:view_cart')
+            return redirect("store:view_cart")
 
         form = OrderForm(request.POST)
         if form.is_valid():
@@ -454,15 +461,21 @@ def order_info(request):
             except Exception as exc:
                 econtlog.error(
                     "Failed to calculate Econt delivery price for order %s: %s",
-                    order.pk, exc
+                    order.pk,
+                    exc,
                 )
                 # we just continue; shipping_cost will stay 0 or be filled later by label
 
             # 3) Decide payment type (COD vs card)
             pm = (str(order.payment_method) or "").strip().lower()
             COD_VALUES = {
-                "cash", "cod", "cash_on_delivery", "cash on delivery",
-                "наложен", "наложен платеж", "наложен-платеж",
+                "cash",
+                "cod",
+                "cash_on_delivery",
+                "cash on delivery",
+                "наложен",
+                "наложен платеж",
+                "наложен-платеж",
             }
             is_cod = pm in COD_VALUES
 
@@ -473,45 +486,64 @@ def order_info(request):
                     if sn:
                         messages.success(
                             request,
-                            f"Еконт товарителница създадена: № {sn}"
+                            f"Еконт товарителница създадена: № {sn}",
                         )
                 except Exception as e:
                     econtlog.error(
                         "Failed to create Econt label for order %s: %s",
-                        order.pk, e
+                        order.pk,
+                        e,
                     )
                     messages.error(
                         request,
-                        f"Грешка при създаване на Еконт товарителница: {e}"
+                        f"Грешка при създаване на Еконт товарителница: {e}",
                     )
 
                 # clear cart and show summary
                 set_session_cart(request, {})
-                return redirect('store:order_summary', pk=order.pk)
+                return redirect("store:order_summary", pk=order.pk)
 
-            # 5) For card payments -> (we'll fine-tune later, leave as is for now)
-            return redirect('store:mypos_payment', order_id=order.pk)
+            # 5) For card payments -> go to myPOS
+            return redirect("store:mypos_payment", order_id=order.pk)
 
-        # invalid form:
+        # invalid form on POST: re-render with errors (you may optionally also recompute totals here)
         return render(request, "store/order_info.html", {"form": form})
 
-    # GET:
+    # -------------------------
+    # GET: preview page
+    # -------------------------
     if cart_is_empty(request):
         messages.info(request, "Количката е празна.")
-        return redirect('store:store_home')
+        return redirect("store:store_home")
 
-        # new: include cart_total here too
-        _, cart_total = cart_items_and_total(request)
-        return render(
-            request,
-            "store/order_info.html",
-            {
-                "form": OrderForm(),
-                "cart_total": cart_total,
-            },
+    # 1) Prefill form from what you posted on the cart step
+    initial_data = request.session.get("order_form_data") or {}
+    form = OrderForm(initial=initial_data)
+
+    # 2) Get products total from the cart
+    items, products_total = cart_items_and_total(request)
+
+    # 3) Calculate preview shipping via Econt (mode='calculate')
+    shipping_preview = None
+    grand_total_preview = products_total
+    try:
+        shipping_preview = calculate_econt_shipping_preview(
+            cleaned_data=initial_data,
+            items=items,
+            products_total=products_total,
         )
+        if shipping_preview is not None:
+            grand_total_preview = products_total + shipping_preview
+    except Exception as exc:
+        econtlog.error("Preview shipping failed: %s", exc)
 
-    return render(request, "store/order_info.html", {"form": OrderForm()})
+    ctx = {
+        "form": form,
+        "products_total": products_total,
+        "shipping_preview": shipping_preview,
+        "grand_total_preview": grand_total_preview,
+    }
+    return render(request, "store/order_info.html", ctx)
 
 
 def order_summary(request, pk):
