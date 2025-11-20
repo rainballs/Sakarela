@@ -500,6 +500,17 @@ def order_info(request):
         messages.info(request, "Количката е празна.")
         return redirect('store:store_home')
 
+        # new: include cart_total here too
+        _, cart_total = cart_items_and_total(request)
+        return render(
+            request,
+            "store/order_info.html",
+            {
+                "form": OrderForm(),
+                "cart_total": cart_total,
+            },
+        )
+
     return render(request, "store/order_info.html", {"form": OrderForm()})
 
 

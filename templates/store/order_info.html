@@ -2,6 +2,36 @@
 {% block title %}Информация за поръчка | Сакарела{% endblock %}
 
 {% block content %}
+    <style>
+        /* Light grey background + not-allowed cursor for locked fields */
+        .readonly-input {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .order-summary-box {
+            margin-top: 2rem;
+            padding: 1.5rem 2rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .order-summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: .5rem;
+            font-size: 1rem;
+        }
+
+        .order-summary-row.summary-total {
+            font-weight: 700;
+            border-top: 1px solid #ddd;
+            margin-top: .8rem;
+            padding-top: .8rem;
+        }
+    </style>
     <div class="recipe-hero">
         <div class="recipe-hero-content">
             <h1 class="recipe-hero-title">Количка</h1>
@@ -173,7 +203,28 @@
                         {% endif %}
                     </div>
                 </div>
+                <div class="form-section">
+                    <h2 class="section-title">ОБОБЩЕНИЕ НА ПОРЪЧКАТА</h2>
+                    <div class="order-summary-box">
+                        <div class="order-summary-row">
+                            <span>Стойност на продукти:</span>
+                            <span>{{ cart_total|default:"0.00"|floatformat:2 }} лв.</span>
+                        </div>
 
+                        {# ТУК по-късно ще добавим и доставка + общо,
+                        когато почнем да подаваме shipping_cost и grand_total от view-а #}
+                        {% if shipping_cost %}
+                            <div class="order-summary-row">
+                                <span>Доставка:</span>
+                                <span>{{ shipping_cost|floatformat:2 }} лв.</span>
+                            </div>
+                            <div class="order-summary-row summary-total">
+                                <span>Общо:</span>
+                                <span>{{ grand_total|floatformat:2 }} лв.</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
                 <button type="submit" class="btn-submit">ЗАВЪРШИ ПОРЪЧКАТА</button>
             </form>
         </div>
@@ -322,6 +373,53 @@
                 const v = input.value;
                 if (/^359\d{9}$/.test(v)) {
                     input.value = '+' + v;
+                }
+            });
+        })();
+    </script>
+    <script>
+        // Make all inputs read-only on this step, except payment_method.
+        (function () {
+            const form = document.querySelector('.order-form');
+            if (!form) return;
+
+            const controls = form.querySelectorAll('input, textarea, select');
+
+            controls.forEach(function (el) {
+                const name = el.name;
+                if (!name) return;
+
+                // Keep CSRF + payment method fully interactive
+                if (name === 'payment_method' || name === 'csrfmiddlewaretoken') return;
+
+                // Hidden fields we leave alone (post_code etc.)
+                if (el.type === 'hidden') return;
+
+                // Text-like fields -> real readOnly
+                if (
+                    el.tagName === 'TEXTAREA' ||
+                    el.type === 'text' ||
+                    el.type === 'email' ||
+                    el.type === 'tel'
+                ) {
+                    el.readOnly = true;
+                    el.classList.add('readonly-input');
+                    return;
+                }
+
+                // Checkbox / radio / select (e.g. "Желая фактура", държава)
+                // We don't disable them (so values still submit),
+                // but we block clicks so the user can't change them.
+                if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') {
+                    el.classList.add('readonly-input');
+                    el.addEventListener('click', function (ev) {
+                        ev.preventDefault();
+                    });
+                    el.addEventListener('keydown', function (ev) {
+                        if (ev.key === ' ' || ev.key === 'Spacebar' || ev.key === 'Enter') {
+                            ev.preventDefault();
+                        }
+                    });
                 }
             });
         })();
