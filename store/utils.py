@@ -19,6 +19,56 @@ _ECONT_CITIES_CACHE = {
     "cities": [],
 }
 
+COD_VALUES = {
+    "cash", "cod", "cash_on_delivery", "cash on delivery",
+    "наложен", "наложен платеж", "наложен-платеж",
+}
+
+
+def econt_shipping_preview_for_cart(*, items, cart_total, city, post_code, payment_method) -> Decimal:
+    """
+    Preview delivery price for the current cart WITHOUT creating an Order.
+
+    - Reuses econt_calculate_price (no duplicate HTTP logic).
+    - `items` is the list from cart_items_and_total(request).
+    - `cart_total` is the Decimal total from the same helper.
+    """
+    # Decide if this is COD, reusing the same logic you already use elsewhere
+    pm = (payment_method or "").strip().lower()
+    is_cod = pm in COD_VALUES
+
+    # Total weight in kg – based on the same structure you use in order_info()
+    total_weight = Decimal("0.0")
+    for row in items:
+        qty = Decimal(str(row.get("quantity", 0)))
+
+        unit_weight_kg = Decimal("0.0")
+        if row.get("weight_kg") is not None:
+            unit_weight_kg = Decimal(str(row["weight_kg"]))
+        elif "packaging" in row and getattr(row["packaging"], "weight", None) is not None:
+            unit_weight_kg = Decimal(str(row["packaging"].weight))
+        elif row.get("weight") is not None:
+            unit_weight_kg = Decimal(str(row["weight"]))
+
+        total_weight += unit_weight_kg * qty
+
+    if not city or not post_code:
+        # Not enough data to ask Econt – just return 0 instead of crashing
+        return Decimal("0.00")
+
+    try:
+        price = econt_calculate_price(
+            weight_kg=float(total_weight),
+            receiver_city=city,
+            receiver_postcode=post_code,
+            total_bgn=float(cart_total),
+            is_cod=is_cod,
+        )
+        return Decimal(str(price)).quantize(Decimal("0.01"))
+    except Exception as exc:
+        econtlog.error("Econt preview price failed: %s", exc)
+        return Decimal("0.00")
+
 
 def econt_get_cities(country_code: str = "BGR"):
     """

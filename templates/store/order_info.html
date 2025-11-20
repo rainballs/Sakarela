@@ -226,8 +226,6 @@
                             <span>{{ cart_total|default:"0.00"|floatformat:2 }} лв.</span>
                         </div>
 
-                        {# ТУК по-късно ще добавим и доставка + общо,
-                        когато почнем да подаваме shipping_cost и grand_total от view-а #}
                         {% if shipping_cost %}
                             <div class="order-summary-row">
                                 <span>Доставка:</span>

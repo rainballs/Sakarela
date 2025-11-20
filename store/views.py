@@ -36,7 +36,8 @@ from .utils import (
     ensure_econt_label_json,
     econtlog,
     get_econt_delivery_price_for_order,
-    econt_get_cities
+    econt_get_cities,
+    econt_shipping_preview_for_cart, COD_VALUES,
 )
 
 logger = logging.getLogger(__name__)
@@ -397,153 +398,144 @@ def view_cart(request):
 #     return render(request, 'store/order_info.html', {'form': form})
 def order_info(request):
     """
-    - If cart is empty -> back to cart.
-    - POST:
-        * Save order + snapshot cart as OrderItems.
-        * Recalculate total (including weight).
-        * Calculate Econt delivery price and store it in shipping_cost.
-        * COD  -> create Econt label NOW and go to order summary.
-        * Card -> go to myPOS.
-    - GET:
-        * Show read-only preview of address/info, allow choosing payment method.
-        * Show products_total, shipping_preview, grand_total_preview.
+    /order/:
+
+    GET  – show read-only preview of address + payment method selector +
+           products total, shipping preview, grand total.
+    POST – create the Order, calculate real shipping, then:
+           - COD  -> create Econt label and go to summary
+           - card -> redirect to myPOS
     """
-    # -------------------------
-    # POST: create the order
-    # -------------------------
-    if request.method == "POST":
+
+    # ---------- FINAL SUBMIT (create order) ----------
+    if request.method == 'POST':
         if cart_is_empty(request):
             messages.error(request, "Количката е празна. Моля, добавете продукти.")
-            return redirect("store:view_cart")
+            return redirect('store:view_cart')
 
         form = OrderForm(request.POST)
-        if form.is_valid():
-            # 1) DB work only (inside transaction)
-            with transaction.atomic():
-                order = form.save()
+        if not form.is_valid():
+            # validation error on the final step – re-show form
+            items, cart_total = cart_items_and_total(request)
+            return render(
+                request,
+                "store/order_info.html",
+                {
+                    "form": form,
+                    "cart_total": cart_total,
+                    "shipping_cost": Decimal("0.00"),
+                    "grand_total": cart_total,
+                },
+            )
 
-                # 1a) Create all OrderItem rows
-                items, _total = cart_items_and_total(request)
-                for row in items:
-                    unit_weight_kg = Decimal("0.0")
+        # 1) DB work in a transaction
+        with transaction.atomic():
+            order = form.save()
 
-                    if "weight_kg" in row:
-                        unit_weight_kg = Decimal(str(row["weight_kg"]))
-                    elif "weight" in row:
-                        unit_weight_kg = Decimal(str(row["weight"]))
-                    elif "packaging" in row and isinstance(row["packaging"], PackagingOption):
-                        unit_weight_kg = Decimal(str(row["packaging"].weight))
-                    elif "packaging_id" in row:
-                        try:
-                            pack = PackagingOption.objects.get(pk=row["packaging_id"])
-                            unit_weight_kg = Decimal(str(pack.weight))
-                        except PackagingOption.DoesNotExist:
-                            unit_weight_kg = Decimal("0.0")
+            # 1a) Snapshot cart into OrderItem rows
+            items, _total = cart_items_and_total(request)
+            for row in items:
+                unit_weight_kg = Decimal("0.0")
 
-                    OrderItem.objects.create(
-                        order=order,
-                        product=row["product"],
-                        quantity=row["quantity"],
-                        price=row["price"],
-                        # NOTE: field name is unit_weight_g, but we now store kg there:
-                        unit_weight_g=unit_weight_kg,
-                    )
+                if "weight_kg" in row:
+                    unit_weight_kg = Decimal(str(row["weight_kg"]))
+                elif "weight" in row:
+                    unit_weight_kg = Decimal(str(row["weight"]))
+                elif "packaging" in row and isinstance(row["packaging"], PackagingOption):
+                    unit_weight_kg = Decimal(str(row["packaging"].weight))
+                elif "packaging_id" in row:
+                    try:
+                        pack = PackagingOption.objects.get(pk=row["packaging_id"])
+                        unit_weight_kg = Decimal(str(pack.weight))
+                    except PackagingOption.DoesNotExist:
+                        unit_weight_kg = Decimal("0.0")
 
-                # 1b) Recalculate order total AFTER all items are created
-                order.update_total()
-
-            # 2) OUTSIDE the transaction: call Econt to CALCULATE delivery price
-            try:
-                shipping = get_econt_delivery_price_for_order(order)
-                if shipping is not None:
-                    order.shipping_cost = shipping
-                    order.save(update_fields=["shipping_cost"])
-            except Exception as exc:
-                econtlog.error(
-                    "Failed to calculate Econt delivery price for order %s: %s",
-                    order.pk,
-                    exc,
+                OrderItem.objects.create(
+                    order=order,
+                    product=row["product"],
+                    quantity=row["quantity"],
+                    price=row["price"],
+                    # NOTE: field name is unit_weight_g, but we store kg there:
+                    unit_weight_g=unit_weight_kg,
                 )
-                # we just continue; shipping_cost will stay 0 or be filled later by label
 
-            # 3) Decide payment type (COD vs card)
-            pm = (str(order.payment_method) or "").strip().lower()
-            COD_VALUES = {
-                "cash",
-                "cod",
-                "cash_on_delivery",
-                "cash on delivery",
-                "наложен",
-                "наложен платеж",
-                "наложен-платеж",
-            }
-            is_cod = pm in COD_VALUES
+            # 1b) recalc total AFTER items are created
+            order.update_total()
 
-            # 4) For cash/COD -> create Econt label now (includes full total & weight)
-            if is_cod:
-                try:
-                    sn, url, _raw = ensure_econt_label_json(order)
-                    if sn:
-                        messages.success(
-                            request,
-                            f"Еконт товарителница създадена: № {sn}",
-                        )
-                except Exception as e:
-                    econtlog.error(
-                        "Failed to create Econt label for order %s: %s",
-                        order.pk,
-                        e,
-                    )
-                    messages.error(
+        # 2) Econt – REAL shipping calculation (your existing helper)
+        try:
+            shipping = get_econt_delivery_price_for_order(order)
+            if shipping is not None:
+                order.shipping_cost = shipping
+                order.save(update_fields=["shipping_cost"])
+        except Exception as exc:
+            econtlog.error(
+                "Failed to calculate Econt delivery price for order %s: %s",
+                order.pk, exc
+            )
+
+        # 3) Decide payment type
+        pm = (str(order.payment_method) or "").strip().lower()
+        is_cod = pm in COD_VALUES
+
+        # 4) COD → create label now
+        if is_cod:
+            try:
+                sn, url, _raw = ensure_econt_label_json(order)
+                if sn:
+                    messages.success(
                         request,
-                        f"Грешка при създаване на Еконт товарителница: {e}",
+                        f"Еконт товарителница създадена: № {sn}"
                     )
+            except Exception as e:
+                econtlog.error(
+                    "Failed to create Econt label for order %s: %s",
+                    order.pk, e
+                )
+                messages.error(
+                    request,
+                    f"Грешка при създаване на Еконт товарителница: {e}"
+                )
 
-                # clear cart and show summary
-                set_session_cart(request, {})
-                return redirect("store:order_summary", pk=order.pk)
+            # clear cart and show summary
+            set_session_cart(request, {})
+            return redirect('store:order_summary', pk=order.pk)
 
-            # 5) For card payments -> go to myPOS
-            return redirect("store:mypos_payment", order_id=order.pk)
+        # 5) Card (myPOS) – unchanged
+        return redirect('store:mypos_payment', order_id=order.pk)
 
-        # invalid form on POST: re-render with errors (you may optionally also recompute totals here)
-        return render(request, "store/order_info.html", {"form": form})
-
-    # -------------------------
-    # GET: preview page
-    # -------------------------
+    # ---------- PREVIEW STEP (JUST SHOW PRICE, NO ORDER) ----------
     if cart_is_empty(request):
         messages.info(request, "Количката е празна.")
-        return redirect("store:store_home")
+        return redirect('store:store_home')
 
-    # 1) Prefill form from what you posted on the cart step
+    # 1) Prefill form from session (data posted from cart step)
     initial_data = request.session.get("order_form_data") or {}
     form = OrderForm(initial=initial_data)
 
-    # 2) Get products total from the cart
-    items, products_total = cart_items_and_total(request)
+    # 2) Cart totals
+    items, cart_total = cart_items_and_total(request)
 
-    # 3) Calculate preview shipping via Econt (mode='calculate')
-    shipping_preview = None
-    grand_total_preview = products_total
-    try:
-        shipping_preview = calculate_econt_shipping_preview(
-            cleaned_data=initial_data,
-            items=items,
-            products_total=products_total,
-        )
-        if shipping_preview is not None:
-            grand_total_preview = products_total + shipping_preview
-    except Exception as exc:
-        econtlog.error("Preview shipping failed: %s", exc)
+    # 3) Shipping preview via the NEW helper
+    shipping_cost = econt_shipping_preview_for_cart(
+        items=items,
+        cart_total=cart_total,
+        city=initial_data.get("city") or "",
+        post_code=initial_data.get("post_code") or "",
+        payment_method=initial_data.get("payment_method") or "",
+    )
+    grand_total = cart_total + shipping_cost
 
-    ctx = {
-        "form": form,
-        "products_total": products_total,
-        "shipping_preview": shipping_preview,
-        "grand_total_preview": grand_total_preview,
-    }
-    return render(request, "store/order_info.html", ctx)
+    return render(
+        request,
+        "store/order_info.html",
+        {
+            "form": form,
+            "cart_total": cart_total,
+            "shipping_cost": shipping_cost,
+            "grand_total": grand_total,
+        },
+    )
 
 
 def order_summary(request, pk):
