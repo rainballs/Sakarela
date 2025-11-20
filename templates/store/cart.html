@@ -103,7 +103,7 @@
                         <div class="cart-checkout-info">
                             <h2 class="cart-section-title">Данни за доставка</h2>
 
-                            <form method="post" action="{% url 'store:order_info' %}" class="order-form">
+                            <form method="post" action="{% url 'store:order_start' %}" class="order-form">
                                 {% csrf_token %}
                                 {{ form.non_field_errors }}
 

@@ -20,6 +20,7 @@ urlpatterns = [
     path('payment/callback/', views.payment_callback, name='payment_callback'),
     path('payment/result/', views.payment_result, name='payment_result'),
 
+    path('order/start/', views.order_start, name='order_start'),
     path('order/', views.order_info, name='order_info'),
     path('order-summary/<int:pk>/', views.order_summary, name='order_summary'),
     path('card-payment/', TemplateView.as_view(template_name="store/card_payment.html"), name='card_payment'),

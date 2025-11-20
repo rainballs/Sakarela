@@ -396,6 +396,51 @@ def view_cart(request):
 #     else:
 #         form = OrderForm()
 #     return render(request, 'store/order_info.html', {'form': form})
+
+def order_start(request):
+    """
+    Step 1: called from the cart page.
+    - Validate the address/contact fields.
+    - Store them in the session.
+    - Redirect to GET /order/ where we show the preview + shipping.
+    """
+    if request.method != "POST":
+        return redirect("store:cart")
+
+    # Make a mutable copy of POST
+    post = request.POST.copy()
+
+    # payment_method is required in OrderForm, but we don't choose it on the cart page.
+    # Inject a dummy value just so validation can run:
+    if not post.get("payment_method"):
+        pm_field = OrderForm.base_fields.get("payment_method")
+        if pm_field and pm_field.choices:
+            post["payment_method"] = pm_field.choices[0][0]
+
+    form = OrderForm(post)
+
+    if not form.is_valid():
+        # If something is wrong (missing name, city, etc.), show errors back on the cart page.
+        cart_items, cart_total = cart_items_and_total(request)
+        recommended_products = Product.objects.filter(
+            packaging_options__isnull=False
+        ).prefetch_related('packaging_options').distinct().order_by('?')[:6]
+
+        return render(request, "store/cart.html", {
+            "cart_items": cart_items,
+            "cart_total": cart_total,
+            "recommended_products": recommended_products,
+            "form": form,
+        })
+
+    # Save only cleaned data; wipe the dummy payment method for now
+    data = form.cleaned_data
+    data["payment_method"] = ""
+    request.session["order_form_data"] = data
+
+    return redirect("store:order_info")
+
+
 def order_info(request):
     """
     /order/:
