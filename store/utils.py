@@ -27,46 +27,159 @@ COD_VALUES = {
 
 def econt_shipping_preview_for_cart(*, items, cart_total, city, post_code, payment_method) -> Decimal:
     """
-    Preview delivery price for the current cart WITHOUT creating an Order.
+    Preview shipping price for the current cart WITHOUT creating a shipment.
 
-    - Reuses econt_calculate_price (no duplicate HTTP logic).
-    - `items` is the list from cart_items_and_total(request).
-    - `cart_total` is the Decimal total from the same helper.
+    Uses the same LabelService.createLabel.json endpoint as real labels,
+    but with mode="calculate".
     """
-    # Decide if this is COD, reusing the same logic you already use elsewhere
+    from decimal import Decimal
+
+    # If we don’t have address or cart – nothing to calculate
+    if not items or not city or not post_code:
+        return Decimal("0.00")
+
+    # 1) Calculate total shipment weight in kg from the cart
+    total_weight = Decimal("0.0")
+    for row in items:
+        qty = Decimal(str(row.get("quantity", 0) or 0))
+
+        w = Decimal("0.0")
+        pack = row.get("packaging")
+        if pack is not None and getattr(pack, "weight", None) is not None:
+            w = Decimal(str(pack.weight))
+        elif "weight_kg" in row:
+            w = Decimal(str(row["weight_kg"]))
+        elif "weight" in row:
+            w = Decimal(str(row["weight"]))
+
+        total_weight += w * qty
+
+    # Don’t send zero weight
+    if total_weight <= 0:
+        total_weight = Decimal("1.0")
+
+    # 2) COD or not?
     pm = (payment_method or "").strip().lower()
     is_cod = pm in COD_VALUES
 
-    # Total weight in kg – based on the same structure you use in order_info()
-    total_weight = Decimal("0.0")
-    for row in items:
-        qty = Decimal(str(row.get("quantity", 0)))
+    # 3) Sender data from settings (same as build_econt_label_payload)
+    sender_name = getattr(settings, "ECONT_SENDER_NAME", "Сакарела")
+    sender_phone = getattr(settings, "ECONT_SENDER_PHONE", "+359878630943")
+    sender_city_name = getattr(settings, "ECONT_SENDER_CITY", "Ямбол")
+    sender_city_postcode = getattr(settings, "ECONT_SENDER_POSTCODE", "8600")
+    sender_street = getattr(settings, "ECONT_SENDER_STREET", "")
+    sender_street_no = getattr(settings, "ECONT_SENDER_STREET_NO", "")
 
-        unit_weight_kg = Decimal("0.0")
-        if row.get("weight_kg") is not None:
-            unit_weight_kg = Decimal(str(row["weight_kg"]))
-        elif "packaging" in row and getattr(row["packaging"], "weight", None) is not None:
-            unit_weight_kg = Decimal(str(row["packaging"].weight))
-        elif row.get("weight") is not None:
-            unit_weight_kg = Decimal(str(row["weight"]))
+    shipment_type = "cargo" if total_weight > Decimal("50") else "pack"
 
-        total_weight += unit_weight_kg * qty
+    # 4) Build the same LABEL structure, but for a cart preview
+    label = {
+        "shipmentType": shipment_type,
+        "service": "toDoor",
+        "packCount": 1,
+        "weight": float(total_weight),
+        "shipmentDescription": "Cart preview",
+        "payer": "RECEIVER" if is_cod else "SENDER",
+        "label": {"format": "10x9"},
+        "holidayDeliveryDay": "workday",
 
-    if not city or not post_code:
-        # Not enough data to ask Econt – just return 0 instead of crashing
-        return Decimal("0.00")
+        "senderClient": {
+            "name": sender_name,
+            "phones": [sender_phone],
+        },
+        "senderAgent": {
+            "name": sender_name,
+            "phones": [sender_phone],
+        },
+        "senderAddress": {
+            "city": {
+                "country": {"code3": "BGR"},
+                "name": sender_city_name,
+                "postCode": sender_city_postcode,
+            },
+            "street": f"{sender_street} {sender_street_no}".strip(),
+        },
+
+        # For preview the receiver name/phone doesn’t matter,
+        # only city + postcode influence the price.
+        "receiverClient": {},
+        "receiverAddress": {
+            "city": {
+                "country": {"code3": "BGR"},
+                "name": city,
+                "postCode": post_code,
+            },
+            "street": "",
+        },
+
+        "services": {
+            "declaredValueAmount": float(cart_total),
+            "declaredValueCurrency": "BGN",
+        },
+    }
+
+    if is_cod:
+        label["services"]["cdAmount"] = float(cart_total)
+        label["services"]["cdCurrency"] = "BGN"
+
+    payload = {
+        "mode": "calculate",  # ← THIS is the important part
+        "label": label,
+    }
+
+    # Use the SAME endpoint as for real labels (demo/prod controlled via settings)
+    url = getattr(
+        settings,
+        "ECONT_CREATE_LABEL_URL",
+        "https://ee.econt.com/services/Shipments/LabelService.createLabel.json",
+    )
+
+    econtlog.info(
+        "ECONT PREVIEW ▶ POST %s | payload=%s",
+        url, _json.dumps(payload, ensure_ascii=False)
+    )
 
     try:
-        price = econt_calculate_price(
-            weight_kg=float(total_weight),
-            receiver_city=city,
-            receiver_postcode=post_code,
-            total_bgn=float(cart_total),
-            is_cod=is_cod,
+        resp = requests.post(
+            url,
+            json=payload,
+            auth=HTTPBasicAuth(settings.ECONT_USER, settings.ECONT_PASS),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            timeout=30,
         )
-        return Decimal(str(price)).quantize(Decimal("0.01"))
+
+        econtlog.info(
+            "ECONT PREVIEW ◀ %s | status=%s text=%s",
+            url, resp.status_code, (resp.text or "")[:4000]
+        )
+
+        resp.raise_for_status()
+        data = resp.json()
+
+        # Response looks like the normal createLabel response, but without real shipment
+        label_obj = data.get("label") or data.get("labels") or {}
+        if isinstance(label_obj, list) and label_obj:
+            label_obj = label_obj[0]
+
+        total_price_obj = label_obj.get("totalPrice") or {}
+        amount = None
+
+        if isinstance(total_price_obj, dict):
+            amount = total_price_obj.get("amount")
+        elif isinstance(total_price_obj, (int, float, str)):
+            try:
+                amount = float(total_price_obj)
+            except (TypeError, ValueError):
+                amount = None
+
+        if amount is None:
+            raise Exception(f"Econt did not return totalPrice.amount: {data}")
+
+        return Decimal(str(amount)).quantize(Decimal("0.01"))
+
     except Exception as exc:
         econtlog.error("Econt preview price failed: %s", exc)
+        # On any error: don’t break checkout, just show 0.00
         return Decimal("0.00")
 
 
