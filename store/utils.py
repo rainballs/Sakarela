@@ -79,7 +79,7 @@ def econt_shipping_preview_for_cart(*, items, cart_total, city, post_code, payme
         "packCount": 1,
         "weight": float(total_weight),
         "shipmentDescription": "Cart preview",
-        "payer": "RECEIVER" if is_cod else "SENDER",
+        "payer": "SENDER",  # <- default, same as build_econt_label_payload
         "label": {"format": "10x9"},
         "holidayDeliveryDay": "workday",
 
@@ -100,8 +100,6 @@ def econt_shipping_preview_for_cart(*, items, cart_total, city, post_code, payme
             "street": f"{sender_street} {sender_street_no}".strip(),
         },
 
-        # For preview the receiver name/phone doesn’t matter,
-        # only city + postcode influence the price.
         "receiverClient": {},
         "receiverAddress": {
             "city": {
@@ -111,16 +109,23 @@ def econt_shipping_preview_for_cart(*, items, cart_total, city, post_code, payme
             },
             "street": "",
         },
+    }
 
-        "services": {
-            "declaredValueAmount": float(cart_total),
-            "declaredValueCurrency": "BGN",
-        },
+    services = {
+        "declaredValueAmount": float(cart_total),
+        "declaredValueCurrency": "BGN",
     }
 
     if is_cod:
-        label["services"]["cdAmount"] = float(cart_total)
-        label["services"]["cdCurrency"] = "BGN"
+        # EXACTLY like build_econt_label_payload
+        services["cdAmount"] = float(cart_total)
+        services["cdCurrency"] = "BGN"
+
+        label["payer"] = "RECEIVER"
+        label["paymentReceiverMethod"] = "CASH"
+        label["paymentReceiverAmount"] = float(cart_total)
+
+    label["services"] = services
 
     payload = {
         "mode": "calculate",  # ← THIS is the important part
