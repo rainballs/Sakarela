@@ -77,10 +77,8 @@
                             {% for item in cart_items %}
                                 <tr>
                                     <td class="product-name">{{ item.product.name }}</td>
-                                    <td class="product-quantity">{{ item.packaging.weight|floatformat:2 }}</td>
-                                    <td class="product-weight">
-                                        {{ item.product.weight|floatformat:2 }} кг
-                                    </td>
+                                    <td class="product-weight">{{ item.line_weight_kg|floatformat:2 }} кг</td>
+                                    <td class="product-quantity">{{ item.quantity }}</td>
                                     <td class="product-price">{{ item.price|floatformat:2 }} лв.</td>
                                 </tr>
                             {% endfor %}
