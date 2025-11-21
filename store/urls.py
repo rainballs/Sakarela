@@ -19,6 +19,7 @@ urlpatterns = [
     path('payment/initiate/<int:order_id>/', views.mypos_payment, name='mypos_payment'),
     path('payment/callback/', views.payment_callback, name='payment_callback'),
     path('payment/result/', views.payment_result, name='payment_result'),
+    path("payment/cancel/", views.payment_cancel, name="payment_cancel"),
 
     path('order/start/', views.order_start, name='order_start'),
     path('order/', views.order_info, name='order_info'),

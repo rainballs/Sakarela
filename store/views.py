@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
 from django.contrib import messages
 from django.db.models import Prefetch
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, get_object_or_404
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -21,7 +21,7 @@ from .cart_utils import cart_items_and_total, get_session_cart, set_session_cart
 from django.db import transaction
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.template import TemplateDoesNotExist
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 import json
 
 from zeep import Client
@@ -780,31 +780,31 @@ def mypos_payment(request, order_id):
             order.save(update_fields=["transaction_id"])
 
         # 3) Build return/callback URLs
-        result_url = request.build_absolute_uri(reverse('store:payment_result'))
-        callback_url = request.build_absolute_uri(reverse('store:payment_callback'))
+        ok_url = request.build_absolute_uri(reverse('store:payment_result'))
+        cancel_url = request.build_absolute_uri(reverse('store:payment_cancel'))
+        notify_url = request.build_absolute_uri(reverse('store:payment_callback'))
 
-        # Always include OrderID in the browser redirect URL
-        result_url_with_id = f"{result_url}?OrderID={order.transaction_id}"
+        ok_url_with_id = f"{ok_url}?OrderID={order.transaction_id}"
+        cancel_url_with_id = f"{cancel_url}?OrderID={order.transaction_id}"
 
-        # Remember as a fallback in case gateway omits it
         request.session['last_txn'] = order.transaction_id
 
         # 4) Build params in insertion order (exactly as posted)
         params = OrderedDict([
             ("IPCmethod", "IPCPurchase"),
             ("IPCVersion", "1.4"),
-            ("IPCLanguage", DEFAULT_LANGUAGE),  # "EN"
+            ("IPCLanguage", DEFAULT_LANGUAGE),
             ("SID", settings.MYPOS_SID),
             ("walletnumber", settings.MYPOS_WALLET),
             ("Amount", f"{gross_amount:.2f}"),
-            ("Currency", DEFAULT_CURRENCY),  # "BGN"
+            ("Currency", DEFAULT_CURRENCY),
             ("OrderID", order.transaction_id),
-            ("URL_OK", result_url_with_id),
-            ("URL_Cancel", result_url_with_id),
-            ("URL_Notify", callback_url),
-            ("CardTokenRequest", DEFAULT_CARD_TOKEN_REQUEST),  # "0"
+            ("URL_OK", ok_url_with_id),
+            ("URL_Cancel", cancel_url_with_id),
+            ("URL_Notify", notify_url),
+            ("CardTokenRequest", DEFAULT_CARD_TOKEN_REQUEST),
             ("KeyIndex", str(settings.MYPOS_KEYINDEX)),
-            ("PaymentParametersRequired", DEFAULT_PAYMENT_PARAMS_REQUIRED),  # "1"
+            ("PaymentParametersRequired", DEFAULT_PAYMENT_PARAMS_REQUIRED),
             ("customeremail", order.email or ""),
             ("customerfirstnames", order.full_name or ""),
             ("customerfamilyname", order.last_name or ""),
@@ -1116,6 +1116,36 @@ FAIL_VALUES = {"failed", "failure", "declined", "denied", "error"}
 FAIL_CODES = {"05", "51", "54", "57", "62", "65"}  # Do not honor, insufficient funds, expired, etc.
 
 
+@require_http_methods(["GET", "POST"])
+def payment_cancel(request):
+    """
+    Browser lands here when the customer cancels on myPOS page
+    (URL_Cancel / IPCPurchaseCancel).
+    """
+    txn_id = (
+            request.GET.get("OrderID")
+            or request.POST.get("OrderID")
+            or request.session.get("last_txn")
+    )
+    if not txn_id:
+        return HttpResponseBadRequest("Missing OrderID")
+
+    order = get_object_or_404(Order, transaction_id=txn_id)
+
+    # Optional: mark as cancelled in DB
+    if hasattr(Order, "status"):
+        order.status = "CANCELLED"
+        order.save(update_fields=["status"])
+
+    ctx = {
+        "cancelled": True,
+        "order_id": order.transaction_id,
+        "order_pk": order.pk,
+        "debug": settings.DEBUG,
+    }
+    return render(request, "store/payment_result.html", ctx)
+
+
 @csrf_exempt
 def payment_result(request):
     """
@@ -1129,6 +1159,8 @@ def payment_result(request):
     """
     # 1) Accept both GET and POST
     data = request.GET or request.POST
+    flow = (data.get("flow") or data.get("FLOW") or "").strip().lower()
+    is_cancel_flow = (flow == "cancel")
 
     # 2) Debug dump
     if getattr(settings, "DEBUG", False):
@@ -1167,6 +1199,12 @@ def payment_result(request):
     order_pk = order.pk if order else None
     paid_by_server = bool(order and getattr(order, "payment_status", "") == "paid")
 
+    # if cancel flow & we have an order, you can persist a status
+    if is_cancel_flow and order and getattr(order, "payment_status", "") != "paid":
+        if hasattr(order, "payment_status"):
+            order.payment_status = "cancelled"
+            order.save(update_fields=["payment_status"])
+
     # 5) Decide flags
     if paid_by_server:
         success = True
@@ -1181,10 +1219,10 @@ def payment_result(request):
         is_cancel = (status_lc in CANCEL_VALUES)
         is_fail = (status_lc in FAIL_VALUES) or (resp_code in FAIL_CODES)
 
-        if is_cancel:
-            success = False;
-            pending = False;
-            cancelled = True;
+        if is_cancel or is_cancel_flow:
+            success = False
+            pending = False
+            cancelled = True
             failed = False
         elif is_fail:
             success = False;
