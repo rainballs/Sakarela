@@ -96,7 +96,10 @@ class OrderForm(forms.ModelForm):
 
     payment_method = forms.ChoiceField(
         label="Начин на плащане",
-        choices=Order.PAYMENT_CHOICES,
+        choices=[
+            ('cash', 'Наложен платеж*'),  # <- добавяме звездичката само тук
+            ('card', 'Карта (онлайн)'),
+        ],
         widget=forms.RadioSelect(attrs={
             'class': 'payment-method-radio'
         }),
