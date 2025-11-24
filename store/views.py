@@ -21,7 +21,7 @@ from .cart_utils import cart_items_and_total, get_session_cart, set_session_cart
 from django.db import transaction
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.template import TemplateDoesNotExist
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 import json
 
 from zeep import Client
@@ -439,6 +439,59 @@ def order_start(request):
     request.session["order_form_data"] = data
 
     return redirect("store:order_info")
+
+
+
+@require_POST
+def order_info_recalc(request):
+    """
+    AJAX endpoint used on the order_info (preview) page.
+
+    Recalculates Econt shipping + grand total when the user switches
+    payment method, *before* the Order is created.
+    """
+    if cart_is_empty(request):
+        return JsonResponse({"error": "empty_cart"}, status=400)
+
+    payment_method = (request.POST.get("payment_method") or "").strip()
+    if not payment_method:
+        return HttpResponseBadRequest("Missing payment_method")
+
+    # Load the same address data we used in order_info GET preview:
+    initial_data = request.session.get("order_form_data") or {}
+    city = initial_data.get("city") or ""
+    post_code = initial_data.get("post_code") or ""
+
+    # Cart items + subtotal:
+    items, cart_total = cart_items_and_total(request)
+
+    try:
+        shipping_cost = econt_shipping_preview_for_cart(
+            items=items,
+            cart_total=cart_total,
+            city=city,
+            post_code=post_code,
+            payment_method=payment_method,
+        )
+    except Exception as exc:
+        econtlog.error(
+            "AJAX preview: failed to calculate Econt shipping: %s", exc
+        )
+        return JsonResponse({"error": "econt_failed"}, status=502)
+
+    if shipping_cost is None:
+        shipping_cost = Decimal("0.00")
+
+    grand_total = (cart_total + shipping_cost).quantize(Decimal("0.01"))
+
+    # Optionally keep payment_method in session so a refresh keeps it:
+    initial_data["payment_method"] = payment_method
+    request.session["order_form_data"] = initial_data
+
+    return JsonResponse({
+        "shipping": float(shipping_cost),
+        "grand_total": float(grand_total),
+    })
 
 
 def order_info(request):

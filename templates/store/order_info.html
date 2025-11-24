@@ -239,12 +239,16 @@
 
                         <div class="order-summary-row">
                             <span>Доставка:</span>
-                            <span>{{ shipping_cost|default:"0.00"|floatformat:2 }} лв.</span>
+                            <span id="summary-shipping">
+        {{ shipping_cost|default:"0.00"|floatformat:2 }} лв.
+    </span>
                         </div>
 
                         <div class="order-summary-row summary-total">
                             <span>Общо:</span>
-                            <span>{{ grand_total|default:cart_total|floatformat:2 }} лв.</span>
+                            <span id="summary-total">
+        {{ grand_total|default:cart_total|floatformat:2 }} лв.
+    </span>
                         </div>
                         <p class="hint">
                             При избор на „Наложен платеж“ Еконт начислява допълнителна такса
@@ -450,5 +454,71 @@
                 }
             });
         })();
+    </script>
+
+    <script>
+        // CSRF helper (same idea as in cart.html)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const radios = document.querySelectorAll('input[name="payment_method"]');
+            if (!radios.length) return;
+
+            const shippingEl = document.getElementById("summary-shipping");
+            const totalEl = document.getElementById("summary-total");
+            const csrftoken = getCookie('csrftoken');
+
+            function recalcTotals(method) {
+                fetch("{% url 'store:order_info_recalc' %}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrftoken,
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                    },
+                    body: new URLSearchParams({payment_method: method}),
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("HTTP " + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) {
+                            console.warn("Econt preview error:", data.error);
+                            return;
+                        }
+                        const shipping = Number(data.shipping || 0).toFixed(2) + " лв.";
+                        const total = Number(data.grand_total || 0).toFixed(2) + " лв.";
+
+                        shippingEl.textContent = shipping;
+                        totalEl.textContent = total;
+                    })
+                    .catch(err => {
+                        console.error("order_info_recalc failed:", err);
+                    });
+            }
+
+            radios.forEach(radio => {
+                radio.addEventListener("change", function () {
+                    if (this.checked) {
+                        recalcTotals(this.value);
+                    }
+                });
+            });
+        });
     </script>
 {% endblock %}
