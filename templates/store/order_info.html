@@ -227,6 +227,9 @@
                         {% if form.payment_method.errors %}
                             <div class="error-message">{{ form.payment_method.errors.0 }}</div>
                         {% endif %}
+                        <p class="hint">
+                            *Еконт начислява такса наложен платеж на база стойността на поръчката.</strong>.
+                        </p>
                     </div>
                 </div>
                 <div class="form-section">
@@ -250,10 +253,6 @@
         {{ grand_total|default:cart_total|floatformat:2 }} лв.
     </span>
                         </div>
-                        <p class="hint">
-                            При избор на „Наложен платеж“ Еконт начислява допълнителна такса
-                            около <strong>2.25% от стойността на поръчката</strong>.
-                        </p>
                     </div>
                 </div>
                 <button type="submit" class="btn-submit">ЗАВЪРШИ ПОРЪЧКАТА</button>
