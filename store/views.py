@@ -441,7 +441,6 @@ def order_start(request):
     return redirect("store:order_info")
 
 
-
 @require_POST
 def order_info_recalc(request):
     """
@@ -805,26 +804,26 @@ def mypos_payment(request, order_id):
     """Handle myPOS payment initiation with proper signature generation"""
     order = get_object_or_404(Order, id=order_id)
 
-    # 1) Ensure Econt label & shipping_cost are present first
+    # 1) Ensure shipping_cost is present (but DO NOT create an Econt label here)
     try:
-        ensure_econt_label_json(order)
-        # keep our instance in sync if ensure_econt_label_json saved changes
-        order.refresh_from_db(fields=["total", "shipping_cost"])
+        if order.shipping_cost is None:
+            shipping = get_econt_delivery_price_for_order(order)
+            if shipping is not None:
+                order.shipping_cost = shipping
+                order.save(update_fields=["shipping_cost"])
     except Exception as e:
         # Do NOT block payment if Econt is down; just log and proceed.
-        logger.error("Econt upfront label failed for order %s: %s", order.id, e)
+        logger.error("Econt shipping preview failed for order %s: %s", order.id, e)
 
     # 💰 Products + shipping (for card payments)
     total = order.total or Decimal("0.00")
     shipping = order.shipping_cost or Decimal("0.00")
     gross_amount = (total + shipping).quantize(Decimal("0.01"))
 
-    # 1) Create Econt label UPFRONT for card payments (safe to call repeatedly)
-    try:
-        ensure_econt_label_json(order)
-    except Exception as e:
-        # Do NOT block payment if Econt is down; just log and proceed.
-        logger.error("Econt upfront label failed for order %s: %s", order.id, e)
+    # OPTIONAL: reset status to pending if not already paid, in case of re-try
+    if getattr(order, "payment_status", "") != "paid":
+        order.payment_status = "pending"
+        order.save(update_fields=["payment_status"])
 
     try:
         # 2) Ensure we have a myPOS-safe OrderID (<=30 chars, no dashes)
@@ -871,7 +870,6 @@ def mypos_payment(request, order_id):
 
         # 5) Line items (BEFORE signing)
         order_items = order.order_items.select_related('product').all()
-
         has_shipping = shipping > 0
 
         params["CartItems"] = str(order_items.count() + (1 if has_shipping else 0))
@@ -899,7 +897,7 @@ def mypos_payment(request, order_id):
             pk_bytes = fh.read()
         params["Signature"] = sign_params_in_post_order(params, pk_bytes)
 
-        # 7) (Optional) precise debug/audit logging
+        # 7) Debug/audit logging
         paylog = logging.getLogger("payments")
         sum_items = sum(float(i.quantity) * float(i.price) for i in order_items)
         if has_shipping:
