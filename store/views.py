@@ -22,6 +22,7 @@ from django.db import transaction
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.template import TemplateDoesNotExist
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.utils import timezone
 import json
 
 from zeep import Client
@@ -88,9 +89,11 @@ def generate_mypos_order_id(order_pk: int) -> str:
     return f"O{order_pk:06d}{uuid.uuid4().hex[:16]}".upper()[:30]
 
 
-SUCCESS_VALUES = {"success", "ok", "approved", "appoved", "accepted"}  # include common typos
+SUCCESS_VALUES = {"success", "ok", "approved", "appoved", "accepted", "successful"}  # include common typos
 CANCEL_VALUES = {"cancel", "cancelled", "canceled", "usercancel", "user_cancel"}
-SUCCESS_CODES = {"00", "0"}  # typical “approved” ISO codes
+SUCCESS_CODES = {"000", "00", "0"}  # typical “approved” ISO codes
+FAIL_VALUES = {"failed", "error", "declined", "refused"}
+FAIL_CODES = {"100", "101", "200"}  # placeholders – adjust after logging
 
 
 def _extract_status_blob(data):
@@ -957,51 +960,102 @@ def mypos_payment(request, order_id):
 @csrf_exempt
 def payment_callback(request):
     """
-    Server→server notification from myPOS.
-    Marks order paid/failed based on common status/code variants.
+    myPOS server→server notification (URL_Notify).
+
+    - Only set payment_status='paid' on clear success.
+    - Mark 'cancelled' / 'failed' separately.
+    - Never downgrade an already-paid order.
+    - After a successful CARD payment, create an Econt label.
     """
-    data = request.POST or request.GET  # some gateways GET this
+    data = request.POST or request.GET
     paylog = logging.getLogger("payments")
 
-    # 🔍 1) Log raw payload
+    # 1) Log raw payload (helps you see the real Status / ResponseCode)
     try:
         paylog.info("myPOS CALLBACK POST=%s", getattr(request.POST, "dict", lambda: {})())
         paylog.info("myPOS CALLBACK GET =%s", getattr(request.GET, "dict", lambda: {})())
     except Exception:
         pass
-    status_lc, resp_code, reason = _extract_status_blob(data)
+
+    # 2) Extract fields case-insensitively
+    raw_status = (
+            data.get("Status") or data.get("status") or data.get("STATUS") or ""
+    ).strip()
+    status_lc = raw_status.lower()
+
+    resp_code = (
+            data.get("ResponseCode") or data.get("responsecode") or
+            data.get("ResultCode") or data.get("resultcode") or
+            data.get("RespCode") or data.get("respcode") or ""
+    )
+    resp_code = str(resp_code).strip()
+
+    reason = str(
+        data.get("error") or data.get("Reason") or
+        data.get("Message") or data.get("reason") or ""
+    )
 
     order_id = (
             data.get("OrderID") or data.get("orderid") or data.get("order_id") or ""
-    )
-    order_id = (order_id or "").strip()
-
-    is_success = (
-            (status_lc in SUCCESS_VALUES) or
-            (resp_code in SUCCESS_CODES)
-    )
+    ).strip()
 
     paylog.info(
-        "myPOS CALLBACK normalized: OrderID=%s status_lc=%r resp_code=%r is_success=%s reason=%r",
-        order_id, status_lc, resp_code, is_success, reason
+        "myPOS CALLBACK normalized: OrderID=%s status_lc=%r resp_code=%r reason=%r",
+        order_id, status_lc, resp_code, reason
     )
 
+    # 3) Interpret outcome
+    is_success = (status_lc in SUCCESS_VALUES) or (resp_code in SUCCESS_CODES)
+    is_cancel = (status_lc in CANCEL_VALUES)
+    is_fail = (status_lc in FAIL_VALUES) or (resp_code in FAIL_CODES)
+
+    # 4) Find the order
     try:
         order = Order.objects.get(transaction_id=order_id)
     except Order.DoesNotExist:
         paylog.error("myPOS CALLBACK: no Order with transaction_id=%r", order_id)
         return HttpResponse("NO_ORDER", status=200)
 
-        # 3) Update DB
-    order.payment_status = "paid" if is_success else "failed"
-    order.save(update_fields=["payment_status"])
+    prev_status = (order.payment_status or "pending").lower()
+    new_status = prev_status
 
-    paylog.info(
-        "myPOS CALLBACK: set order %s payment_status=%s",
-        order.pk, order.payment_status
-    )
+    # 5) Decide new status; never downgrade PAID
+    if is_success:
+        if prev_status != "paid":
+            new_status = "paid"
+    elif is_cancel:
+        if prev_status not in ("paid", "cancelled"):
+            new_status = "cancelled"
+    elif is_fail:
+        if prev_status not in ("paid", "failed"):
+            new_status = "failed"
+    else:
+        # Unknown / empty status -> keep as is, just log
+        if prev_status == "pending":
+            paylog.warning(
+                "myPOS CALLBACK: unknown status for order %s: raw_status=%r resp_code=%r",
+                order.pk, raw_status, resp_code
+            )
 
-    # 4) (optional) create Econt label for card payments
+    if new_status != prev_status:
+        order.payment_status = new_status
+        # If you have BooleanField/DateTime for paid, update here:
+        if new_status == "paid":
+            if hasattr(order, "paid"):
+                order.paid = True
+            if hasattr(order, "paid_at"):
+                order.paid_at = timezone.now()
+            fields = ["payment_status"] + [f for f in ["paid", "paid_at"] if hasattr(order, f)]
+        else:
+            fields = ["payment_status"]
+
+        order.save(update_fields=fields)
+        paylog.info(
+            "myPOS CALLBACK: order %s payment_status changed %s -> %s",
+            order.pk, prev_status, new_status
+        )
+
+    # 6) After successful CARD payment – create Econt label
     try:
         pm = (str(order.payment_method) or "").strip().lower()
         COD_VALUES = {
@@ -1010,7 +1064,7 @@ def payment_callback(request):
         }
         is_cod = pm in COD_VALUES
 
-        if order.payment_status == "paid" and not is_cod and not order.econt_shipment_num:
+        if new_status == "paid" and not is_cod and not getattr(order, "econt_shipment_num", None):
             ensure_econt_label_json(order)
     except Exception as e:
         paylog.error(
