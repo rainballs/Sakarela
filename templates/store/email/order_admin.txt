@@ -6,9 +6,9 @@
 Град: {{ order.city }}, {{ order.post_code }}
 Адрес: {{ order.address1 }}{% if order.address2 %}, {{ order.address2 }}{% endif %}
 
-Сума продукти: {{ order.total }} лв.
-Доставка (Еконт): {{ order.shipping_cost|default_if_none:"0.00" }} лв.
-Крайна сума: {{ order.total|add:order.shipping_cost|default:order.total }} лв.
+Сума продукти: {{ items_total|floatformat:2 }} лв.
+Доставка (Еконт): {{ shipping|floatformat:2 }} лв.
+Крайна сума: {{ final_total|floatformat:2 }} лв.
 
 {% if tracking_url %}
 Еконт пратка: {{ order.econt_shipment_num }}

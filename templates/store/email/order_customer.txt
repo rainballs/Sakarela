@@ -2,9 +2,9 @@
 
 Поръчка № {{ order.id }}
 
-Обща стойност на продуктите: {{ order.total }} лв.
-Доставка (Еконт): {{ order.shipping_cost|default_if_none:"0.00" }} лв.
-Крайна сума: {{ order.total|add:order.shipping_cost|default:order.total }} лв.
+Обща стойност на продуктите: {{ items_total|floatformat:2 }} лв.
+Доставка (Еконт): {{ shipping|floatformat:2 }} лв.
+Крайна сума: {{ final_total|floatformat:2 }} лв.
 
 {% if tracking_url %}
 Проследете пратката в Еконт:
