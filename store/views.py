@@ -817,27 +817,25 @@ def sign_params_in_post_order(ordered_params: "OrderedDict[str, str]", private_k
 def mypos_payment(request, order_id):
     """Handle myPOS payment initiation with proper signature generation"""
     order = get_object_or_404(Order, id=order_id)
-    paylog = logging.getLogger("payments")
 
-    # 1) Ensure shipping_cost is present (do NOT create Econt label here)
-    try:
-        if not order.shipping_cost or order.shipping_cost <= 0:
+    # 1) Use shipping_cost already stored on the order.
+    #    Only if it's None, try to calculate once more (and never crash).
+    shipping = order.shipping_cost
+    if shipping is None:
+        try:
             shipping = get_econt_delivery_price_for_order(order)
-            if shipping is not None:
-                order.shipping_cost = shipping
-                order.save(update_fields=["shipping_cost"])
-        else:
-            shipping = order.shipping_cost
-    except Exception as e:
-        shipping = Decimal("0.00")
-        logger.error("Econt shipping calculation failed for order %s: %s", order.id, e)
+            order.shipping_cost = shipping
+            order.save(update_fields=["shipping_cost"])
+        except Exception as e:
+            logger.error("Econt delivery price failed for order %s: %s", order.id, e)
+            shipping = Decimal("0.00")
 
-    # Products + shipping (for card payments)
+    # 💰 Products + shipping (for card payments)
     total = order.total or Decimal("0.00")
     shipping = shipping or Decimal("0.00")
     gross_amount = (total + shipping).quantize(Decimal("0.01"))
 
-    # Optional: reset status to pending if not already paid, in case of re-try
+    # OPTIONAL: reset status to pending if not already paid, in case of re-try
     if getattr(order, "payment_status", "") != "paid":
         order.payment_status = "pending"
         order.save(update_fields=["payment_status"])
@@ -848,7 +846,7 @@ def mypos_payment(request, order_id):
             order.transaction_id = generate_mypos_order_id(order.pk)
             order.save(update_fields=["transaction_id"])
 
-        # 3) Build URLs
+        # 3) Build return/callback URLs
         ok_url = request.build_absolute_uri(reverse('store:payment_result'))
         cancel_url = request.build_absolute_uri(reverse('store:payment_cancel'))
         notify_url = request.build_absolute_uri(reverse('store:payment_callback'))
@@ -858,7 +856,7 @@ def mypos_payment(request, order_id):
 
         request.session['last_txn'] = order.transaction_id
 
-        # 4) Build params
+        # 4) Build params in insertion order (exactly as posted)
         params = OrderedDict([
             ("IPCmethod", "IPCPurchase"),
             ("IPCVersion", "1.4"),
@@ -892,14 +890,14 @@ def mypos_payment(request, order_id):
         params["CartItems"] = str(order_items.count() + (1 if has_shipping else 0))
 
         for idx, item in enumerate(order_items, start=1):
-            price = float(item.price)
+            price = float(item.price)  # captured OrderItem price
             params[f'Article_{idx}'] = (item.product.name or "")[:100]
             params[f'Quantity_{idx}'] = str(int(item.quantity))
             params[f'Price_{idx}'] = f"{price:.2f}"
             params[f'Currency_{idx}'] = DEFAULT_CURRENCY
             params[f'Amount_{idx}'] = f"{item.quantity * price:.2f}"
 
-        # 5b) shipping line
+        # 5b) Extra cart line: shipping
         if has_shipping:
             idx = order_items.count() + 1
             shipping_float = float(shipping)
@@ -909,12 +907,13 @@ def mypos_payment(request, order_id):
             params[f'Currency_{idx}'] = DEFAULT_CURRENCY
             params[f'Amount_{idx}'] = f"{shipping_float:.2f}"
 
-        # 6) Sign
+        # 6) Sign (exclude Signature from the string to sign)
         with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as fh:
             pk_bytes = fh.read()
         params["Signature"] = sign_params_in_post_order(params, pk_bytes)
 
-        # 7) Debug
+        # 7) Debug/audit logging
+        paylog = logging.getLogger("payments")
         sum_items = sum(float(i.quantity) * float(i.price) for i in order_items)
         if has_shipping:
             sum_items += float(shipping)
@@ -1262,22 +1261,23 @@ def payment_cancel(request):
     return render(request, "store/payment_result.html", ctx)
 
 
-@csrf_exempt  # safe, only reads; avoids any weird CSRF when myPOS POSTs back
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def payment_result(request):
     """
-    Browser lands here (URL_OK / URL_Cancel).
+    Browser lands here from myPOS (URL_OK / URL_Cancel).
 
     Logic:
-      • DB is still source of truth, BUT
-      • if gateway clearly says success and DB is not yet paid,
-        we ALSO mark it paid here (fallback for when URL_Notify fails).
+      - DB is source of truth, but if DB is still pending and myPOS sends
+        a clear success signal (Status/ResponseCode) we mark the order as paid here.
+      - CANCEL -> cancelled
+      - explicit failure -> failed
+      - missing/unknown status -> pending
     """
     data = request.GET or request.POST
     flow = (data.get("flow") or data.get("FLOW") or "").strip().lower()
     is_cancel_flow = (flow == "cancel")
 
-    # Debug dump
     if getattr(settings, "DEBUG", False):
         try:
             import json as _json
@@ -1302,40 +1302,63 @@ def payment_result(request):
         txn_id = (request.session.get("last_txn") or "").strip()
 
     error_msg = str(
-        data.get("error") or data.get("Reason") or data.get("Message") or data.get("reason") or ""
+        data.get("error") or data.get("Reason") or
+        data.get("Message") or data.get("reason") or ""
     )
 
     order = Order.objects.filter(transaction_id=txn_id).first()
     order_pk = order.pk if order else None
-    paid_by_server = bool(order and getattr(order, "payment_status", "") == "paid")
+    prev_status = (order.payment_status if order and order.payment_status else "pending").lower()
+    paid_by_server = (prev_status == "paid")
 
-    # Possibly persist cancellation
-    if is_cancel_flow and order and not paid_by_server:
-        if hasattr(order, "payment_status"):
-            order.payment_status = "cancelled"
-            order.save(update_fields=["payment_status"])
-
-    # Interpret gateway status
-    has_status = bool(raw_status)
-    has_code = bool(resp_code)
-
+    # --- interpret gateway status/codes ---
     is_success = (status_lc in SUCCESS_VALUES) or (resp_code in SUCCESS_CODES)
-    is_cancel = (status_lc in CANCEL_VALUES) or is_cancel_flow
+    is_cancel = (status_lc in CANCEL_VALUES)
     is_fail = (status_lc in FAIL_VALUES) or (resp_code in FAIL_CODES)
 
-    # ---- Fallback: if gateway clearly says success but DB not yet paid,
-    #      mark as paid here as well. ----
-    if order and is_success and not paid_by_server:
-        _mark_order_paid_and_create_label(order, logger_source="result")
-        paid_by_server = True  # refresh truth
+    # Cancel flow from myPOS (back arrow) -> mark cancelled if not already paid
+    if (is_cancel_flow or is_cancel) and order and not paid_by_server:
+        order.payment_status = "cancelled"
+        order.save(update_fields=["payment_status"])
+        paid_by_server = False
 
+    # --- If gateway says SUCCESS and our DB is still not paid, mark it paid now ---
+    if order and not paid_by_server and is_success and not is_cancel and not is_fail:
+        order.payment_status = "paid"
+        fields = ["payment_status"]
+
+        if hasattr(order, "paid"):
+            order.paid = True
+            fields.append("paid")
+        if hasattr(order, "paid_at"):
+            order.paid_at = timezone.now()
+            fields.append("paid_at")
+
+        order.save(update_fields=fields)
+        paid_by_server = True
+
+        # After successful CARD payment create Econt label once
+        try:
+            pm = (str(order.payment_method) or "").strip().lower()
+            if pm not in COD_VALUES and not getattr(order, "econt_shipment_num", None):
+                ensure_econt_label_json(order)
+        except Exception as e:
+            logging.getLogger("payments").error(
+                "payment_result: failed to create Econt label for order %s: %s",
+                order.pk, e
+            )
+
+    # --- Derive flags for template ---
     if paid_by_server:
         success = True
         pending = False
         cancelled = False
         failed = False
     else:
-        if is_cancel:
+        has_status = bool(raw_status)
+        has_code = bool(resp_code)
+
+        if is_cancel or is_cancel_flow:
             success = False
             pending = False
             cancelled = True
@@ -1345,8 +1368,14 @@ def payment_result(request):
             pending = False
             cancelled = False
             failed = True
-        elif is_success or (not has_status and not has_code):
-            # Success but DB not yet updated OR browser redirect with no data
+        elif is_success:
+            # gateway says success but DB not yet updated (e.g. callback race) -> pending
+            success = False
+            pending = True
+            cancelled = False
+            failed = False
+        elif not has_status and not has_code:
+            # plain browser redirect with no status at all
             success = False
             pending = True
             cancelled = False
@@ -1357,7 +1386,7 @@ def payment_result(request):
             cancelled = False
             failed = True
 
-    # Clear cart only after DB says paid
+    # Clear cart only when DB says paid
     if success:
         set_session_cart(request, {})
 
@@ -1374,7 +1403,7 @@ def payment_result(request):
     }
 
     if getattr(settings, "DEBUG", False):
-        print(f"[payment_result] ctx: order_id={txn_id} DBpaid={paid_by_server} "
+        print(f"[payment_result] ctx: order_id={txn_id} DBstatus={prev_status} "
               f"raw_status='{raw_status}' resp_code='{resp_code}' "
               f"-> success={success}, pending={pending}, cancelled={cancelled}, failed={failed}")
 
