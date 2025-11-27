@@ -43,6 +43,17 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+SUCCESS_VALUES = {
+    "success", "ok", "approved", "paid", "completed",
+    "authorized", "authorised", "processing"
+}
+CANCEL_VALUES = {"cancel", "cancelled", "canceled", "user_cancel", "usercancel"}
+
+# Codes: extend later after inspecting logs
+SUCCESS_CODES = {"0", "00", "000", "200"}
+FAIL_VALUES = {"failed", "failure", "declined", "denied", "error"}
+FAIL_CODES = {"05", "51", "54", "57", "62", "65"}
+
 
 def econt_city_suggestions(request):
     """
@@ -89,11 +100,11 @@ def generate_mypos_order_id(order_pk: int) -> str:
     return f"O{order_pk:06d}{uuid.uuid4().hex[:16]}".upper()[:30]
 
 
-SUCCESS_VALUES = {"success", "ok", "approved", "appoved", "accepted", "successful"}  # include common typos
-CANCEL_VALUES = {"cancel", "cancelled", "canceled", "usercancel", "user_cancel"}
-SUCCESS_CODES = {"000", "00", "0"}  # typical “approved” ISO codes
-FAIL_VALUES = {"failed", "error", "declined", "refused"}
-FAIL_CODES = {"100", "101", "200"}  # placeholders – adjust after logging
+# SUCCESS_VALUES = {"success", "ok", "approved", "appoved", "accepted", "successful"}  # include common typos
+# CANCEL_VALUES = {"cancel", "cancelled", "canceled", "usercancel", "user_cancel"}
+# SUCCESS_CODES = {"000", "00", "0"}  # typical “approved” ISO codes
+# FAIL_VALUES = {"failed", "error", "declined", "refused"}
+# FAIL_CODES = {"100", "101", "200"}  # placeholders – adjust after logging
 
 
 def _extract_status_blob(data):
@@ -970,30 +981,20 @@ def payment_callback(request):
     data = request.POST or request.GET
     paylog = logging.getLogger("payments")
 
-    # 1) Log raw payload (helps you see the real Status / ResponseCode)
+    # 1) Log raw payload (very important for debugging)
     try:
-        paylog.info("myPOS CALLBACK POST=%s", getattr(request.POST, "dict", lambda: {})())
-        paylog.info("myPOS CALLBACK GET =%s", getattr(request.GET, "dict", lambda: {})())
+        paylog.info(
+            "myPOS CALLBACK from %s | method=%s | POST=%s | GET=%s",
+            request.META.get("REMOTE_ADDR"),
+            request.method,
+            getattr(request.POST, "dict", lambda: {})(),
+            getattr(request.GET, "dict", lambda: {})(),
+        )
     except Exception:
         pass
 
-    # 2) Extract fields case-insensitively
-    raw_status = (
-            data.get("Status") or data.get("status") or data.get("STATUS") or ""
-    ).strip()
-    status_lc = raw_status.lower()
-
-    resp_code = (
-            data.get("ResponseCode") or data.get("responsecode") or
-            data.get("ResultCode") or data.get("resultcode") or
-            data.get("RespCode") or data.get("respcode") or ""
-    )
-    resp_code = str(resp_code).strip()
-
-    reason = str(
-        data.get("error") or data.get("Reason") or
-        data.get("Message") or data.get("reason") or ""
-    )
+    # 2) Normalize status/code/reason
+    status_lc, resp_code, reason = _extract_status_blob(data)
 
     order_id = (
             data.get("OrderID") or data.get("orderid") or data.get("order_id") or ""
@@ -1033,21 +1034,22 @@ def payment_callback(request):
         # Unknown / empty status -> keep as is, just log
         if prev_status == "pending":
             paylog.warning(
-                "myPOS CALLBACK: unknown status for order %s: raw_status=%r resp_code=%r",
-                order.pk, raw_status, resp_code
+                "myPOS CALLBACK: unknown status for order %s: status_lc=%r resp_code=%r",
+                order.pk, status_lc, resp_code
             )
 
+    # 6) Persist changes
     if new_status != prev_status:
         order.payment_status = new_status
-        # If you have BooleanField/DateTime for paid, update here:
+        fields = ["payment_status"]
+
         if new_status == "paid":
             if hasattr(order, "paid"):
                 order.paid = True
+                fields.append("paid")
             if hasattr(order, "paid_at"):
                 order.paid_at = timezone.now()
-            fields = ["payment_status"] + [f for f in ["paid", "paid_at"] if hasattr(order, f)]
-        else:
-            fields = ["payment_status"]
+                fields.append("paid_at")
 
         order.save(update_fields=fields)
         paylog.info(
@@ -1055,7 +1057,7 @@ def payment_callback(request):
             order.pk, prev_status, new_status
         )
 
-    # 6) After successful CARD payment – create Econt label
+    # 7) After successful CARD payment – create Econt label if missing
     try:
         pm = (str(order.payment_method) or "").strip().lower()
         COD_VALUES = {
@@ -1211,16 +1213,17 @@ def payment_callback(request):
 
 # --- add these constants once (top of file is fine) ---
 
-# --- Status dictionaries ---
-SUCCESS_VALUES = {"success", "ok", "approved", "paid", "completed", "authorized", "authorised"}
-CANCEL_VALUES = {"cancel", "cancelled", "canceled", "user_cancel", "usercancel"}
+# # --- Status dictionaries ---
+# SUCCESS_VALUES = {"success", "ok", "approved", "paid", "completed", "authorized", "authorised"}
+# CANCEL_VALUES = {"cancel", "cancelled", "canceled", "user_cancel", "usercancel"}
+#
+# # Codes: extend with what myPOS actually emits
+# SUCCESS_CODES = {"0", "00", "000", "200"}  # OK-ish codes
+# FAIL_VALUES = {"failed", "failure", "declined", "denied", "error"}
+# FAIL_CODES = {"05", "51", "54", "57", "62", "65"}  # Do not honor, insufficient funds, expired, etc.
 
-# Codes: extend with what myPOS actually emits
-SUCCESS_CODES = {"0", "00", "000", "200"}  # OK-ish codes
-FAIL_VALUES = {"failed", "failure", "declined", "denied", "error"}
-FAIL_CODES = {"05", "51", "54", "57", "62", "65"}  # Do not honor, insufficient funds, expired, etc.
 
-
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def payment_cancel(request):
     """
@@ -1257,8 +1260,8 @@ def payment_result(request):
     Browser lands here from myPOS (URL_OK / URL_Cancel).
 
     Rules:
-      - DB is the source of truth (payment_status='paid' => SUCCESS) — handled where you read the order.
-      - If DB not yet paid and Status/ResponseCode are missing/OK => PENDING (not FAILED).
+      - DB is the source of truth (payment_status='paid' => SUCCESS).
+      - If DB not yet paid but gateway says success -> mark as paid here as a fallback.
       - CANCEL values => CANCELLED immediately.
       - Explicit decline values/codes => FAILED.
     """
@@ -1267,7 +1270,7 @@ def payment_result(request):
     flow = (data.get("flow") or data.get("FLOW") or "").strip().lower()
     is_cancel_flow = (flow == "cancel")
 
-    # 2) Debug dump
+    # Debug dump
     if getattr(settings, "DEBUG", False):
         try:
             import json as _json
@@ -1277,80 +1280,94 @@ def payment_result(request):
         except Exception:
             pass
 
-    # 3) Extract fields (case-insensitive), trimmed
+    # 2) Extract fields
     raw_status = (data.get("Status") or data.get("status") or data.get("STATUS") or "").strip()
     status_lc = raw_status.lower()
 
-    # Some integrations also send result/response code fields
     resp_code = (
             data.get("ResponseCode") or data.get("responsecode") or
             data.get("ResultCode") or data.get("resultcode") or
-            data.get("RespCode") or data.get("respcode") or
-            ""
+            data.get("RespCode") or data.get("respcode") or ""
     )
     resp_code = str(resp_code).strip()
 
     txn_id = (data.get("OrderID") or data.get("orderid") or data.get("order_id") or "").strip()
     if not txn_id:
-        # fallback to what we initiated (set in mypos_payment)
         txn_id = (request.session.get("last_txn") or "").strip()
 
     error_msg = str(
         data.get("error") or data.get("Reason") or data.get("Message") or data.get("reason") or ""
     )
 
-    # 4) DB-first truth
+    # 3) DB-first truth
     order = Order.objects.filter(transaction_id=txn_id).first()
     order_pk = order.pk if order else None
     paid_by_server = bool(order and getattr(order, "payment_status", "") == "paid")
 
-    # if cancel flow & we have an order, you can persist a status
+    # If cancel flow & we have an order, persist cancel (unless already paid)
     if is_cancel_flow and order and getattr(order, "payment_status", "") != "paid":
         if hasattr(order, "payment_status"):
             order.payment_status = "cancelled"
             order.save(update_fields=["payment_status"])
 
-    # 5) Decide flags
+    # 4) Interpret gateway status
+    has_status = bool(raw_status)
+    has_code = bool(resp_code)
+
+    is_success = (status_lc in SUCCESS_VALUES) or (resp_code in SUCCESS_CODES)
+    is_cancel = (status_lc in CANCEL_VALUES) or is_cancel_flow
+    is_fail = (status_lc in FAIL_VALUES) or (resp_code in FAIL_CODES)
+
+    # --- NEW: if gateway clearly says success and DB is NOT paid yet,
+    #           upgrade the order to paid right here. ---
+    if order and (not paid_by_server) and is_success and not is_cancel:
+        prev = order.payment_status or "pending"
+        order.payment_status = "paid"
+        fields = ["payment_status"]
+        if hasattr(order, "paid"):
+            order.paid = True
+            fields.append("paid")
+        if hasattr(order, "paid_at"):
+            order.paid_at = timezone.now()
+            fields.append("paid_at")
+        order.save(update_fields=fields)
+        paid_by_server = True
+        print(f"[payment_result] Upgraded order {order.pk} from {prev} -> paid (fallback).")
+
+    # 5) Decide flags for template
     if paid_by_server:
         success = True
         pending = False
         cancelled = False
         failed = False
     else:
-        has_status = bool(raw_status)
-        has_code = bool(resp_code)
-
-        is_success = (status_lc in SUCCESS_VALUES) or (resp_code in SUCCESS_CODES)
-        is_cancel = (status_lc in CANCEL_VALUES)
-        is_fail = (status_lc in FAIL_VALUES) or (resp_code in FAIL_CODES)
-
-        if is_cancel or is_cancel_flow:
+        if is_cancel:
             success = False
             pending = False
             cancelled = True
             failed = False
         elif is_fail:
-            success = False;
-            pending = False;
-            cancelled = False;
+            success = False
+            pending = False
+            cancelled = False
             failed = True
         elif is_success:
-            # Gateway indicates success but DB not yet updated by callback -> pending
-            success = False;
-            pending = True;
-            cancelled = False;
+            # Gateway indicates success but DB not yet updated -> pending
+            success = False
+            pending = True
+            cancelled = False
             failed = False
         elif not has_status and not has_code:
             # Typical browser redirect with no data -> pending, not failed
-            success = False;
-            pending = True;
-            cancelled = False;
+            success = False
+            pending = True
+            cancelled = False
             failed = False
         else:
             # Unknown non-success signal -> failed
-            success = False;
-            pending = False;
-            cancelled = False;
+            success = False
+            pending = False
+            cancelled = False
             failed = True
 
     # 6) Clear cart ONLY when DB says it's paid
@@ -1358,7 +1375,7 @@ def payment_result(request):
         set_session_cart(request, {})
 
     ctx = {
-        "status": raw_status or (resp_code or ""),  # show code if that's all we have
+        "status": raw_status or (resp_code or ""),
         "order_id": txn_id,
         "order_pk": order_pk,
         "success": success,
@@ -1374,7 +1391,6 @@ def payment_result(request):
               f"raw_status='{raw_status}' resp_code='{resp_code}' "
               f"-> success={success}, pending={pending}, cancelled={cancelled}, failed={failed}")
 
-    # 7) Render normally; if template fails, respond safely (never 500 here)
     try:
         return render(request, "store/payment_result.html", ctx)
     except (TemplateDoesNotExist, NoReverseMatch) as e:
