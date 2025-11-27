@@ -38,7 +38,7 @@ from .utils import (
     econtlog,
     get_econt_delivery_price_for_order,
     econt_get_cities,
-    econt_shipping_preview_for_cart, COD_VALUES,
+    econt_shipping_preview_for_cart, COD_VALUES, send_order_emails_with_tracking,
 )
 
 logger = logging.getLogger(__name__)
