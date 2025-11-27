@@ -1,5 +1,31 @@
 {% extends 'store/base_store.html' %}
+
 {% block title %}Обобщение на поръчката | Сакарела{% endblock %}
+
+{# --- PRINT CSS --- #}
+{% block extra_css %}
+    <style>
+        /* Suggest page size and margins (browsers may still override) */
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            /* Hide buttons, nav, etc. when printing */
+            .btn-return-to-store,
+            .some-header,
+            .some-footer {
+                display: none !important;
+            }
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
     <div class="recipe-hero">
@@ -7,6 +33,7 @@
             <h1 class="recipe-hero-title">Количка</h1>
         </div>
     </div>
+
     <!-- Breadcrumbs -->
     <div class="breadcrumb-container">
         <nav aria-label="breadcrumb">
@@ -32,11 +59,10 @@
                             <span class="detail-label">Име:</span>
                             <span class="detail-value">{{ order.full_name }} {{ order.last_name }}</span>
                         </div>
-                        <!-- NEW: phone -->
-                        <div class="detail-item"> <!-- NEW -->
-                            <span class="detail-label">Телефон:</span> <!-- NEW -->
-                            <span class="detail-value">{{ order.phone }}</span> <!-- NEW -->
-                        </div> <!-- NEW -->
+                        <div class="detail-item">
+                            <span class="detail-label">Телефон:</span>
+                            <span class="detail-value">{{ order.phone }}</span>
+                        </div>
                         <div class="detail-item">
                             <span class="detail-label">Имейл:</span>
                             <span class="detail-value">{{ order.email }}</span>
@@ -47,8 +73,9 @@
                         </div>
                         <div class="detail-item full-width">
                             <span class="detail-label">Улица:</span>
-                            <span class="detail-value">{{ order.address1 }}{% if order.address2 %},
-                                {{ order.address2 }}{% endif %}</span>
+                            <span class="detail-value">
+                                {{ order.address1 }}{% if order.address2 %}, {{ order.address2 }}{% endif %}
+                            </span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Пощенски код:</span>
@@ -107,14 +134,13 @@
                     </div>
                 </section>
 
-                <div class="summary-actions">
+                <div class="summary-actions" style="justify-content: space-evenly">
                     <a href="{% url 'store:store_home' %}" class="btn-return-to-store">
                         <i class="fas fa-arrow-left"></i>
                         Към магазин
                     </a>
 
-                    <button type="button" class="btn-return-to-store"
-                            onclick="printReceipt()">
+                    <button type="button" class="btn-return-to-store" onclick="printReceipt()">
                         <i class="fas fa-print"></i>
                         Принтирай поръчката
                     </button>
@@ -122,21 +148,23 @@
             </div>
         </div>
     </div>
+
     <section class="yellow-bar">
         <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
-    {% block extra_js %}
-        <script>
-            function printReceipt() {
-                window.print();
-            }
+{% endblock %}
 
-            // Auto-print if we came from the payment_result redirect (?print=1)
-            {% if auto_print %}
-                window.addEventListener('load', function () {
-                    printReceipt();
-                });
-            {% endif %}
-        </script>
-    {% endblock %}
+{% block extra_js %}
+    <script>
+        function printReceipt() {
+            window.print();
+        }
+
+        // Auto-print if we came from the payment_result redirect (?print=1)
+        {% if auto_print %}
+            window.addEventListener('load', function () {
+                printReceipt();
+            });
+        {% endif %}
+    </script>
 {% endblock %}
