@@ -3,21 +3,24 @@
 {% block title %}Обобщение на поръчката | Сакарела{% endblock %}
 
 {# --- PRINT CSS --- #}
+{% extends 'store/base_store.html' %}
+
+{% block title %}Обобщение на поръчката | Сакарела{% endblock %}
+
+{# if your base has an extra_css or extra_head block, use that #}
 {% block extra_css %}
     <style>
-        /* Suggest page size and margins (browsers may still override) */
-        @page {
-            size: A4 portrait;
-            margin: 10mm;
-        }
-
         @media print {
             body {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
 
-            /* Hide buttons, nav, etc. when printing */
+            @page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+
             .btn-return-to-store,
             .some-header,
             .some-footer {
@@ -140,7 +143,8 @@
                         Към магазин
                     </a>
 
-                    <button type="button" class="btn-return-to-store" onclick="printReceipt()">
+                    <button type="button" class="btn-return-to-store"
+                            onclick="printReceipt()">
                         <i class="fas fa-print"></i>
                         Принтирай поръчката
                     </button>
@@ -160,7 +164,7 @@
             window.print();
         }
 
-        // Auto-print if we came from the payment_result redirect (?print=1)
+        // Auto-print when redirected from payment_result with auto_print=True
         {% if auto_print %}
             window.addEventListener('load', function () {
                 printReceipt();
