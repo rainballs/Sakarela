@@ -344,9 +344,9 @@
         }, 4000);
     {% endif %}
 
-    {% if success and order_pk %}
-        setTimeout(function(){ window.location.href = "{% url 'store:econt_redirect' order_pk %}"; }, 1200);
-    {% endif %}
+{#    {% if success and order_pk %}#}
+{#        setTimeout(function(){ window.location.href = "{% url 'store:econt_redirect' order_pk %}"; }, 1200);#}
+{#    {% endif %}#}
 
     {% if success %}
         // setTimeout(function(){ window.location.href = "{% url 'store:store_home' %}"; }, 10000);
