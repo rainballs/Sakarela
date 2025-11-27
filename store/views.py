@@ -901,7 +901,7 @@ def mypos_payment(request, order_id):
 
         request.session['last_txn'] = order.transaction_id
 
-        # 4) Build params in insertion order (exactly as posted)
+        # 4) Build params
         params = OrderedDict([
             ("IPCmethod", "IPCPurchase"),
             ("IPCVersion", "1.4"),
@@ -928,14 +928,14 @@ def mypos_payment(request, order_id):
             ("Note", ""),
         ])
 
-        # 5) Line items (BEFORE signing)
+        # 5) Line items
         order_items = order.order_items.select_related('product').all()
         has_shipping = shipping > 0
 
         params["CartItems"] = str(order_items.count() + (1 if has_shipping else 0))
 
         for idx, item in enumerate(order_items, start=1):
-            price = float(item.price)  # captured OrderItem price
+            price = float(item.price)
             params[f'Article_{idx}'] = (item.product.name or "")[:100]
             params[f'Quantity_{idx}'] = str(int(item.quantity))
             params[f'Price_{idx}'] = f"{price:.2f}"
@@ -952,12 +952,12 @@ def mypos_payment(request, order_id):
             params[f'Currency_{idx}'] = DEFAULT_CURRENCY
             params[f'Amount_{idx}'] = f"{shipping_float:.2f}"
 
-        # 6) Sign (exclude Signature from the string to sign)
+        # 6) Sign
         with open(settings.MYPOS_PRIVATE_KEY_PATH, "rb") as fh:
             pk_bytes = fh.read()
         params["Signature"] = sign_params_in_post_order(params, pk_bytes)
 
-        # 7) Debug/audit logging
+        # 7) Debug log (unchanged)
         paylog = logging.getLogger("payments")
         sum_items = sum(float(i.quantity) * float(i.price) for i in order_items)
         if has_shipping:
@@ -974,15 +974,18 @@ def mypos_payment(request, order_id):
         paylog.info("signature=%s...%s", params["Signature"][:12], params["Signature"][-12:])
 
         # 8) Auto-post form to myPOS
-        return render(request, "store/payment_redirect.html", {
-            "action_url": settings.MYPOS_BASE_URL,
-            "params": params,
-        })
-
+        return render(
+            request,
+            "store/payment_redirect.html",
+            {
+                "action_url": settings.MYPOS_BASE_URL,
+                "params": params,
+            },
+        )
     except Exception:
-        logger.exception("myPOS initiation failed for order %s", order.id)
-        messages.error(request, "Възникна грешка при иницииране на плащането. Опитайте отново.")
-        return redirect('store:order_summary', pk=order.pk)
+        logger.exception("mypos_payment: unexpected error for order %s", order.id)
+        messages.error(request, "Възникна грешка при иницииране на плащането. Моля, опитайте отново.")
+        return redirect("store:order_info")
 
 
 # @csrf_exempt
