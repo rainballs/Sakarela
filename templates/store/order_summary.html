@@ -2,8 +2,7 @@
 
 {% block title %}Обобщение на поръчката | Сакарела{% endblock %}
 
-{# if your base has an extra_css or extra_head block, use that #}
-{% block extra_css %}
+{% block content %}
     <style>
         @media print {
             body {
@@ -23,9 +22,7 @@
             }
         }
     </style>
-{% endblock %}
 
-{% block content %}
     <div class="recipe-hero">
         <div class="recipe-hero-content">
             <h1 class="recipe-hero-title">Количка</h1>
@@ -151,15 +148,13 @@
     <section class="yellow-bar">
         <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
-{% endblock %}
 
-{% block extra_js %}
+    <!-- Put script INSIDE content so it always renders -->
     <script>
         function printReceipt() {
             window.print();
         }
 
-        // Auto-print when redirected from payment_result with auto_print=True
         {% if auto_print %}
             window.addEventListener('load', function () {
                 printReceipt();
