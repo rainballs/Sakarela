@@ -1031,10 +1031,8 @@ def payment_callback(request):
     """
     paylog = logging.getLogger("payments")
 
-    # Raw POST data
-    data = request.POST
+    data = request.POST or request.GET
     try:
-        # nice logging, but never crash on it
         paylog.info("myPOS CALLBACK POST=%s", data.dict())
     except Exception:
         paylog.info("myPOS CALLBACK POST=%s", data)
@@ -1058,10 +1056,10 @@ def payment_callback(request):
         prev_status = (order.payment_status or "").lower()
 
         if prev_status != "paid":
+            # 1) Mark order as PAID
             order.payment_status = "paid"
             update_fields = ["payment_status"]
 
-            # keep your extra flags in sync if they exist
             if hasattr(order, "paid"):
                 order.paid = True
                 update_fields.append("paid")
@@ -1075,18 +1073,7 @@ def payment_callback(request):
                 order.pk, ipc_method, data.get("Amount"), data.get("Currency")
             )
 
-            # create Econt label if needed
-            try:
-                pm = (str(order.payment_method) or "").strip().lower()
-                if pm not in COD_VALUES and not getattr(order, "econt_shipment_num", None):
-                    ensure_econt_label_json(order)
-            except Exception as e:
-                logging.getLogger("payments").error(
-                    "payment_callback: failed to create Econt label for order %s: %s",
-                    order.pk, e
-                )
-
-            # After successful CARD payment create Econt label once (non-COD)
+            # 2) Create Econt label (for non-COD)
             try:
                 pm = (str(order.payment_method) or "").strip().lower()
                 if pm not in COD_VALUES and not getattr(order, "econt_shipment_num", None):
@@ -1094,6 +1081,15 @@ def payment_callback(request):
             except Exception as e:
                 paylog.error(
                     "myPOS CALLBACK: failed to create Econt label for order %s: %s",
+                    order.pk, e
+                )
+
+            # 3) Send admin + customer emails with tracking
+            try:
+                send_order_emails_with_tracking(order)
+            except Exception as e:
+                paylog.error(
+                    "myPOS CALLBACK: failed to send order emails for order %s: %s",
                     order.pk, e
                 )
         else:
