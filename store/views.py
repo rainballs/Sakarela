@@ -1018,68 +1018,87 @@ def mypos_payment(request, order_id):
 #     return HttpResponse("OK")
 
 @csrf_exempt
+@require_POST
 def payment_callback(request):
     """
-    myPOS server→server notification (URL_Notify).
+    myPOS server-to-server notification (URL_Notify).
 
-    Main job: mark order as paid/failed/cancelled based on
-    Status / ResponseCode, and on clear success call
-    _mark_order_paid_and_create_label(order, logger_source="callback").
+    For Checkout API 1.4 this is IPCPurchaseNotify:
+      - There is NO Status / ResponseCode.
+      - If we get this call successfully, the payment is considered approved.
+
+    We MUST respond with HTTP 200 and body "OK".
     """
-    data = request.POST or request.GET
     paylog = logging.getLogger("payments")
 
-    # 1) log raw payload
+    # Raw POST data
+    data = request.POST
     try:
-        paylog.info("myPOS CALLBACK POST=%s", getattr(request.POST, "dict", lambda: {})())
-        paylog.info("myPOS CALLBACK GET =%s", getattr(request.GET, "dict", lambda: {})())
+        # nice logging, but never crash on it
+        paylog.info("myPOS CALLBACK POST=%s", data.dict())
     except Exception:
-        pass
+        paylog.info("myPOS CALLBACK POST=%s", data)
 
-    raw_status = (
-            data.get("Status") or data.get("status") or data.get("STATUS") or
-            data.get("Result") or data.get("RESULT") or ""
-    ).strip()
-    status_lc = raw_status.lower()
+    ipc_method = (data.get("IPCmethod") or data.get("ipcMethod") or "").strip()
+    order_id = (data.get("OrderID") or data.get("orderid") or data.get("order_id") or "").strip()
 
-    resp_code = (
-            data.get("ResponseCode") or data.get("responsecode") or
-            data.get("ResultCode") or data.get("resultcode") or
-            data.get("RespCode") or data.get("respcode") or ""
-    )
-    resp_code = str(resp_code).strip()
+    paylog.info("myPOS CALLBACK normalized: IPCmethod=%s OrderID=%s", ipc_method, order_id)
 
-    order_id = (
-            data.get("OrderID") or data.get("orderid") or data.get("order_id") or ""
-    ).strip()
+    # Find order by transaction_id (OrderID)
+    order = Order.objects.filter(transaction_id=order_id).first()
+    if not order:
+        paylog.error("myPOS CALLBACK: order not found for OrderID=%s", order_id)
+        # Still respond OK so myPOS doesn't keep retrying forever
+        return HttpResponse("OK", content_type="text/plain")
 
-    paylog.info(
-        "myPOS CALLBACK normalized: OrderID=%s status_lc=%r resp_code=%r",
-        order_id, status_lc, resp_code
-    )
+    # Checkout 1.4: IPCPurchaseNotify / IPCPurchaseOK == SUCCESS
+    SUCCESS_METHODS = {"IPCPurchaseNotify", "IPCPurchaseOK"}
 
-    try:
-        order = Order.objects.get(transaction_id=order_id)
-    except Order.DoesNotExist:
-        paylog.error("myPOS CALLBACK: no Order with transaction_id=%r", order_id)
-        return HttpResponse("NO_ORDER", status=200)
+    if ipc_method in SUCCESS_METHODS:
+        prev_status = (order.payment_status or "").lower()
 
-    prev_status = (order.payment_status or "pending").lower()
+        if prev_status != "paid":
+            order.payment_status = "paid"
+            update_fields = ["payment_status"]
 
-    is_success = (status_lc in SUCCESS_VALUES) or (resp_code in SUCCESS_CODES)
-    is_cancel = (status_lc in CANCEL_VALUES)
-    is_fail = (status_lc in FAIL_VALUES) or (resp_code in FAIL_CODES)
+            # keep your extra flags in sync if they exist
+            if hasattr(order, "paid"):
+                order.paid = True
+                update_fields.append("paid")
+            if hasattr(order, "paid_at"):
+                order.paid_at = timezone.now()
+                update_fields.append("paid_at")
 
-    if is_success:
-        _mark_order_paid_and_create_label(order, logger_source="callback")
-    elif is_cancel and prev_status != "paid":
-        order.payment_status = "cancelled"
-        order.save(update_fields=["payment_status"])
-    elif is_fail and prev_status != "paid":
-        order.payment_status = "failed"
-        order.save(update_fields=["payment_status"])
+            order.save(update_fields=update_fields)
+            paylog.info(
+                "myPOS CALLBACK: order %s marked PAID via %s (Amount=%s %s)",
+                order.pk, ipc_method, data.get("Amount"), data.get("Currency")
+            )
 
-    return HttpResponse("OK")
+            # After successful CARD payment create Econt label once (non-COD)
+            try:
+                pm = (str(order.payment_method) or "").strip().lower()
+                if pm not in COD_VALUES and not getattr(order, "econt_shipment_num", None):
+                    ensure_econt_label_json(order)
+            except Exception as e:
+                paylog.error(
+                    "myPOS CALLBACK: failed to create Econt label for order %s: %s",
+                    order.pk, e
+                )
+        else:
+            paylog.info(
+                "myPOS CALLBACK: order %s already paid, ignoring duplicate notify.",
+                order.pk
+            )
+    else:
+        # Some other IPCmethod – log but still return OK per docs
+        paylog.warning(
+            "myPOS CALLBACK: unsupported IPCmethod=%s for OrderID=%s",
+            ipc_method, order_id
+        )
+
+    # myPOS doc: MUST respond 200 OK with body "OK"
+    return HttpResponse("OK", content_type="text/plain")
 
 
 def _mark_order_paid_and_create_label(order, logger_source="result"):
