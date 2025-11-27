@@ -55,6 +55,35 @@ FAIL_VALUES = {"failed", "failure", "declined", "denied", "error"}
 FAIL_CODES = {"05", "51", "54", "57", "62", "65"}
 
 
+def _econt_items_from_order(order):
+    """
+    Convert Order + OrderItems into the structure that
+    econt_shipping_preview_for_cart() expects.
+    """
+    items = []
+    for oi in order.order_items.select_related("product").all():
+        # In order_info() we stored packaging weight in unit_weight_g (kg)
+        try:
+            weight_kg = Decimal(str(oi.unit_weight_g or "0"))
+        except Exception:
+            weight_kg = Decimal("0")
+
+        items.append({
+            "product": oi.product,
+            "quantity": oi.quantity,
+            "price": oi.price,
+            "weight_kg": weight_kg,
+        })
+
+    # Use already saved order.total if present, otherwise sum items
+    cart_total = order.total or sum(
+        (oi.price or Decimal("0")) * (oi.quantity or 0)
+        for oi in order.order_items.all()
+    )
+
+    return items, cart_total
+
+
 def econt_city_suggestions(request):
     """
     Return small list of cities for autocomplete.
@@ -582,17 +611,33 @@ def order_info(request):
             # 1b) recalc total AFTER items are created
             order.update_total()
 
-        # 2) Econt – REAL shipping calculation (your existing helper)
-        try:
-            shipping = get_econt_delivery_price_for_order(order)
-            if shipping is not None:
-                order.shipping_cost = shipping
+            # 2) Econt – REAL shipping calculation using the same logic
+            #    as the preview (LabelService.calculate).
+            try:
+                items, cart_total = _econt_items_from_order(order)
+
+                shipping_cost = econt_shipping_preview_for_cart(
+                    items=items,
+                    cart_total=cart_total,
+                    city=order.city or "",
+                    post_code=order.post_code or "",
+                    payment_method=order.payment_method or "",
+                )
+                if shipping_cost is None:
+                    shipping_cost = Decimal("0.00")
+
+                shipping_cost = Decimal(str(shipping_cost)).quantize(Decimal("0.01"))
+                order.shipping_cost = shipping_cost
                 order.save(update_fields=["shipping_cost"])
-        except Exception as exc:
-            econtlog.error(
-                "Failed to calculate Econt delivery price for order %s: %s",
-                order.pk, exc
-            )
+            except Exception as exc:
+                econtlog.error(
+                    "Failed to calculate Econt delivery price for order %s: %s",
+                    order.pk, exc
+                )
+                # fallback: keep shipping 0 but do NOT break checkout
+                if order.shipping_cost is None:
+                    order.shipping_cost = Decimal("0.00")
+                    order.save(update_fields=["shipping_cost"])
 
         # 3) Decide payment type
         pm = (str(order.payment_method) or "").strip().lower()
