@@ -9,9 +9,9 @@
 <p>Вашата поръчка № <strong>{{ order.id }}</strong> беше приета.</p>
 
 <p>
-    Обща стойност на продуктите: {{ order.total }} лв.<br>
-    Доставка (Еконт): {{ order.shipping_cost|default_if_none:"0.00" }} лв.<br>
-    Крайна сума: {{ order.total|add:order.shipping_cost|default:order.total }} лв.
+    Обща стойност на продуктите: {{ subtotal|floatformat:2 }} лв.<br>
+    Доставка (Еконт): {{ shipping|floatformat:2 }} лв.<br>
+    Крайна сума: {{ grand_total|floatformat:2 }} лв.
 </p>
 
 {% if tracking_url %}
@@ -21,7 +21,8 @@
     </p>
 {% else %}
     <p>
-        Номерът на Еконт пратката ще Ви бъде изпратен допълнително, след като бъде генериран.
+        Номерът на Еконт пратката ще Ви бъде изпратен допълнително,
+        след като бъде генериран.
     </p>
 {% endif %}
 

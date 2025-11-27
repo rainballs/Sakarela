@@ -13,15 +13,16 @@
 </p>
 
 <p>
-    Сума продукти: {{ order.total }} лв.<br>
-    Доставка (Еконт): {{ order.shipping_cost|default_if_none:"0.00" }} лв.<br>
-    Крайна сума: {{ order.total|add:order.shipping_cost|default:order.total }} лв.
+    Сума продукти: {{ subtotal|floatformat:2 }} лв.<br>
+    Доставка (Еконт): {{ shipping|floatformat:2 }} лв.<br>
+    Крайна сума: {{ grand_total|floatformat:2 }} лв.
 </p>
 
 {% if tracking_url %}
     <p>
         Еконт пратка: {{ order.econt_shipment_num }}<br>
-        Линк за проследяване: <a href="{{ tracking_url }}">{{ tracking_url }}</a>
+        Линк за проследяване:
+        <a href="{{ tracking_url }}">{{ tracking_url }}</a>
     </p>
 {% endif %}
 </body>

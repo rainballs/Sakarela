@@ -1,16 +1,14 @@
 Нова поръчка № {{ order.id }}
 
-Клиент: {{ order.full_name }} {{ order.last_name }}
+Клиент: {{ order.full_name }}
 Телефон: {{ order.phone }}
 Имейл: {{ order.email }}
 Град: {{ order.city }}, {{ order.post_code }}
 Адрес: {{ order.address1 }}{% if order.address2 %}, {{ order.address2 }}{% endif %}
 
-Сума продукти: {{ product_total|floatformat:2 }} лв.
+Сума продукти: {{ subtotal|floatformat:2 }} лв.
 Доставка (Еконт): {{ shipping|floatformat:2 }} лв.
 Крайна сума: {{ grand_total|floatformat:2 }} лв.
 
-{% if tracking_url %}
 Еконт пратка: {{ order.econt_shipment_num }}
-Проследяване: {{ tracking_url }}
-{% endif %}
+Линк за проследяване: {{ tracking_url }}
