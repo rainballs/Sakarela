@@ -5,20 +5,43 @@
 {% block content %}
     <style>
         @media print {
-            body {
+            /* Make the whole page free-flowing for print */
+            html, body {
+                height: auto !important;
+                overflow: visible !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+            }
+
+            /* Remove any viewport-based layout that might crop */
+            .order-summary-container,
+            .order-summary-box,
+            .order-summary-content {
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            /* Optional: remove card look & extra padding to fit better */
+            .order-summary-box {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Hide stuff you don’t want on the print */
+            .btn-return-to-store,
+            .yellow-bar,
+            .recipe-hero,
+            .breadcrumb-container,
+            .site-header,
+            .site-footer {
+                display: none !important;
             }
 
             @page {
                 size: A4 portrait;
                 margin: 10mm;
-            }
-
-            .btn-return-to-store,
-            .some-header,
-            .some-footer {
-                display: none !important;
             }
         }
     </style>
