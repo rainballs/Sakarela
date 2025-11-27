@@ -694,22 +694,29 @@ def econt_tracking_url(order) -> str | None:
 def send_order_emails_with_tracking(order):
     tracking_url = econt_tracking_url(order)
 
-    # 💰 FINAL TOTAL = products + shipping (same as myPOS)
-    items_total = order.total or Decimal("0.00")
-    shipping = order.shipping_cost or Decimal("0.00")
-    final_total = (items_total + shipping).quantize(Decimal("0.01"))
+    # --- calculate totals in Python, not in the template ---
+    product_total = Decimal(order.total or 0)
+    shipping = Decimal(order.shipping_cost or 0)
+    grand_total = (product_total + shipping).quantize(Decimal("0.01"))
+
+    base_ctx = {
+        "order": order,
+        "tracking_url": tracking_url,
+        "product_total": product_total,
+        "shipping": shipping,
+        "grand_total": grand_total,
+    }
 
     # --------- ADMIN EMAIL ----------
-    admin_email = getattr(settings, "ORDER_NOTIFY_EMAIL", None) or getattr(settings, "DEFAULT_FROM_EMAIL", None)
+    admin_email = (
+            getattr(settings, "ORDER_NOTIFY_EMAIL", None)
+            or getattr(settings, "DEFAULT_FROM_EMAIL", None)
+    )
+
     if admin_email:
         subject_admin = f"[Сакарела] Нова поръчка #{order.id}"
-        ctx_admin = {
-            "order": order,
-            "tracking_url": tracking_url,
-            "items_total": items_total,
-            "shipping": shipping,
-            "final_total": final_total,  # <<<<<<<<<<
-        }
+        ctx_admin = base_ctx
+
         text_body_admin = render_to_string("store/email/order_admin.txt", ctx_admin)
         html_body_admin = render_to_string("store/email/order_admin.html", ctx_admin)
 
@@ -725,13 +732,8 @@ def send_order_emails_with_tracking(order):
     # --------- CUSTOMER EMAIL ----------
     if order.email:
         subject_customer = f"Вашата поръчка #{order.id} в Сакарела"
-        ctx_customer = {
-            "order": order,
-            "tracking_url": tracking_url,
-            "items_total": items_total,
-            "shipping": shipping,
-            "final_total": final_total,  # <<<<<<<<<<
-        }
+        ctx_customer = base_ctx
+
         text_body_cust = render_to_string("store/email/order_customer.txt", ctx_customer)
         html_body_cust = render_to_string("store/email/order_customer.html", ctx_customer)
 
