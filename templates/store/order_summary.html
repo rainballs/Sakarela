@@ -112,6 +112,12 @@
                         <i class="fas fa-arrow-left"></i>
                         Към магазин
                     </a>
+
+                    <button type="button" class="btn-return-to-store"
+                            onclick="printReceipt()">
+                        <i class="fas fa-print"></i>
+                        Принтирай поръчката
+                    </button>
                 </div>
             </div>
         </div>
@@ -119,4 +125,18 @@
     <section class="yellow-bar">
         <p class="yellow-bar-text">ПРОДУКТИ С ГАРАНТИРАНО КАЧЕСТВО И ПРОИЗХОД</p>
     </section>
+    {% block extra_js %}
+        <script>
+            function printReceipt() {
+                window.print();
+            }
+
+            // Auto-print if we came from the payment_result redirect (?print=1)
+            {% if auto_print %}
+                window.addEventListener('load', function () {
+                    printReceipt();
+                });
+            {% endif %}
+        </script>
+    {% endblock %}
 {% endblock %}
