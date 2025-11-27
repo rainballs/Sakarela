@@ -1,0 +1,16 @@
+Благодарим Ви за поръчката!
+
+Поръчка № {{ order.id }}
+
+Обща стойност на продуктите: {{ order.total }} лв.
+Доставка (Еконт): {{ order.shipping_cost|default_if_none:"0.00" }} лв.
+Крайна сума: {{ order.total|add:order.shipping_cost|default:order.total }} лв.
+
+{% if tracking_url %}
+Проследете пратката в Еконт:
+{{ tracking_url }}
+{% else %}
+Номерът на Еконт пратката ще Ви бъде изпратен допълнително, след като бъде генериран.
+{% endif %}
+
+Екипът на Сакарела

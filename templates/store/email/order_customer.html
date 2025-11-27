@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="bg">
+<meta charset="utf-8">
+<body style="font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;">
+<h2>Благодарим Ви за поръчката!</h2>
+
+<p>Здравейте, {{ order.full_name }} {{ order.last_name }},</p>
+
+<p>Вашата поръчка № <strong>{{ order.id }}</strong> беше приета.</p>
+
+<p>
+    Обща стойност на продуктите: {{ order.total }} лв.<br>
+    Доставка (Еконт): {{ order.shipping_cost|default_if_none:"0.00" }} лв.<br>
+    Крайна сума: {{ order.total|add:order.shipping_cost|default:order.total }} лв.
+</p>
+
+{% if tracking_url %}
+    <p>
+        Можете да следите статуса на пратката си тук:<br>
+        <a href="{{ tracking_url }}">{{ tracking_url }}</a>
+    </p>
+{% else %}
+    <p>
+        Номерът на Еконт пратката ще Ви бъде изпратен допълнително, след като бъде генериран.
+    </p>
+{% endif %}
+
+<p>Поздрави,<br>Екипът на Сакарела</p>
+</body>
+</html>

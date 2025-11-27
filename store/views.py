@@ -1415,6 +1415,14 @@ def payment_result(request):
                 order.pk, e
             )
 
+        # >>> ново: изпрати имейлите
+        try:
+            send_order_emails_with_tracking(order)
+        except Exception as e:
+            logging.getLogger("payments").error(
+                "payment_result: failed to send order emails for order %s: %s",
+                order.pk, e
+            )
     # --- Derive flags for template ---
     if paid_by_server:
         success = True

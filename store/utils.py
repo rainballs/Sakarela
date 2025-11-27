@@ -5,6 +5,8 @@ import time
 import requests
 import xml.etree.ElementTree as ET
 from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 from requests.auth import HTTPBasicAuth
 import logging, json as _json
 from datetime import date, timedelta
@@ -676,3 +678,61 @@ def ensure_econt_label_json(order):
         label_url,
     )
     return shipment_num, label_url, data
+
+
+def econt_tracking_url(order) -> str | None:
+    """
+    Връща URL за проследяване в Еконт или None, ако няма номер.
+    """
+    num = getattr(order, "econt_shipment_num", "") or ""
+    num = str(num).strip()
+    if not num:
+        return None
+    return f"https://www.econt.com/services/track-shipment/{num}"
+
+
+def send_order_emails_with_tracking(order):
+    """
+    Изпраща имейл до администратора и до клиента с линк за проследяване,
+    ако има econt_shipment_num.
+    """
+    tracking_url = econt_tracking_url(order)
+
+    # --------- ADMIN EMAIL ----------
+    admin_email = getattr(settings, "ORDER_NOTIFY_EMAIL", None) or getattr(settings, "DEFAULT_FROM_EMAIL", None)
+    if admin_email:
+        subject_admin = f"[Сакарела] Нова поръчка #{order.id}"
+        ctx_admin = {
+            "order": order,
+            "tracking_url": tracking_url,
+        }
+        text_body_admin = render_to_string("store/email/order_admin.txt", ctx_admin)
+        html_body_admin = render_to_string("store/email/order_admin.html", ctx_admin)
+
+        msg_admin = EmailMultiAlternatives(
+            subject_admin,
+            text_body_admin,
+            settings.DEFAULT_FROM_EMAIL,
+            [admin_email],
+        )
+        msg_admin.attach_alternative(html_body_admin, "text/html")
+        msg_admin.send(fail_silently=True)
+
+    # --------- CUSTOMER EMAIL ----------
+    if order.email:
+        subject_customer = f"Вашата поръчка #{order.id} в Сакарела"
+        ctx_customer = {
+            "order": order,
+            "tracking_url": tracking_url,
+        }
+        text_body_cust = render_to_string("store/email/order_customer.txt", ctx_customer)
+        html_body_cust = render_to_string("store/email/order_customer.html", ctx_customer)
+
+        msg_cust = EmailMultiAlternatives(
+            subject_customer,
+            text_body_cust,
+            settings.DEFAULT_FROM_EMAIL,
+            [order.email],
+        )
+        msg_cust.attach_alternative(html_body_cust, "text/html")
+        msg_cust.send(fail_silently=True)
