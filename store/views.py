@@ -1075,6 +1075,17 @@ def payment_callback(request):
                 order.pk, ipc_method, data.get("Amount"), data.get("Currency")
             )
 
+            # create Econt label if needed
+            try:
+                pm = (str(order.payment_method) or "").strip().lower()
+                if pm not in COD_VALUES and not getattr(order, "econt_shipment_num", None):
+                    ensure_econt_label_json(order)
+            except Exception as e:
+                logging.getLogger("payments").error(
+                    "payment_callback: failed to create Econt label for order %s: %s",
+                    order.pk, e
+                )
+
             # After successful CARD payment create Econt label once (non-COD)
             try:
                 pm = (str(order.payment_method) or "").strip().lower()
