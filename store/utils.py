@@ -697,7 +697,7 @@ def send_order_emails_with_tracking(order):
     # --- compute amounts exactly once, the same way as in mypos_payment ---
     subtotal = Decimal(order.total or 0)
     shipping = Decimal(order.shipping_cost or 0)
-    grand_total = (subtotal + shipping).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    grand_total = (subtotal + shipping).quantize(Decimal("0.01"))
 
     # --------- ADMIN EMAIL ----------
     admin_email = getattr(settings, "ORDER_NOTIFY_EMAIL", None) or getattr(settings, "DEFAULT_FROM_EMAIL", None)
