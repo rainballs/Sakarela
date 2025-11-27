@@ -175,6 +175,7 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
+ORDER_NOTIFY_EMAIL = config("ORDER_NOTIFY_EMAIL", default=DEFAULT_FROM_EMAIL)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -220,8 +221,8 @@ ECONT_SENDER_NAME = os.getenv("ECONT_SENDER_NAME", "Сакарела")
 ECONT_SENDER_PHONE = os.getenv("ECONT_SENDER_PHONE", "+359878630943")
 ECONT_SENDER_CITY = os.getenv("ECONT_SENDER_CITY", "Бургас")
 ECONT_SENDER_POSTCODE = os.getenv("ECONT_SENDER_POSTCODE", "8000")
-ECONT_SENDER_STREET   = os.getenv("ECONT_SENDER_STREET", "")
-ECONT_SENDER_STREET_NO= os.getenv("ECONT_SENDER_STREET_NO", "")
+ECONT_SENDER_STREET = os.getenv("ECONT_SENDER_STREET", "")
+ECONT_SENDER_STREET_NO = os.getenv("ECONT_SENDER_STREET_NO", "")
 
 # --- Backward-compat aliases (safe no-ops if you referenced old names) ---
 ECONT_USERNAME = os.getenv("ECONT_USERNAME", ECONT_USER or "")
