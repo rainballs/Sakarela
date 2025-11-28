@@ -535,31 +535,48 @@ def build_econt_label_payload(order):
             },
             "street": order.address1 or "",
         },
-        "instructions": [
-            {
-                "type": "return",
-                "returnInstructionParams": {
-                    # Къде да се върне опаковката
-                    "returnParcelDestination": "sender",  # обратно при теб
-
-                    # Какво се връща – пратка, не документ
-                    "returnParcelIsDocument": False,
-
-                    # Не е празен палет; връщаме същия тип пратка
-                    "returnParcelIsEmptyPallet": False,
-
-                    # 0 дни = веднага след доставката
-                    "daysUntilReturn": 0,
-
-                    # Кой плаща връщането – ти (подателят)
-                    "returnParcelPaymentSide": "sender",
-
-                    # Да се генерира товарителница за връщане още при създаване
-                    "printReturnParcel": True,
-                },
-            }
-        ],
     }
+    # 🔁 NEW: instructions for courier + returnable cooling packaging
+    instructions = [
+        # 1) Hint to courier at delivery
+        {
+            "type": "give",
+            "title": "Връщаема охлаждаща опаковка",
+            "description": (
+                "Оставете при получателя само продуктите. "
+                "Охлаждащата/термо опаковка е собственост на подателя и "
+                "трябва да бъде върната обратно към него."
+            ),
+        },
+
+        # 2) Automatic return shipment for the packaging
+        {
+            "type": "return",
+            "returnInstructionParams": {
+                # Къде да се върне опаковката – откъдето е изпратена (твоят адрес)
+                "returnParcelDestination": "sender",
+
+                # Връщаме пратка, не документи
+                "returnParcelIsDocument": False,
+
+                # Не е празен палет
+                "returnParcelIsEmptyPallet": False,
+
+                # 0 дни = веднага след доставката
+                "daysUntilReturn": 0,
+
+                # Кой плаща връщането:
+                #   sender  = подател на обратната пратка (клиентът)
+                #   receiver = получател на обратната пратка (ти)
+                # Искаш ти да платиш => "receiver"
+                "returnParcelPaymentSide": "receiver",
+
+                # Да се генерира товарителница за връщане още при създаване
+                "printReturnParcel": True,
+            },
+        },
+    ]
+    label["instructions"] = instructions  # 🔁 NEW
 
     # --- services / COD + declared value ---
     services = {
