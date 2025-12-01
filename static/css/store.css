@@ -5889,11 +5889,11 @@ a:-webkit-any-link {
         padding: 1rem 1rem;
     }
 
-    .regular-price, .regular-price-euro{
+    .regular-price, .regular-price-euro {
         font-size: 1.2rem;
     }
 
-    .cart-item-card{
+    .cart-item-card {
         background: white;
     }
 
@@ -5901,7 +5901,7 @@ a:-webkit-any-link {
         margin-left: 1rem;
     }
 
-    .product-title{
+    .product-title {
         margin-left: 1rem;
     }
 
@@ -5919,3 +5919,60 @@ a:-webkit-any-link {
     }
 }
 
+.summary-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #eee;
+    gap: 1.5rem; /* space between the two buttons */
+}
+
+.btn-return-to-store {
+    background: #a8ba3c;
+    color: #fff;
+    border: none;
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-radius: 8px; /* a bit more rounded */
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.05s ease;
+    letter-spacing: 1px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    box-shadow: 0 8px 20px rgba(168, 186, 60, 0.35);
+}
+
+.btn-return-to-store:hover {
+    background: #8fa032;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(168, 186, 60, 0.4);
+    transform: translateY(1px);
+}
+
+.btn-return-to-store i {
+    font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+    .summary-actions {
+        flex-direction: column; /* stack buttons vertically */
+        align-items: stretch; /* make them full width */
+        gap: 1rem;
+    }
+
+    .btn-return-to-store {
+        width: 100%; /* full-width buttons */
+        max-width: 320px; /* but not too huge on tablets */
+        margin: 0 auto; /* center inside the container */
+        font-size: 1rem;
+        padding: 0.9rem 1.2rem;
+    }
+}
